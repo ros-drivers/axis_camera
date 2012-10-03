@@ -3,8 +3,8 @@
     <param name="hostname" value="192.168.2.4" />
     <param name="width" value="704" />
     <param name="height" value="480" />
-    <node pkg="clearpath_sensors" type="axis.py" name="axis" />
-    <node pkg="clearpath_sensors" type="axis_ptz.py" name="axis_ptz" />
+    <node pkg="axis_camera" type="axis.py" name="axis" />
+    <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" />
   </group>
 
   <!-- Viewer window -->
@@ -14,7 +14,7 @@
   </node>
 
   <!-- To control the PTZ, issue commands like so:
-  rostopic pub /axis/cmd clearpath_sensors/Axis '{ brightness: 5000, pan: 100, tilt: 10, zoom: 0, autofocus: True }'
+  rostopic pub /axis/cmd axis_camera/Axis '{ brightness: 5000, pan: 100, tilt: 10, zoom: 0, autofocus: True }'
   NOTE: Don't forget to populate the brightness field, or
         you'll get very dark images.
   -->
