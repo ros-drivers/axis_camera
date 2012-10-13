@@ -72,7 +72,7 @@ class StreamThread(threading.Thread):
 
       # Adding the best calibration we have for these cameras
       cimsg.D = [-0.26129794156876202, 0.053510647147691104, -0.004329961180682111, 0.0002979023290858089, 0]
-      cimsg.K = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 1.0]
+      cimsg.K = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 258.008685586678p78, 252.46066959143357, 0.0, 0.0, 1.0]
       cimsg.R = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
       cimsg.P = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 0.0, 1.0, 0.0]
 
@@ -88,7 +88,7 @@ class Axis:
     self.height = height
 
     self.st = None
-    self.pub = rospy.Publisher("compressed", CompressedImage, self)
+    self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
     self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
 
   def peer_subscribe(self, topic_name, topic_publish, peer_publish):
