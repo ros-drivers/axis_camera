@@ -88,7 +88,7 @@ class Axis:
     self.height = height
 
     self.st = None
-    self.pub = rospy.Publisher("compressed", CompressedImage, self)
+    self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
     self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
 
   def peer_subscribe(self, topic_name, topic_publish, peer_publish):
