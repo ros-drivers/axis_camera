@@ -4,7 +4,7 @@
 # https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera/axis.py
 #
 
-import os, sys, string, time, getopt
+import os, sys, string, time
 import urllib2
 
 import roslib; roslib.load_manifest('axis_camera') 
