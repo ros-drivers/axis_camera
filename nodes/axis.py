@@ -122,7 +122,7 @@ class Axis:
 
 
 def main():
-  rospy.init_node("axis")
+  rospy.init_node("axis_driver")
 
   arg_defaults = {
       'hostname': '192.168.0.90',       # default IP address
