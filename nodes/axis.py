@@ -5,7 +5,7 @@
 #
 
 import os, sys, string, time, getopt
-import urllib
+import urllib2
 
 import roslib; roslib.load_manifest('axis_camera') 
 import rospy 
@@ -36,7 +36,25 @@ class StreamThread(threading.Thread):
   def stream(self):
     url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
     url = url + "?resolultion=%dx%d" % (self.axis.width, self.axis.height)
-    fp = urllib.urlopen(url)
+
+    rospy.logdebug('opening ' + str(self.axis))
+
+    # create a password manager
+    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+
+    # Add the username and password, use default realm.
+    top_level_url = "http://" + self.axis.hostname
+    password_mgr.add_password(None, top_level_url,
+                              self.axis.username,
+                              self.axis.password)
+    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+
+    # create "opener" (OpenerDirector instance)
+    opener = urllib2.build_opener(handler)
+
+    # ...and install it globally so it can be used with urlopen.
+    urllib2.install_opener(opener)
+    fp = urllib2.urlopen(url)
 
     while True:
       boundary = fp.readline()
@@ -90,6 +108,11 @@ class Axis:
     self.st = None
     self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
     self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
+
+  def __str__(self):
+    """Return string representation."""
+    return(self.hostname + ',' + self.username + ',' + self.password +
+           '(' + str(self.width) + 'x' + str(self.height) + ')')
 
   def peer_subscribe(self, topic_name, topic_publish, peer_publish):
     # Lazy-start the image-publisher.
