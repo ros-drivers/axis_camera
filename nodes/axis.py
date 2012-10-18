@@ -125,15 +125,16 @@ def main():
   rospy.init_node("axis")
 
   arg_defaults = {
-      'hostname': '192.168.0.90',
-      'username': '',
+      'hostname': '192.168.0.90',       # default IP address
+      'username': 'root',               # default login name
       'password': '',
       'width': 640,
       'height': 480
       }
+
   args = {}
-  for name in arg_defaults:
-    args[name] = rospy.get_param(rospy.search_param(name), arg_defaults[name])
+  for name, val in arg_defaults.iteritems():
+    args[name] = rospy.get_param('~' + name, val)
 
   Axis(**args)
   rospy.spin()
