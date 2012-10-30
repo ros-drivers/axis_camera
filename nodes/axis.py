@@ -22,8 +22,6 @@ class StreamThread(threading.Thread):
     self.axis = axis
     self.daemon = True
 
-    self.axis_frame_id = "axis_camera_optical_frame"
-
   def run(self):
     while True:
       try:
@@ -75,7 +73,7 @@ class StreamThread(threading.Thread):
       
       msg = CompressedImage()
       msg.header.stamp = rospy.Time.now()
-      msg.header.frame_id = self.axis_frame_id
+      msg.header.frame_id = self.axis.frame_id
       msg.format = "jpeg"
       msg.data = img
 
@@ -84,10 +82,11 @@ class StreamThread(threading.Thread):
       """
       cimsg = CameraInfo()
       cimsg.header.stamp = msg.header.stamp
-      cimsg.header.frame_id = self.axis_frame_id
+      cimsg.header.frame_id = self.axis.frame_id
       cimsg.width = self.axis.width
       cimsg.height = self.axis.height
 
+      ## TODO: create a subset of camera_info_manager in Python
       # Adding the best calibration we have for these cameras
       cimsg.D = [-0.26129794156876202, 0.053510647147691104, -0.004329961180682111, 0.0002979023290858089, 0]
       cimsg.K = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 1.0]
@@ -98,12 +97,13 @@ class StreamThread(threading.Thread):
       """
 
 class Axis:
-  def __init__(self, hostname, username, password, width, height):
+  def __init__(self, hostname, username, password, width, height, frame_id):
     self.hostname = hostname
     self.username = username
     self.password = password
     self.width = width
     self.height = height
+    self.frame_id = frame_id
 
     self.st = None
     self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
@@ -129,7 +129,8 @@ def main():
       'username': 'root',               # default login name
       'password': '',
       'width': 640,
-      'height': 480
+      'height': 480,
+      'frame_id': 'axis_camera'
       }
 
   # Look up parameters starting in the driver's private parameter
