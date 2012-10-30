@@ -132,9 +132,17 @@ def main():
       'height': 480
       }
 
+  # Look up parameters starting in the driver's private parameter
+  # space, but also searching outer namespaces.  Defining them in a
+  # higher namespace allows the axis_ptz.py script to share parameters
+  # with the driver.
   args = {}
   for name, val in arg_defaults.iteritems():
-    args[name] = rospy.get_param('~' + name, val)
+    full_name = rospy.search_param(name)
+    if full_name is None:
+      args[name] = val
+    else:
+      args[name] = rospy.get_param(full_name, val)
 
   Axis(**args)
   rospy.spin()
