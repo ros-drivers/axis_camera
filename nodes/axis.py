@@ -145,6 +145,16 @@ def main():
     else:
       args[name] = rospy.get_param(full_name, val)
 
+  # resolve frame_id with tf_prefix (unless already absolute)
+  if args['frame_id'][0] != '/':        # not absolute?
+    tf_prefix = rospy.search_param('tf_prefix')
+    prefix_val = ''
+    if tf_prefix is not None:           # prefix defined?
+      prefix_val = rospy.get_param(tf_prefix)
+      if prefix_val[0] != '/':          # prefix not absolute?
+        prefix_val = '/' + prefix_val
+    args['frame_id'] = prefix_val + '/' + args['frame_id']
+
   Axis(**args)
   rospy.spin()
 
