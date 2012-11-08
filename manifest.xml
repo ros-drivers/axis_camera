@@ -8,6 +8,7 @@
   <url>http://ros.org/wiki/axis_camera</url>
   <depend package="rospy"/>
   <depend package="sensor_msgs"/>
+  <depend package="camera_info_manager_py"/>
 </package>
 
 

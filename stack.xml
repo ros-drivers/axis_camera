@@ -9,4 +9,5 @@
   <url>http://ros.org/wiki/axis_camera</url>
   <depend stack="ros" />
   <depend stack="ros_comm" />
+  <depend stack="camera_info_manager_py" />
 </stack>
