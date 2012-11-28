@@ -13,7 +13,7 @@ import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 
 import threading
-
+import camera_info_manager
 
 class StreamThread(threading.Thread):
   def __init__(self, axis):
@@ -79,32 +79,29 @@ class StreamThread(threading.Thread):
 
       self.axis.pub.publish(msg)
 
-      cimsg = CameraInfo()
+      cimsg = self.axis.cinfo.getCameraInfo()
       cimsg.header.stamp = msg.header.stamp
       cimsg.header.frame_id = self.axis.frame_id
       cimsg.width = self.axis.width
       cimsg.height = self.axis.height
-
-      """
-      ## TODO: create a subset of camera_info_manager in Python
-      # Adding the best calibration we have for these cameras
-      cimsg.D = [-0.26129794156876202, 0.053510647147691104, -0.004329961180682111, 0.0002979023290858089, 0]
-      cimsg.K = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 1.0]
-      cimsg.R = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-      cimsg.P = [259.79888071407669, 0.0, 332.0316187674498, 0.0, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 0.0, 1.0, 0.0]
-      """
-
       self.axis.caminfo_pub.publish(cimsg)
 
 class Axis:
-  def __init__(self, hostname, username, password, width, height, frame_id):
+  def __init__(self, hostname, username, password,
+               width, height, frame_id, camera_info_url):
     self.hostname = hostname
     self.username = username
     self.password = password
     self.width = width
     self.height = height
     self.frame_id = frame_id
+    self.camera_info_url = camera_info_url
 
+    # generate a valid camera name based on the hostname
+    self.cname = camera_info_manager.genCameraName(self.hostname)
+    self.cinfo = camera_info_manager.CameraInfoManager(cname = self.cname,
+                                                       url = self.camera_info_url)
+    self.cinfo.loadCameraInfo()         # required before getCameraInfo()
     self.st = None
     self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
     self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
@@ -130,8 +127,8 @@ def main():
       'password': '',
       'width': 640,
       'height': 480,
-      'frame_id': 'axis_camera'
-      }
+      'frame_id': 'axis_camera',
+      'camera_info_url': ''}
 
   # Look up parameters starting in the driver's private parameter
   # space, but also searching outer namespaces.  Defining them in a

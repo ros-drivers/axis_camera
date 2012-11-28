@@ -1,0 +1,37 @@
+<!-- Start the driver for a specific Axis network camera and view its images.
+
+     this is a test script: NOT FOR GENERAL USE
+
+     args: camera = camera name used for namespace and frame_id
+                    (default: axis_camera)
+           hostname = network address of camera (default: 192.168.0.90)
+           username = user name for accessing camera (default: root)
+           password = password for accessing camera (required)
+           camera_info_url = URL with camera calibration
+                              (default: use generic axis_camera calibration)
+-->
+<launch>
+  <arg name="camera" default="axis_camera" />
+  <arg name="hostname" default="192.168.0.90" />
+  <arg name="username" default="root" />
+  <arg name="password" />
+  <arg name="camera_info_url"
+       default="package://axis_camera/tests/default_calibration.yaml" />
+  <group ns="$(arg camera)">
+
+    <node pkg="axis_camera" type="axis.py" name="axis">
+      <param name="hostname" value="$(arg hostname)" />
+      <param name="username" value="$(arg username)" />
+      <param name="password" value="$(arg password)" />
+      <param name="frame_id" value="$(arg camera)" />
+      <param name="camera_info_url" value="$(arg camera_info_url)" />
+    </node>
+
+  <!-- Viewer window -->
+  <node pkg="image_view" type="image_view" name="image_view">
+    <remap from="image" to="image_raw" />
+    <param name="image_transport" value="compressed" />
+  </node>
+
+  </group>
+</launch>

@@ -1,0 +1,10 @@
+*.a
+*.o
+*.os
+*.pyc
+*.so
+*.tar.gz
+*~
+TAGS
+bin/
+build/

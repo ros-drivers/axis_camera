@@ -1,0 +1,28 @@
+## Default calibration for a generic Axis network camera.
+
+# It is better to calibrate each individual camera, but this is
+# probably better than no calibration at all.  To use it, set the
+# camera_info_url parameter to:
+#   "package://axis_camera/tests/default_calibration.yaml"
+
+image_width: 640
+image_height: 480
+camera_name: axis_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [259.79888071407669, 0.0, 332.0316187674498, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.26129794156876202, 0.053510647147691104, -0.004329961180682111, 0.0002979023290858089, 0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [259.79888071407669, 0.0, 332.0316187674498, 0.0, 0.0, 258.00868558667878, 252.46066959143357, 0.0, 0.0, 0.0, 1.0, 0.0]
+
