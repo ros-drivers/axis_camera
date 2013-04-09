@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import roslib; roslib.load_manifest('axis_camera_kf')
+import roslib; roslib.load_manifest('axis_camera')
 import rospy
 import math
 from axis_camera.msg import Axis
