@@ -13,9 +13,10 @@ class Teleop:
     def __init__(self):
         rospy.init_node('axis_twist_teleop')
         self.enable_button = rospy.get_param('~enable_button', 1)
+        self.zero_button = rospy.get_param('~zero_button', 2)
         self.scale_pan = rospy.get_param('~scale_pan_deg', 10)
         self.scale_tilt = rospy.get_param('~scale_tilt_deg', 10)
-        self.state = Axis(pan=0,tilt=0,zoom=0)
+        self.state = Axis(pan=180,tilt=0,zoom=1)
         self.joy = None
 
         self.cmd_pub = rospy.Publisher('cmd', Axis)
@@ -32,6 +33,8 @@ class Teleop:
                 twist.angular.z = self.joy.axes[0]*self.scale_pan*math.pi/180.
                 twist.angular.y = -self.joy.axes[1]*self.scale_tilt*math.pi/180.
                 self.twist_pub.publish(twist)
+            if self.joy != None and self.joy.buttons[self.zero_button] == 1:
+                self.cmd_pub.publish(self.state)
             r.sleep()
 
     def joy_callback(self, data):
