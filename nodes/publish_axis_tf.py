@@ -12,8 +12,8 @@ broadcaster = tf.TransformBroadcaster()
 
 def axis_cb(data):
     global broadcaster, base_frame, base_name
-    pan = data.pan * math.pi / 180.
-    tilt = data.tilt * math.pi / 180.
+    pan = math.pi + data.pan * math.pi / 180.
+    tilt = -data.tilt * math.pi / 180.
     q = quaternion_from_euler(0,0,pan)
     now = rospy.Time.now()
     broadcaster.sendTransform((0,0,0),

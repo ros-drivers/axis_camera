@@ -1,0 +1,9 @@
+<launch>
+
+<node pkg="image_transport" type="republish" name="republish" args="compressed">
+	<remap from="/in" to="/axis/image_raw"/>
+	<remap from="/out" to="/axis/image_raw"/>
+</node>
+  
+</launch>
+
