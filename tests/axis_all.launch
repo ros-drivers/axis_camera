@@ -1,0 +1,13 @@
+<launch>
+  <group ns="axis">
+    <param name="hostname" value="192.168.1.13" />
+    <param name="width" value="704" />
+    <param name="height" value="480" />
+    <node pkg="axis_camera" type="axis.py" name="axis" />
+    <node pkg="axis_camera" type="axis_all.py" name="axis_ptz" />
+    <node pkg="axis_camera" type="publish_axis_tf.py" name="axis_tf" >
+        <param name="base_frame" value="/kingfisher/base"/>
+        <param name="base_name" value="/kingfisher"/>
+    </node>
+  </group>
+</launch>
