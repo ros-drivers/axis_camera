@@ -1,0 +1,8 @@
+<launch>
+  <group ns="axis">
+    <param name="hostname" value="192.168.1.13" />
+    <param name="width" value="704" />
+    <param name="height" value="480" />
+    <node pkg="axis_camera" type="axis_twist.py" name="axis_twist" />
+  </group>
+</launch>
