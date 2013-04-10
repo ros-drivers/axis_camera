@@ -33,7 +33,7 @@ class StreamThread(threading.Thread):
 
   def stream(self):
     url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-    url = url + "?fps=0&resolultion=%dx%d" % (self.axis.width, self.axis.height)
+    url = url + "?fps=%d&resolultion=%dx%d" % (self.axis.fps,self.axis.width, self.axis.height)
 
     rospy.logdebug('opening ' + str(self.axis))
 
@@ -88,10 +88,11 @@ class StreamThread(threading.Thread):
 
 class Axis:
   def __init__(self, hostname, username, password,
-               width, height, frame_id, camera_info_url):
+               fps, width, height, frame_id, camera_info_url,delay):
     self.hostname = hostname
     self.username = username
     self.password = password
+    self.fps = fps
     self.width = width
     self.height = height
     self.frame_id = frame_id
@@ -125,8 +126,10 @@ def main():
       'hostname': '192.168.0.90',       # default IP address
       'username': 'root',               # default login name
       'password': '',
+      'fps': 0,
       'width': 640,
       'height': 480,
+      'delay': 0.0,
       'frame_id': 'axis_camera',
       'camera_info_url': ''}
 
@@ -151,6 +154,8 @@ def main():
       if prefix_val[0] != '/':          # prefix not absolute?
         prefix_val = '/' + prefix_val
     args['frame_id'] = prefix_val + '/' + args['frame_id']
+
+  rospy.sleep(args['delay'])
 
   Axis(**args)
   rospy.spin()

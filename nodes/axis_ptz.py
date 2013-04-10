@@ -52,7 +52,7 @@ class StateThread(threading.Thread):
       
 
 class AxisPTZ:
-  def __init__(self, hostname, username, password, flip):
+  def __init__(self, hostname, username, password, flip, delay):
     self.hostname = hostname
     self.username = username
     self.password = password
@@ -95,11 +95,14 @@ def main():
       'hostname': '192.168.0.90',
       'username': '',
       'password': '',
+      'delay': 0.0,
       'flip': True,
       }
   args = {}
   for name in arg_defaults:
     args[name] = rospy.get_param(rospy.search_param(name), arg_defaults[name])
+
+  rospy.sleep(args['delay'])
 
   AxisPTZ(**args)
   rospy.spin()

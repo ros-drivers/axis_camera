@@ -5,11 +5,9 @@
     <param name="height" value="480" />
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_all.py" name="axis_ptz" />
-    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" 
-        args="-0.3 0 0.3 0 0 0 /kingfisher/base /kingfisher/axis 100" />
     <node pkg="axis_camera" type="publish_axis_tf.py" name="axis_tf" >
         <param name="base_frame" value="/kingfisher/axis"/>
-        <param name="base_name" value="/kingfisher/axis"/>
+        <param name="base_name" value="/kingfisher"/>
     </node>
   </group>
 </launch>
