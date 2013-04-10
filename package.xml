@@ -30,4 +30,8 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>tf</run_depend>
 
+  <export>
+    <rosdoc config="rosdoc.yaml" />
+  </export>
+
 </package>
