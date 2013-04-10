@@ -6,10 +6,10 @@ in Python.
 
 ROS wiki documentation: `axis_camera`_.
 
-*This driver is under active development. Its interfaces are
- relatively stable, but may still change.*
+This driver is under active development.  Its ROS interfaces are
+relatively stable, but may still change.  
 
-This package has no released code API.
+There is no released code API.
 
 **Warning**::
 
@@ -17,8 +17,8 @@ This package has no released code API.
   ROS release.  It does not always work with previous ROS distributions.
   Sometimes, it may not work at all.
 
-  Each official release is tagged in the repository. The `change history`_
-  describes every version.
+Each official release is tagged in the repository. The `change
+history`_ describes every version.
 
 .. _`Axis network camera`: http://www.axis.com/products/video/camera/index.htm
 .. _`change history`: https://github.com/clearpathrobotics/axis_camera/blob/master/CHANGELOG.rst
