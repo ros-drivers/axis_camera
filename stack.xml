@@ -1,5 +1,5 @@
 <stack>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <description brief="axis_camera">
     Contains basic Python drivers for accessing an Axis camera's MJPG stream. Also provides control for PTZ cameras.
   </description>
