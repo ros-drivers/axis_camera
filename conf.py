@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'axis_camera'
-copyright = u'2012, Jack O\'Quin'
+copyright = u'2012, Ryan Gariepy'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -188,7 +188,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'axis_camera.tex', u'ROS Axis camera driver.',
-   u'Jack O\'Quin', 'manual'),
+   u'Ryan Gariepy', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -218,7 +218,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'axis_camera', u'ROS Python Axis camera driver.',
-     [u'Jack O\'Quin'], 1)
+     [u'Ryan Gariepy'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -232,7 +232,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'axis_camera', u'axis_camera Documentation',
-   u'Jack O\'Quin', 'axis_camera', 'ROS Axis camera driver.',
+   u'Ryan Gariepy', 'axis_camera', 'ROS Axis camera driver.',
    'Miscellaneous'),
 ]
 
