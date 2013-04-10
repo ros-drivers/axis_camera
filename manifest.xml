@@ -10,6 +10,7 @@
   <depend package="sensor_msgs"/>
   <depend package="tf"/>
   <depend package="camera_info_manager_py"/>
+  <depend package="geometry_msgs"/>
 </package>
 
 
