@@ -10,4 +10,5 @@
   <depend stack="ros_comm" />
   <depend stack="common_msgs" />
   <depend stack="camera_info_manager_py" />
+  <depend stack="geometry" /> <!-- tf -->
 </stack>
