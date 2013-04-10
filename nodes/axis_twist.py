@@ -6,8 +6,6 @@
 
 import os, sys, string, time, getopt, threading
 import httplib, urllib
-
-import roslib; roslib.load_manifest('axis_camera') 
 import rospy 
 
 from axis_camera.msg import Axis

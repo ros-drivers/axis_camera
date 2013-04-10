@@ -1,13 +1,11 @@
 #!/usr/bin/python
 
-import roslib; roslib.load_manifest('axis_camera')
 import rospy
 
 import math
 from sensor_msgs.msg import Joy
 from axis_camera.msg import Axis
 from geometry_msgs.msg import Twist
-
 
 class Teleop:
     def __init__(self):

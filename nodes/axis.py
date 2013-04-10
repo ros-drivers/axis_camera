@@ -5,14 +5,11 @@
 #
 
 import os, sys, string, time
+import threading
 import urllib2
 
-import roslib; roslib.load_manifest('axis_camera') 
 import rospy 
-
 from sensor_msgs.msg import CompressedImage, CameraInfo
-
-import threading
 import camera_info_manager
 
 class StreamThread(threading.Thread):
