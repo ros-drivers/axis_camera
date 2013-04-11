@@ -11,6 +11,7 @@ import roslib; roslib.load_manifest('axis_camera')
 import rospy 
 
 from sensor_msgs.msg import CompressedImage, CameraInfo
+from axis_camera.srv import *
 
 import threading
 import camera_info_manager
@@ -25,6 +26,7 @@ class StreamThread(threading.Thread):
   def run(self):
     while True:
       try:
+        rospy.loginfo("Connecting")
         self.stream()
       except:
         import traceback
@@ -57,11 +59,12 @@ class StreamThread(threading.Thread):
 
     fp = urllib2.urlopen(url)
 
-    while True:
+    self.axis.reconnect = False
+    while not self.axis.reconnect:
       boundary = fp.readline()
 
       header = {}
-      while 1:
+      while not self.axis.reconnect:
         line = fp.readline()
         if line == "\r\n": break
         line = line.strip()
@@ -100,6 +103,7 @@ class Axis:
     self.height = height
     self.frame_id = frame_id
     self.camera_info_url = camera_info_url
+    self.reconnect = False
 
     # generate a valid camera name based on the hostname
     self.cname = camera_info_manager.genCameraName(self.hostname)
@@ -109,6 +113,18 @@ class Axis:
     self.st = None
     self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
     self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
+    self.fps_srv = rospy.Service('set_parameters', SetParameters, self.handle_param_req)
+
+  def handle_param_req(self,req):
+      if req.fps >= 0:
+          self.fps = req.fps
+      if req.width > 0:
+          self.width = req.width
+      if req.height > 0:
+          self.height = req.height
+      self.reconnect = True
+      return SetParametersResponse(self.fps,self.width,self.height)
+
 
   def __str__(self):
     """Return string representation."""

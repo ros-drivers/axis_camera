@@ -1,0 +1,9 @@
+# -1 for any of the value reuse the current one
+int8 fps
+int16 width
+int16 height
+---
+# Returns the values currently in use
+uint8 fps
+uint16 width
+uint16 height
