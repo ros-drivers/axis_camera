@@ -30,7 +30,7 @@ class StreamThread(threading.Thread):
         self.stream()
       except:
         import traceback
-        traceback.print_exc()
+        rospy.logerr(traceback.format_exc())
       time.sleep(1)
 
   def stream(self):
@@ -85,12 +85,16 @@ class StreamThread(threading.Thread):
 
       self.axis.pub.publish(msg)
 
-      cimsg = self.axis.cinfo.getCameraInfo()
-      cimsg.header.stamp = msg.header.stamp
-      cimsg.header.frame_id = self.axis.frame_id
-      cimsg.width = self.axis.width
-      cimsg.height = self.axis.height
-      self.axis.caminfo_pub.publish(cimsg)
+      try:
+        cimsg = self.axis.cinfo.getCameraInfo()
+        cimsg.header.stamp = msg.header.stamp
+        cimsg.header.frame_id = self.axis.frame_id
+        cimsg.width = self.axis.width
+        cimsg.height = self.axis.height
+        self.axis.caminfo_pub.publish(cimsg)
+      except camera_info_manager.CameraInfoMissingError:
+        # Ignore missing camera info
+        pass
 
 class Axis:
   def __init__(self, hostname, username, password,
