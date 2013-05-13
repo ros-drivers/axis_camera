@@ -25,7 +25,6 @@ catkin_package(
   tf
 )
 
-<<<<<<< HEAD
 install(PROGRAMS
   nodes/axis.py
   nodes/axis_ptz.py
@@ -33,18 +32,3 @@ install(PROGRAMS
   nodes/teleop.py
   nodes/teleop_speed_control.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-=======
-#uncomment if you have defined messages
-rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
-
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
-rosbuild_make_distribution(0.0.2)
->>>>>>> a0c9da512fdea3ab1d447d7d3f2e3139d6858886
