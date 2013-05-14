@@ -6,7 +6,6 @@
 import threading
 import httplib, urllib
 import rospy 
-
 from axis_camera.msg import Axis
 from std_msgs.msg import Bool
 import math
