@@ -1,0 +1,45 @@
+<launch>
+  <group ns="axis">
+    <param name="hostname" value="192.168.1.90" />
+    <param name="width" value="704" />
+    <param name="height" value="480" />
+    <param name="flip" value="true" />
+    <param name="speed_control" value="true" />
+    <node pkg="axis_camera" type="axis_paul.py" name="axis_paul" />
+    <node pkg="axis_camera" type="teleop_speed_control.py" name="teleop" />
+    <node pkg="spacenav_node" type="spacenav_node" name="joystick" >
+      <remap from="/axis/spacenav/joy" to="/axis/joy" />
+    </node>
+    <node pkg="axis_camera" type="axis.py" name="axis" >
+    </node>
+    <node pkg="image_view" type="image_view" name="image_view">
+      <remap from="image" to="image_raw" />
+      <param name="image_transport" value="compressed" />
+    </node>
+  </group>
+</launch>
+
+<!--
+<arg name="camera" default="axis_camera" />                                    
+  <arg name="hostname" default="192.168.0.90" />                                 
+  <arg name="username" default="root" />                                         
+  <arg name="password" />                                                        
+  <arg name="camera_info_url"                                                    
+       default="package://axis_camera/tests/default_calibration.yaml" />         
+  <group ns="$(arg camera)">                                                     
+                                                                                 
+    <node pkg="axis_camera" type="axis.py" name="axis">                          
+      <param name="hostname" value="$(arg hostname)" />                          
+      <param name="username" value="$(arg username)" />                          
+      <param name="password" value="$(arg password)" />                          
+      <param name="frame_id" value="$(arg camera)" />                            
+      <param name="camera_info_url" value="$(arg camera_info_url)" />            
+    </node>                                                                      
+  -->                                                                               
+  <!-- Viewer window -->                                                         
+<!--  <node pkg="image_view" type="image_view" name="image_view">                    
+    <remap from="image" to="image_raw" />                                        
+    <param name="image_transport" value="compressed" />                          
+  </node>                                                                        
+                                                                                 
+  </group>                  -->

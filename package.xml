@@ -1,0 +1,37 @@
+<package>
+
+  <name>axis_camera</name>
+  <version>0.2.0</version>
+  <description>
+    Python ROS drivers for accessing an Axis camera's MJPG
+    stream. Also provides control for PTZ cameras.
+  </description>
+  <maintainer email="mpurvis@clearpathrobotics.com">Mike Purvis</maintainer>
+  <author>Ryan Gariepy</author>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/axis_camera</url>
+  <url type="repository">https://github.com/clearpathrobotics/axis_camera</url>
+  <url type="bugtracker">https://github.com/clearpathrobotics/axis_camera/issues</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>camera_info_manager_py</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>tf</build_depend>
+
+  <run_depend>camera_info_manager_py</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>tf</run_depend>
+
+  <export>
+    <rosdoc config="rosdoc.yaml" />
+  </export>
+
+</package>
