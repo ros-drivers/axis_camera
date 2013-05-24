@@ -78,8 +78,8 @@ class AxisPTZ:
 
   def cmd_abs(self, msg):
     if not self.twist_timeout:
-        self.axis.twist_timeout = True
-        self.axis.cmd_twist(Twist(),reset_timeout=False)
+        self.twist_timeout = True
+        self.cmd_twist(Twist(),reset_timeout=False)
     conn = httplib.HTTPConnection(self.hostname)
     # Flip pan orient if the camera is mounted backwards and facing down
     if self.flip:
