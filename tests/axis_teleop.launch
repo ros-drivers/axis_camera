@@ -1,5 +1,8 @@
 <launch>
-  <group ns="axis">
+  <group ns="axis"> 
+    <node pkg="joy" name="joy" type="joy_node">
+	<param name="autorepeat_rate" value="10.0"/>
+    </node>
     <node pkg="axis_camera" type="teleop_twist.py" name="teleop">
         <param name="enable_button" value="1"/>
         <param name="scale_pan_deg" value="25"/>
