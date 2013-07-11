@@ -12,7 +12,7 @@ from axis_camera.msg import Axis
 class LookAt:
     def __init__(self):
         rospy.init_node('axis_ptz_look_at')
-        self.camera_frame = rospy.get_param('~camera_frame', "/axis/tilt")
+        self.camera_frame = rospy.get_param('~camera_frame', "/kingfisher/axis")
         self.state = Axis()
         self.listener = tf.TransformListener()
 
@@ -28,13 +28,18 @@ class LookAt:
         self.state = data
 
     def target_callback(self, data):
-        self.listener.waitForTransform(self.camera_frame,
-                data.header.frame_id, data.header.stamp, rospy.Duration(1.0))
-        ((x,y,z),rot) = self.listener.lookupTransform(self.camera_frame,
-                data.header.frame_id, data.header.stamp)
-        self.state.pan = ((math.atan2(y,x)+math.pi) * 180.0/math.pi) % 360.0
-        self.state.tilt = math.atan2(-z, math.hypot(x,y)) * 180.0/math.pi
-        self.pub(self.state)
+        rospy.loginfo("Request to look at %.2f %.2f %.2f in %s" % (data.point.x,data.point.y,data.point.z,data.header.frame_id))
+        try:
+            self.listener.waitForTransform(self.camera_frame,
+                    data.header.frame_id, data.header.stamp, rospy.Duration(1.0))
+            P = self.listener.transformPoint(self.camera_frame,data).point
+            rospy.loginfo("in local frame %s: %.2f %.2f %.2f" % (self.camera_frame,P.x,P.y,P.z))
+            self.state.pan = (math.atan2(-P.y,P.x)+math.pi) * 180.0/math.pi
+            self.state.tilt = math.atan2(-P.z, math.hypot(P.x,P.y)) * 180.0/math.pi
+            rospy.loginfo("Looking at %.2f %.2f" % (self.state.pan, self.state.tilt))
+            self.pub.publish(self.state)
+        except Exception,e:
+            rospy.loginfo("Exception while converting point frame: " + str(e))
  
 
 
