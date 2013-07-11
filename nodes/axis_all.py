@@ -102,7 +102,8 @@ class AxisPTZ:
     if reset_timeout:
         self.twist_timeout = False
     self.last_request = rospy.Time.now()
-    conn = httplib.HTTPConnection(self.hostname)
+    connPT = httplib.HTTPConnection(self.hostname)
+    connZ = httplib.HTTPConnection(self.hostname)
     pan = int(msg.angular.z * 180./math.pi)
     tilt = int(msg.angular.y * 180./math.pi)
     zoom = int(msg.linear.x)
@@ -122,8 +123,8 @@ class AxisPTZ:
     if self.flip:
         pan = -pan
         tilt = -tilt
-    conn.request("GET", "/axis-cgi/com/ptz.cgi?continuouszoommove=%d" % (zoom))
-    conn.request("GET", "/axis-cgi/com/ptz.cgi?continuouspantiltmove=%d,%d" % (pan,tilt))
+    connPT.request("GET", "/axis-cgi/com/ptz.cgi?continuouszoommove=%d" % (zoom))
+    connZ.request("GET", "/axis-cgi/com/ptz.cgi?continuouspantiltmove=%d,%d" % (pan,tilt))
 
 
 def main():
