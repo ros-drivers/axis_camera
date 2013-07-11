@@ -78,8 +78,8 @@ class AxisPTZ:
 
   def cmd_abs(self, msg):
     if not self.twist_timeout:
-        self.axis.twist_timeout = True
-        self.axis.cmd_twist(Twist(),reset_timeout=False)
+        self.twist_timeout = True
+        self.cmd_twist(Twist(),reset_timeout=False)
     conn = httplib.HTTPConnection(self.hostname)
     # Flip pan orient if the camera is mounted backwards and facing down
     if self.flip:
@@ -105,6 +105,7 @@ class AxisPTZ:
     conn = httplib.HTTPConnection(self.hostname)
     pan = int(msg.angular.z * 180./math.pi)
     tilt = int(msg.angular.y * 180./math.pi)
+    zoom = int(msg.linear.x)
     if pan>100:
         pan=100
     if pan<-100:
@@ -113,10 +114,15 @@ class AxisPTZ:
         tilt=100
     if tilt<-100:
         tilt=-100
+    if zoom>100:
+        zoom=100
+    if zoom<-100:
+        zoom=-100
     # Flip pan orient if the camera is mounted backwards and facing down
     if self.flip:
         pan = -pan
         tilt = -tilt
+    conn.request("GET", "/axis-cgi/com/ptz.cgi?continuouszoommove=%d" % (zoom))
     conn.request("GET", "/axis-cgi/com/ptz.cgi?continuouspantiltmove=%d,%d" % (pan,tilt))
 
 
