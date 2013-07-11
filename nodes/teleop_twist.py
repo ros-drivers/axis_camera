@@ -36,7 +36,7 @@ class Teleop:
             if self.joy != None and self.joy.buttons[self.enable_button] == 1:
                 twist.angular.z = self.joy.axes[self.pan_axis]*self.scale_pan*math.pi/180.
                 twist.angular.y = -self.joy.axes[self.tilt_axis]*self.scale_tilt*math.pi/180.
-		twist.linear.x = self.zoom.axes[self.zoom_axis]*self.scale_zoom
+		twist.linear.x = self.joy.axes[self.zoom_axis]*self.scale_zoom
                 self.twist_pub.publish(twist)
             if self.joy != None and self.joy.buttons[self.zero_button] == 1:
                 self.cmd_pub.publish(self.state)
