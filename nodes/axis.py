@@ -179,6 +179,7 @@ def main():
     args['frame_id'] = prefix_val + '/' + args['frame_id']
 
   rospy.sleep(args['delay'])
+  rospy.loginfo("Starting AXIS video acquisition")
 
   Axis(**args)
   rospy.spin()

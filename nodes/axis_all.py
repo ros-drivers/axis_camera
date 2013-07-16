@@ -57,13 +57,15 @@ class StateThread(threading.Thread):
       
 
 class AxisPTZ:
-  def __init__(self, hostname, username, password, flip, delay):
+  def __init__(self, hostname, username, password, flip, delay, max_command_rate):
     self.hostname = hostname
     self.username = username
     self.password = password
+    self.max_command_rate = max_command_rate
     self.flip = flip
 
     self.st = None
+    self.last_cmd = rospy.Time.now()
     self.twist_timeout = True
     self.pub = rospy.Publisher("state", Axis, self)
     self.sub = rospy.Subscriber("twist", Twist, self.cmd_twist)
@@ -80,6 +82,10 @@ class AxisPTZ:
     if not self.twist_timeout:
         self.twist_timeout = True
         self.cmd_twist(Twist(),reset_timeout=False)
+    now = rospy.Time.now()
+    if (self.max_command_rate>0.0) and ((now - self.last_cmd).to_sec() < 1.0/self.max_command_rate):
+        return
+    self.last_cmd = now
     conn = httplib.HTTPConnection(self.hostname)
     # Flip pan orient if the camera is mounted backwards and facing down
     if self.flip:
@@ -135,12 +141,14 @@ def main():
       'username': '',
       'password': '',
       'delay': 0.0,
+      'max_command_rate': 0.0,
       'flip': True,
       }
   args = {}
   for name in arg_defaults:
     args[name] = rospy.get_param(rospy.search_param(name), arg_defaults[name])
   rospy.sleep(args['delay'])
+  rospy.loginfo("Starting AXIS PTZ control")
 
   AxisPTZ(**args)
   rospy.spin()
