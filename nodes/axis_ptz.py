@@ -44,10 +44,15 @@ class StateThread(threading.Thread):
                 body = response.read()
                 self.cameraPosition = dict([s.split('=',2) for s in 
                                                             body.splitlines()])
+            # Response code 401 means authentication error
+            elif response.status == 401:
+                rospy.logwarn('You need to enable anonymous PTZ control login' 
+                              'at http://%s -> Setup Basic Setup -> Users' % self.hostname)
             else:
                 self.cameraPosition = None
+                rospy.logwarn('Received HTTP response %i from camera, expecting 200' % response.status)
         except:
-            rospy.logwarn('Encountered a problem getting a repsonse from %s.  '
+            rospy.logwarn('Encountered a problem getting a response from %s.  '
                             'Possibly a problem with the network connection.' %
                             self.axis.hostname)
             self.cameraPosition = None
