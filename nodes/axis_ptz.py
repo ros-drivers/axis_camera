@@ -9,6 +9,8 @@ import rospy
 from axis_camera.msg import Axis
 from std_msgs.msg import Bool
 import math
+from dynamic_reconfigure.server import Server
+from axis_camera.cfg import PTZConfig
 
 class StateThread(threading.Thread):
     '''This class handles the publication of the positional state of the camera 
@@ -44,10 +46,15 @@ class StateThread(threading.Thread):
                 body = response.read()
                 self.cameraPosition = dict([s.split('=',2) for s in 
                                                             body.splitlines()])
+            # Response code 401 means authentication error
+            elif response.status == 401:
+                rospy.logwarn('You need to enable anonymous PTZ control login' 
+                              'at http://%s -> Setup Basic Setup -> Users' % self.hostname)
             else:
                 self.cameraPosition = None
+                rospy.logwarn('Received HTTP response %i from camera, expecting 200' % response.status)
         except:
-            rospy.logwarn('Encountered a problem getting a repsonse from %s.  '
+            rospy.logwarn('Encountered a problem getting a response from %s.  '
                             'Possibly a problem with the network connection.' %
                             self.axis.hostname)
             self.cameraPosition = None
@@ -232,6 +239,32 @@ class AxisPTZ:
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
+        
+    def callback(self, config, level):
+        #self.speedControl = config.speed_control
+        
+        # create temporary message and fill with data from dynamic reconfigure
+        temp_msg = Axis()
+        temp_msg.pan = config.pan
+        temp_msg.tilt = config.tilt
+        temp_msg.zoom = config.zoom
+        temp_msg.focus = config.focus
+        temp_msg.brightness = config.brightness
+        temp_msg.autofocus = config.autofocus
+        
+        # check sanity and apply values
+        self.cmd(temp_msg)
+        
+        # read sanitized values and update GUI
+        config.pan = self.msg.pan
+        config.tilt = self.msg.tilt
+        config.zoom = self.msg.zoom
+        config.focus = self.msg.focus
+        config.brightness = self.msg.brightness
+        config.autofocus = self.msg.autofocus
+        
+        # update GUI with sanitized values
+        return config
 
 def main():
     rospy.init_node("axis_twist")
@@ -240,15 +273,23 @@ def main():
         'hostname': '192.168.0.90',
         'username': '',
         'password': '',
-        'flip': True,
+        'flip': False,  # things get weird if flip=true
         'speed_control': False
         }
     args = {}
+    
+    # go through all arguments
     for name in arg_defaults:
-        args[name] = rospy.get_param(rospy.search_param(name), 
-                                                            arg_defaults[name])
+        full_param_name = rospy.search_param(name)
+        # make sure argument was found (https://github.com/ros/ros_comm/issues/253)
+        if full_param_name == None:
+            args[name] = arg_defaults[name]
+        else:
+            args[name] = rospy.get_param(full_param_name, arg_defaults[name])
 
-    AxisPTZ(**args)
+    # create new PTZ object and start dynamic_reconfigure server
+    my_ptz = AxisPTZ(**args)
+    srv = Server(PTZConfig, my_ptz.callback)
     rospy.spin()
 
 if __name__ == "__main__":
