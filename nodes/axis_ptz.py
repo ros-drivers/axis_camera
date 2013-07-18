@@ -9,6 +9,8 @@ import rospy
 from axis_camera.msg import Axis
 from std_msgs.msg import Bool
 import math
+from dynamic_reconfigure.server import Server
+from axis_camera.cfg import PTZConfig
 
 class StateThread(threading.Thread):
     '''This class handles the publication of the positional state of the camera 
@@ -237,6 +239,32 @@ class AxisPTZ:
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
+        
+    def callback(self, config, level):
+        #self.speedControl = config.speed_control
+        
+        # create temporary message and fill with data from dynamic reconfigure
+        temp_msg = Axis()
+        temp_msg.pan = config.pan
+        temp_msg.tilt = config.tilt
+        temp_msg.zoom = config.zoom
+        temp_msg.focus = config.focus
+        temp_msg.brightness = config.brightness
+        temp_msg.autofocus = config.autofocus
+        
+        # check sanity and apply values
+        self.cmd(temp_msg)
+        
+        # read sanitized values and update GUI
+        config.pan = self.msg.pan
+        config.tilt = self.msg.tilt
+        config.zoom = self.msg.zoom
+        config.focus = self.msg.focus
+        config.brightness = self.msg.brightness
+        config.autofocus = self.msg.autofocus
+        
+        # update GUI with sanitized values
+        return config
 
 def main():
     rospy.init_node("axis_twist")
@@ -253,7 +281,9 @@ def main():
         args[name] = rospy.get_param(rospy.search_param(name), 
                                                             arg_defaults[name])
 
-    AxisPTZ(**args)
+    # create new PTZ object and start dynamic_reconfigure server
+    my_ptz = AxisPTZ(**args)
+    srv = Server(PTZConfig, my_ptz.callback)
     rospy.spin()
 
 if __name__ == "__main__":
