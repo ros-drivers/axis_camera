@@ -9,12 +9,17 @@ find_package(catkin REQUIRED
   rospy
   sensor_msgs
   tf
+  dynamic_reconfigure
 )
 catkin_python_setup()
 
 # ROS message generation
 add_message_files(DIRECTORY msg FILES Axis.msg)
 generate_messages(DEPENDENCIES geometry_msgs std_msgs)
+
+generate_dynamic_reconfigure_options(
+  cfg/PTZ.cfg
+)
 
 catkin_package(
   CATKIN_DEPENDS
@@ -32,3 +37,7 @@ install(PROGRAMS
   nodes/teleop.py
   nodes/teleop_speed_control.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+install(DIRECTORY
+  cfg
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
