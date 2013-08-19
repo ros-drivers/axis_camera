@@ -1,0 +1,16 @@
+<launch>
+  <group ns="axis">
+    <param name="delay" value="0.0" />
+    <param name="max_command_rate" value="5.0" />
+    <param name="hostname" value="192.168.1.13" />
+    <param name="width" value="704" />
+    <param name="height" value="480" />
+    <param name="compression" value="30" />
+    <node pkg="axis_camera" type="axis.py" name="axis" output="screen"/>
+    <node pkg="axis_camera" type="axis_all.py" name="axis_ptz" output="screen"/>
+    <node pkg="axis_camera" type="publish_axis_tf.py" name="axis_tf" output="screen">
+        <param name="base_frame" value="/kingfisher/axis"/>
+        <param name="base_name" value="/kingfisher"/>
+    </node>
+  </group>
+</launch>
