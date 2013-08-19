@@ -35,7 +35,7 @@ class StreamThread(threading.Thread):
 
   def stream(self):
     url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-    url = url + "?fps=%d&resolultion=%dx%d" % (self.axis.fps,self.axis.width, self.axis.height)
+    url = url + "?fps=%d&resolultion=%dx%d&compression=%d" % (self.axis.fps,self.axis.width, self.axis.height,self.axis.compression)
 
     rospy.logdebug('opening ' + str(self.axis))
 
@@ -98,13 +98,14 @@ class StreamThread(threading.Thread):
 
 class Axis:
   def __init__(self, hostname, username, password,
-               fps, width, height, frame_id, camera_info_url,delay):
+               fps, width, height, frame_id, camera_info_url,delay,compression):
     self.hostname = hostname
     self.username = username
     self.password = password
     self.fps = fps
     self.width = width
     self.height = height
+    self.compression = compression
     self.frame_id = frame_id
     self.camera_info_url = camera_info_url
     self.reconnect = False
@@ -153,6 +154,7 @@ def main():
       'width': 640,
       'height': 480,
       'delay': 0.0,
+      'compression': 10,
       'frame_id': 'axis_camera',
       'camera_info_url': ''}
 
