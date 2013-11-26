@@ -36,6 +36,8 @@ class StateThread(threading.Thread):
       response = conn.getresponse()
       if response.status == 200:
         body = response.read()
+        msg.fields = msg.SELECT_PAN | msg.SELECT_TILT | msg.SELECT_ZOOM  \
+            | msg.SELECT_AUTOFOCUS | msg.SELECT_IRIS
         params = dict([s.split('=',2) for s in body.splitlines()])
         msg.pan = float(params['pan'])
         # Flip pan orient if the camera is mounted backwards and facing down
@@ -50,7 +52,8 @@ class StateThread(threading.Thread):
         msg.iris = float(params['iris'])
         msg.focus = 0.0
         if 'focus' in params:
-          msg.focus = float(params['focus'])
+            msg.fields = msg.fields | msg.FOCUS
+            msg.focus = float(params['focus'])
         msg.autofocus = (params['autofocus'] == 'on')
         self.axis.pub.publish(msg)
       r.sleep()
@@ -79,6 +82,7 @@ class AxisPTZ:
       self.st.start()
 
   def cmd_abs(self, msg):
+    bool2onoff={True:'on', False:'off'}
     if not self.twist_timeout:
         self.twist_timeout = True
         self.cmd_twist(Twist(),reset_timeout=False)
@@ -94,13 +98,22 @@ class AxisPTZ:
 	    msg.pan -= 360
         if msg.pan < -180:
 	    msg.pan += 360
-    params = { 'pan': msg.pan, 'tilt': msg.tilt, 'zoom': msg.zoom, 'brightness': msg.brightness }
-    if msg.autofocus:
-      params['autofocus'] = 'on'
-    else:
-      params['autofocus'] = 'off'
-      params['focus'] = msg.focus
-    if msg.iris > 0.000001:
+    params = {}
+    if msg.fields & msg.SELECT_PAN:
+        params['pan'] = msg.pan
+    if msg.fields & msg.SELECT_TILT:
+        params['tilt'] = msg.tilt
+    if msg.fields & msg.SELECT_ZOOM:
+        params['zoom'] = msg.zoom
+    if msg.fields & msg.SELECT_BRIGHTNESS:
+        params['brightness'] = msg.brightness
+    if msg.fields & msg.SELECT_IRFILTER:
+        params['irfilter'] = bool2onoff[msg.irfilter]
+    if msg.fields & msg.SELECT_AUTOFOCUS:
+        params['autofocus'] = bool2onoff[msg.autofocus]
+    if not msg.autofocus and msg.fields & msg.SELECT_FOCUS:
+          params['focus'] = msg.focus
+    if msg.fields & msg.SELECT_IRIS:
       rospy.logwarn("Iris value is read-only.")
     conn.request("GET", "/axis-cgi/com/ptz.cgi?%s" % urllib.urlencode(params))
 
