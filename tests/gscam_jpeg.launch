@@ -1,0 +1,19 @@
+<launch>
+  <!-- This launchfile should bring up a node that broadcasts a ros image
+       transport on /webcam/image_raw -->
+
+  <arg name="DEVICE" default="http://192.168.1.13/mjpg/video.mjpg"/>
+  <!-- The GStreamer framerate needs to be an integral fraction -->
+  <arg name="FPS" default="10/1"/>
+  <arg name="PUBLISH_FRAME" default="false"/>
+
+  <node ns="axis" name="axis" pkg="gscam" type="gscam" output="screen">
+    <param name="camera_name" value="axis_camera"/>
+    <param name="camera_info_url" value="package://gscam/examples/uncalibrated_parameters.ini"/>
+    <param name="gscam_config" value="souphttpsrc location=$(arg DEVICE) ! multipartdemux ! jpegparse "/>
+    <param name="image_encoding" value="jpeg"/>
+    <param name="frame_id" value="/axis/tilt"/>
+    <param name="sync_sink" value="true"/>
+  </node>
+
+</launch>
