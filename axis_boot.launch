@@ -1,5 +1,6 @@
 <launch>
     <arg name="DEVICE" default="192.168.1.13"/>
+    <arg name="DELAY" default="45.0"/>
     <arg name="FPS" default="10"/>
     <arg name="COMPRESSION" default="10"/>
     <arg name="FRAME" default="/kingfisher/tilt"/>
@@ -9,7 +10,7 @@
         <param name="hostname" value="$(arg DEVICE)" />
         <param name="max_command_rate" value="5.0" />
         <param name="frame_id" value="$(arg FRAME)" />
-        <param name="delay" value="45.0" />
+        <param name="delay" value="$(arg DELAY)" />
         <!-- 
             <param name="camera_info_url" value="$(arg INFO)"/>
             <param name="fps" value="$(arg FPS)" />
@@ -23,11 +24,12 @@
         <node name="axis" pkg="gscam" type="gscam" output="screen">
             <param name="camera_name" value="192_168_1_13"/>
             <param name="camera_info_url" value="$(arg INFO)"/>
-            <param name="gscam_config" value="neonhttpsrc location=$(arg URI) do-timestamp=true is-live=true timeout=60 ! jpegparse"/>
+            <param name="gscam_config" value="neonhttpsrc location=$(arg URI) do-timestamp=true is-live=true connect-timeout=120 read-timeout=120 ! jpegparse"/>
             <param name="frame_id" value="$(arg FRAME)"/>
             <param name="use_gst_timestamps" value="true"/>
             <param name="sync_sink" value="true"/>
             <param name="image_encoding" value="jpeg"/>
+            <param name="delay" value="$(arg DELAY)" />
         </node>
         <node pkg="axis_camera" type="axis_all.py" name="axis_ptz" />
         <node pkg="axis_camera" type="publish_axis_tf.py" name="axis_tf" >
