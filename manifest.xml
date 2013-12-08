@@ -11,6 +11,8 @@
   <depend package="geometry_msgs"/>
   <depend package="tf"/>
   <depend package="camera_info_manager_py"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
 </package>
 
 

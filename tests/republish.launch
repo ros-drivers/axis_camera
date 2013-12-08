@@ -1,9 +1,16 @@
 <launch>
 
-<node pkg="image_transport" type="republish" name="republish" args="compressed">
-	<remap from="/in" to="/axis/image_raw"/>
-	<remap from="/out" to="/axis/repub/image_raw"/>
-</node>
+    <!--
+        <node pkg="image_transport" type="republish" name="republish" args="compressed">
+            <remap from="/in" to="/axis/image_raw"/>
+            <remap from="/out" to="/axis/repub/image_raw"/>
+        </node>
+    -->
+    <node pkg="axis_camera" type="republish" name="republish">
+        <param name="mode" value="gray"/>
+        <remap from="/republish/compressed" to="/axis/image_raw/compressed"/>
+        <remap from="/republish/out" to="/axis/image_raw"/>
+    </node>
   
 </launch>
 
