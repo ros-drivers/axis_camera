@@ -36,5 +36,10 @@
             <param name="base_frame" value="/kingfisher/axis"/>
             <param name="base_name" value="/kingfisher"/>
         </node>
+        <node pkg="axis_camera" type="republish" name="republish">
+            <param name="mode" value="gray"/>
+            <remap from="/axis/republish/compressed" to="/axis/image_raw/compressed"/>
+            <remap from="/axis/republish/out" to="/axis/image_raw"/>
+        </node>
     </group>
 </launch>
