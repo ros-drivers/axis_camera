@@ -20,6 +20,10 @@ int flags_ = CV_LOAD_IMAGE_UNCHANGED;
 void image_callback(const sensor_msgs::CompressedImageConstPtr& message)
 
 {
+    if (pub_.getNumSubscribers()==0) {
+        return;
+    }
+
     cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
 
     // Copy message header
