@@ -1,0 +1,14 @@
+<launch>
+  <group ns="axis">
+    <param name="hostname" value="192.168.1.13" />
+    <param name="width" value="640" />
+    <param name="height" value="480" />
+    <node pkg="axis_camera" type="axis.py" name="axis" />
+  </group>
+
+  <node pkg="image_transport" type="republish" name="republish" args="compressed">
+        <remap from="/in" to="/axis/image_raw"/>
+        <remap from="/out" to="/axis/image_raw"/>
+  </node>
+
+</launch>
