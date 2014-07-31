@@ -4,7 +4,8 @@ Change history
 0.1.0 (forthcoming)
 -------------------
 
- * Groovy and Hydro release.
+ * Hydro and Indigo release.
+ * Several bugfixes and general tidyup.
  * Rename **compressed** topic **image_raw/compressed** (`#5`_).
  * Convert to catkin (`#12`_).
 
