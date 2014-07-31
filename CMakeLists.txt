@@ -3,32 +3,19 @@ project(axis_camera)
 
 find_package(catkin REQUIRED
   COMPONENTS
-  camera_info_manager_py
+  dynamic_reconfigure
   geometry_msgs
   message_generation
-  rospy
-  sensor_msgs
-  tf
-  dynamic_reconfigure
+  std_msgs
 )
 catkin_python_setup()
 
 # ROS message generation
-add_message_files(DIRECTORY msg FILES Axis.msg)
+add_message_files(FILES Axis.msg)
 generate_messages(DEPENDENCIES geometry_msgs std_msgs)
+generate_dynamic_reconfigure_options(cfg/PTZ.cfg)
 
-generate_dynamic_reconfigure_options(
-  cfg/PTZ.cfg
-)
-
-catkin_package(
-  CATKIN_DEPENDS
-  camera_info_manager_py
-  geometry_msgs
-  message_runtime
-  sensor_msgs
-  tf
-)
+catkin_package()
 
 install(PROGRAMS
   nodes/axis.py
@@ -38,6 +25,6 @@ install(PROGRAMS
   nodes/teleop_speed_control.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(DIRECTORY
-  cfg
+install(DIRECTORY launch tests
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+

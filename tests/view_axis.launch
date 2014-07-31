@@ -1,6 +1,6 @@
 <!-- Start the driver for a specific Axis network camera and view its images.
 
-     this is a test script: NOT FOR GENERAL USE
+     This is a test script, intended for bench testing cameras.
 
      args: camera = camera name used for namespace and frame_id
                     (default: axis_camera)
@@ -15,6 +15,7 @@
   <arg name="hostname" default="192.168.0.90" />
   <arg name="username" default="root" />
   <arg name="password" />
+
   <arg name="camera_info_url"
        default="package://axis_camera/tests/default_calibration.yaml" />
   <group ns="$(arg camera)">

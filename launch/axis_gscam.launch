@@ -1,0 +1,33 @@
+<launch>
+    <!-- Experimental Axis cam launcher using gscam as backend rather than
+         the Python node. This approach may be a better fit for machine vision
+         users as gscam is available as a nodelet. --> 
+
+    <arg name="camera" default="axis" />
+    <arg name="hostname" default="192.168.1.12" />
+    <arg name="delay" default="45.0" />
+    <arg name="fps" default="30" />
+    <arg name="compression" default="10" />
+    <arg name="uri" default="http://$(arg hostname)/mjpg/video.mjpg?fps=$(arg fps)&amp;compression=$(arg compression)" />
+
+    <!-- Much better performance-wise with the neonhttpsrc plugin, but not included by default. Please
+         see: https://github.com/clearpathrobotics/axis_camera/issues/26 -->
+    <arg name="gscam_plugin" default="souphttpsrc" />
+
+    <group ns="$(arg camera)">
+        <param name="hostname" value="$(arg hostname)" />
+        <param name="max_command_rate" value="5.0" />
+        <param name="frame_id" value="axis" />
+ 
+        <node name="axis" pkg="gscam" type="gscam">
+            <param name="camera_name" value="$(arg camera)" />
+            <param name="camera_info_url" value="" />
+            <param name="gscam_config" value="$(arg gscam_plugin) location=$(arg uri) do-timestamp=true is-live=true connect-timeout=120 read-timeout=120 ! jpegparse"/>
+            <param name="use_gst_timestamps" value="true" />
+            <param name="sync_sink" value="true" />
+            <param name="image_encoding" value="jpeg" />
+        </node>
+
+        <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" />
+    </group>
+</launch>
