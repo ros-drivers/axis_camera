@@ -15,7 +15,7 @@
     <node pkg="image_transport" type="republish" name="republish"
           args="compressed" if="$(arg enable_theora)">
       <remap from="in" to="image_raw" />
-      <remap from="out" to="image_raw" />
+      <remap from="out" to="image_raw_out" />
     </node>
 
     <node pkg="axis_camera" type="teleop.py" name="teleop" if="$(arg enable_ptz_teleop)">
