@@ -1,6 +1,25 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Merge pull request `#35 <https://github.com/ros-drivers/axis_camera/issues/35>`_ from pal-robotics-forks/support_axis212ptz
+  Added support for Axis 212 PTZ.
+* Merge pull request `#29 <https://github.com/ros-drivers/axis_camera/issues/29>`_ from negre/master
+  handle encrypted password authentication
+* Added support for Axis 212 PTZ.
+  Also made the exception when something goes wrong in the state grabber clearer.
+* Merge pull request `#34 <https://github.com/ros-drivers/axis_camera/issues/34>`_ from CreativeEntropy/patch-1
+  Create LICENSE file (New BSD)
+* Create LICENSE (New BSD)
+  Create LICENSE file to make copyright clear.
+* Merge pull request `#31 <https://github.com/ros-drivers/axis_camera/issues/31>`_ from clearpathrobotics/jeff-o-patch-1
+  Update axis.launch
+* Update axis.launch
+  Corrects an issue where a topic subscribes and publishes to the same node (axis/republish).
+* handle encrypted password authentication
+* Contributors: Jeff Schmidt, Julian Schrittwieser, Mike Purvis, Sammy Pfeiffer, amaury
+
 0.1.0 (2014-07-31)
 ------------------
 
