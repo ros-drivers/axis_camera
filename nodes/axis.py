@@ -33,7 +33,7 @@ class StreamThread(threading.Thread):
 
     def formURL(self):
         self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-        self.url += "?fps=0&resolultion=%dx%d" % (self.axis.width, 
+        self.url += "?fps=0&resolution=%dx%d" % (self.axis.width, 
                                                             self.axis.height)
         rospy.logdebug('opening ' + str(self.axis))
 
@@ -48,7 +48,10 @@ class StreamThread(threading.Thread):
             top_level_url = "http://" + self.axis.hostname
             password_mgr.add_password(None, top_level_url, self.axis.username, 
                                                             self.axis.password)
-            handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+            if self.axis.use_encrypted_password :
+                handler = urllib2.HTTPDigestAuthHandler(password_mgr)
+            else:
+                handler = urllib2.HTTPBasicAuthHandler(password_mgr)
 
             # create "opener" (OpenerDirector instance)
             opener = urllib2.build_opener(handler)
@@ -133,7 +136,7 @@ class StreamThread(threading.Thread):
 
 class Axis:
     def __init__(self, hostname, username, password, width, height, frame_id, 
-                                                            camera_info_url):
+                 camera_info_url, use_encrypted_password):
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -141,7 +144,8 @@ class Axis:
         self.height = height
         self.frame_id = frame_id
         self.camera_info_url = camera_info_url
-
+        self.use_encrypted_password = use_encrypted_password
+        
         # generate a valid camera name based on the hostname
         self.cname = camera_info_manager.genCameraName(self.hostname)
         self.cinfo = camera_info_manager.CameraInfoManager(cname = self.cname,
@@ -173,7 +177,8 @@ def main():
         'width': 640,
         'height': 480,
         'frame_id': 'axis_camera',
-        'camera_info_url': ''}
+        'camera_info_url': '',
+        'use_encrypted_password' : False}
     args = updateArgs(arg_defaults)
     Axis(**args)
     rospy.spin()
