@@ -44,8 +44,15 @@ class StateThread(threading.Thread):
             # Response code 200 means there are data to be read:
             if response.status == 200: 
                 body = response.read()
-                self.cameraPosition = dict([s.split('=',2) for s in 
-                                                            body.splitlines()])
+                new_camera_position = dict()
+                for s in body.splitlines():
+                    field_and_value = s.split('=', 2)
+                    if len(field_and_value) == 2:
+                        # On some PTZ cameras (AXIS 212 PTZ for example)
+                        # The returning string has a newline at the end
+                        # so if we don't have a field AND value, don't insert
+                        new_camera_position[field_and_value[0]] = field_and_value[1]
+                self.cameraPosition = new_camera_position
             # Response code 401 means authentication error
             elif response.status == 401:
                 rospy.logwarn('You need to enable anonymous PTZ control login' 
@@ -53,10 +60,11 @@ class StateThread(threading.Thread):
             else:
                 self.cameraPosition = None
                 rospy.logwarn('Received HTTP response %i from camera, expecting 200' % response.status)
-        except:
-            rospy.logwarn('Encountered a problem getting a response from %s.  '
-                            'Possibly a problem with the network connection.' %
-                            self.axis.hostname)
+        except Exception as e:
+            exception_error_str = "Exception: '" + str(e) + "' when querying the url: http://" + \
+                                  self.axis.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.urlencode(queryParams)
+            rospy.logwarn(exception_error_str)
+
             self.cameraPosition = None
    
     def publishCameraState(self):
@@ -73,7 +81,8 @@ class StateThread(threading.Thread):
             self.msg.focus = 0.0
             if 'focus' in self.cameraPosition:
                 self.msg.focus = float(self.cameraPosition['focus'])
-            self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
+            if 'autofocus' in self.cameraPosition:
+                self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
             self.axis.pub.publish(self.msg)
             
     def adjustForFlippedOrientation(self):
@@ -294,3 +303,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
