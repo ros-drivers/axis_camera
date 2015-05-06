@@ -6,7 +6,7 @@
     Python ROS drivers for accessing an Axis camera's MJPG
     stream. Also provides control for PTZ cameras.
   </description>
-  <maintainer email="mpurvis@clearpathrobotics.com">Mike Purvis</maintainer>
+  <maintainer email="sam.pfeiffer@pal-robotics.com">Sammy Pfeiffer</maintainer>
   <author>Ryan Gariepy</author>
   <license>BSD</license>
 
