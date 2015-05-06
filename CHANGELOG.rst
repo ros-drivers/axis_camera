@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.2.0 (2015-05-06)
+------------------
 * Merge pull request `#35 <https://github.com/ros-drivers/axis_camera/issues/35>`_ from pal-robotics-forks/support_axis212ptz
   Added support for Axis 212 PTZ.
 * Merge pull request `#29 <https://github.com/ros-drivers/axis_camera/issues/29>`_ from negre/master
