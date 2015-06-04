@@ -76,6 +76,7 @@ class StreamThread(threading.Thread):
                 self.findBoundary()
                 self.getImage()
                 self.publishMsg()
+                self.publishCameraInfoMsg()
             except:
                 rospy.loginfo('Timed out while trying to get message.')
                 break
@@ -128,7 +129,7 @@ class StreamThread(threading.Thread):
     def publishCameraInfoMsg(self):
         '''Publish camera info manager message'''
         cimsg = self.axis.cinfo.getCameraInfo()
-        cimsg.header.stamp = msg.header.stamp
+        cimsg.header.stamp = self.msg.header.stamp
         cimsg.header.frame_id = self.axis.frame_id
         cimsg.width = self.axis.width
         cimsg.height = self.axis.height
