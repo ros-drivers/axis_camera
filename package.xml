@@ -11,8 +11,8 @@
   <license>BSD</license>
 
   <url type="website">http://ros.org/wiki/axis_camera</url>
-  <url type="repository">https://github.com/clearpathrobotics/axis_camera</url>
-  <url type="bugtracker">https://github.com/clearpathrobotics/axis_camera/issues</url>
+  <url type="repository">https://github.com/ros-drivers/axis_camera</url>
+  <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 
