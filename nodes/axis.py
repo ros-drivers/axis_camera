@@ -11,6 +11,8 @@ import urllib2
 import rospy 
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
+import dynamic_reconfigure.server
+from axis_camera.cfg import PTZConfig
 
 
 class StreamThread(threading.Thread):
@@ -20,7 +22,6 @@ class StreamThread(threading.Thread):
         self.daemon = True
         self.timeoutSeconds = 2.5
         self.should_run = False
-        self.rate = rospy.Rate(self.axis.fps)
 
     def run(self):
         self.resume()
@@ -84,32 +85,38 @@ class StreamThread(threading.Thread):
 
     def publish_frames_until_error(self):
         """Continuous loop to publish images"""
-        url = self.get_video_url()
-        stream = self.open_url(url)
-
-        if stream is None:
-            return
-
         while not rospy.is_shutdown():
-            try:
-                found_boundary = self.find_boundary_in_stream(stream)
-                if not found_boundary:
-                    # end of stream means we need to launch everything from scratch
-                    return
+            url = self.get_video_url()
+            stream = self.open_url(url)
 
-                (header, image, timestamp) = self.read_image_from_stream(stream)
-
-                if image is not None:
-                    self.publish_image(header, image, timestamp)
-                    self.publish_camera_info(header, image, timestamp)
-                else:
-                    rospy.logwarn("Retrieving image from Axis camera failed.")
-            except urllib2.URLError:
-                rospy.loginfo('Timed out while trying to get message.')
+            if stream is None:
                 return
 
-            # read images only on the requested FPS frequency
-            self.rate.sleep()
+            rate = rospy.Rate(self.axis.fps)
+            self.axis.video_params_changed = False
+
+            while not rospy.is_shutdown() and not self.axis.video_params_changed:
+                try:
+                    found_boundary = self.find_boundary_in_stream(stream)
+                    if not found_boundary:
+                        # end of stream means we need to launch everything from scratch
+                        return
+
+                    (header, image, timestamp) = self.read_image_from_stream(stream)
+
+                    if image is not None:
+                        self.publish_image(header, image, timestamp)
+                        self.publish_camera_info(header, image, timestamp)
+                    else:
+                        rospy.logwarn("Retrieving image from Axis camera failed.")
+                except urllib2.URLError:
+                    rospy.loginfo('Timed out while trying to get message.')
+                    return
+
+                # read images only on the requested FPS frequency
+                rate.sleep()
+
+            rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
 
     @staticmethod
     def find_boundary_in_stream(stream):
@@ -182,16 +189,26 @@ class StreamThread(threading.Thread):
         self.axis.camera_info_publisher.publish(msg)
 
 
-class Axis:
+class Axis(rospy.SubscribeListener):
     def __init__(self, hostname, username, password, width, height, compression,
                  fps, frame_id, camera_info_url, use_encrypted_password):
+        # True every time the video parameters have changed and the URL has to be altered.
+        self.video_params_changed = False
+
+        self.allowed_resolutions = set([(704, 576), (352, 288), (176, 144)])
+
         self.hostname = hostname
         self.username = username
         self.password = password
-        self.width = width
-        self.height = height
-        self.compression = compression
-        self.fps = fps
+
+        self.width = None
+        self.height = None
+        self.compression = None
+        self.fps = None
+        self.set_resolution(width, height)
+        self.set_compression(compression)
+        self.set_fps(fps)
+
         self.frame_id = frame_id
         self.camera_info_url = camera_info_url
         self.use_encrypted_password = use_encrypted_password
@@ -206,6 +223,7 @@ class Axis:
         # The publishers are started lazily in peer_subscribe/peer_unsubscribe
         self.video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
         self.camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
+        self.dynamic_reconfigure_server = dynamic_reconfigure.server.Server(PTZConfig, self.reconfigure)
 
     def __str__(self):
         """Return string representation."""
@@ -223,6 +241,67 @@ class Axis:
         if num_peers == 0:
             self.streaming_thread.pause()
 
+    def reconfigure(self, config, level):
+        try:
+            self.set_compression(config.compression)
+        except ValueError:
+            config.compression = self.compression
+
+        try:
+            self.set_fps(config.fps)
+        except ValueError:
+            config.fps = self.fps
+
+        try:
+            resolution_parts = config.resolution.split("x", 2)
+            if not len(resolution_parts) == 2:
+                config.resolution = "%dx%d" % (self.width, self.height)
+            else:
+                self.set_resolution(resolution_parts[0], resolution_parts[1])
+        except ValueError:
+            config.resolution = "%dx%d" % (self.width, self.height)
+
+        return config
+
+    def set_compression(self, compression):
+        if compression != self.compression:
+            self.compression = self.sanitize_compression(compression)
+            self.video_params_changed = True
+
+    @staticmethod
+    def sanitize_compression(compression):
+        compression = int(compression)
+        if not (0 <= compression <= 100):
+            raise ValueError("%s is not a valid value for compression." % str(compression))
+
+        return compression
+
+    def set_fps(self, fps):
+        if fps != self.fps:
+            self.fps = self.sanitize_fps(fps)
+            self.video_params_changed = True
+
+    @staticmethod
+    def sanitize_fps(fps):
+        fps = int(fps)
+        if not (1 <= fps <= 30):
+            raise ValueError("%s is not a valid value for FPS." % str(fps))
+
+        return fps
+
+    def set_resolution(self, width, height):
+        if width != self.width or height != self.height:
+            (self.width, self.height) = self.sanitize_resolution(width, height)
+            self.video_params_changed = True
+
+    def sanitize_resolution(self, width, height):
+        width = int(width)
+        height = int(height)
+        if not (width, height) in self.allowed_resolutions:
+            raise ValueError("%sx%s is not a valid value resolution." % (str(width), str(height)))
+
+        return width, height
+
 
 def main():
     rospy.init_node("axis_driver")
@@ -231,13 +310,13 @@ def main():
         'hostname': '192.168.0.90',       # default IP address
         'username': 'root',               # default login name
         'password': '',
-        'width': 640,
-        'height': 480,
+        'width': 704,
+        'height': 576,
         'compression': 0,
         'fps': 24,
         'frame_id': 'axis_camera',
         'camera_info_url': '',
-        'use_encrypted_password' : False}
+        'use_encrypted_password': False}
     args = read_args_with_defaults(arg_defaults)
     Axis(**args)
     rospy.spin()

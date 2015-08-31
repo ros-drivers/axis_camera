@@ -7,8 +7,8 @@
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
-    <param name="width" value="640" />
-    <param name="height" value="480" />
+    <param name="width" value="704" />
+    <param name="height" value="576" />
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
     
