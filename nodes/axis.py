@@ -21,7 +21,7 @@ class StreamThread(threading.Thread):
         self.axis = axis
         self.daemon = True
         self.timeoutSeconds = 2.5
-        self.should_run = False
+        self.is_paused = True
 
     def run(self):
         self.resume()
@@ -30,10 +30,10 @@ class StreamThread(threading.Thread):
             self.stream()
 
     def resume(self):
-        self.should_run = True
+        self.is_paused = False
 
     def pause(self):
-        self.should_run = False
+        self.is_paused = True
 
     def stream(self):
         while not rospy.is_shutdown():
@@ -46,10 +46,15 @@ class StreamThread(threading.Thread):
                 rospy.sleep(2)
 
     def get_video_url(self):
-        url = 'http://%s/mjpg/video.mjpg?req_fps=%d&resolution=%dx%d&compression=%d' % (
+        #url = 'http://%s/mjpg/video.mjpg?req_fps=%d&resolution=%dx%d&compression=%d' % (
+        url = 'http://%s/mjpg/video.cgi?fps=%d&resolution=%dx%d&compression=%d' % (
             self.axis.hostname, self.axis.fps, self.axis.width, self.axis.height, self.axis.compression
         )
 
+        return url
+
+    def get_wakeup_url(self):
+        url = 'http://%s/axis-cgi/com/ptz.cgi?camera=1&autofocus=on' % self.axis.hostname  # TODO check the API
         return url
 
     def authenticate(self):
@@ -73,12 +78,16 @@ class StreamThread(threading.Thread):
             # ...and install it globally so it can be used with urlopen.
             urllib2.install_opener(opener)
     
-    def open_url(self, url):
+    def open_url(self, url, valid_statuses=None):
         """Open connection to Axis camera using http"""
         try:
             rospy.logdebug('Opening ' + url)
             rospy.logdebug('Camera settings are: ' + str(self.axis))
-            return urllib2.urlopen(url, timeout=self.timeoutSeconds)
+            stream = urllib2.urlopen(url, timeout=self.timeoutSeconds)
+            if stream is not None and (valid_statuses is None or stream.getcode() in valid_statuses):
+                return stream
+            else:
+                return None
         except urllib2.URLError, e:
             rospy.logwarn('Error opening URL %s' % url + 'Possible timeout.  Looping until camera appears')
             return None
@@ -90,12 +99,26 @@ class StreamThread(threading.Thread):
             stream = self.open_url(url)
 
             if stream is None:
-                return
+                if self.axis.auto_wakeup_camera:
+                    rospy.logdebug("Trying to wake up the camera.")
+
+                    wakeup_command = self.get_wakeup_url()
+                    wakeup_stream = self.open_url(wakeup_command, valid_statuses=[200])
+
+                    if wakeup_stream is None:
+                        rospy.logwarn("Cannot get camera stream, and also cannot wake up the camera.")
+                        return
+
+                    # if the wakeup succeeded, give it a while to initialize and then proceeed further
+                    rospy.loginfo("Camera wakeup succeeded, now waiting for it to initialize.")
+                    rospy.sleep(5)
+                else:
+                    return
 
             rate = rospy.Rate(self.axis.fps)
             self.axis.video_params_changed = False
 
-            while not rospy.is_shutdown() and not self.axis.video_params_changed:
+            while not rospy.is_shutdown() and not self.axis.video_params_changed and not self.is_paused:
                 try:
                     found_boundary = self.find_boundary_in_stream(stream)
                     if not found_boundary:
@@ -116,7 +139,11 @@ class StreamThread(threading.Thread):
                 # read images only on the requested FPS frequency
                 rate.sleep()
 
-            rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
+            if self.axis.video_params_changed:
+                rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
+            elif not rospy.is_shutdown():
+                while self.is_paused:
+                    rospy.sleep(1)  # wait until someone unpauses us
 
     @staticmethod
     def find_boundary_in_stream(stream):
@@ -190,7 +217,7 @@ class StreamThread(threading.Thread):
 
 
 class Axis(rospy.SubscribeListener):
-    def __init__(self, hostname, username, password, width, height, compression,
+    def __init__(self, hostname, username, password, auto_wakeup_camera, width, height, compression,
                  fps, frame_id, camera_info_url, use_encrypted_password):
         # True every time the video parameters have changed and the URL has to be altered.
         self.video_params_changed = False
@@ -200,6 +227,10 @@ class Axis(rospy.SubscribeListener):
         self.hostname = hostname
         self.username = username
         self.password = password
+
+        # Sometimes the camera falls into power saving mode and stops streaming.
+        # This setting allows the script to try to wake up the camera.
+        self.auto_wakeup_camera = auto_wakeup_camera
 
         self.width = None
         self.height = None
@@ -235,6 +266,8 @@ class Axis(rospy.SubscribeListener):
         if self.streaming_thread is None:
             self.streaming_thread = StreamThread(self)
             self.streaming_thread.start()
+        else:
+            self.streaming_thread.resume()
 
     def peer_unsubscribe(self, topic_name, num_peers):
         """Lazy-stop the image-publisher when nobody is interested"""
@@ -310,6 +343,7 @@ def main():
         'hostname': '192.168.0.90',       # default IP address
         'username': 'root',               # default login name
         'password': '',
+        'auto_wakeup_camera': True,
         'width': 704,
         'height': 576,
         'compression': 0,
