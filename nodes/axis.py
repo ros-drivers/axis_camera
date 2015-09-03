@@ -46,8 +46,8 @@ class StreamThread(threading.Thread):
                 rospy.sleep(2)
 
     def get_video_url(self):
-        #url = 'http://%s/mjpg/video.mjpg?req_fps=%d&resolution=%dx%d&compression=%d' % (
-        url = 'http://%s/mjpg/video.cgi?fps=%d&resolution=%dx%d&compression=%d' % (
+        # url = 'http://%s/mjpg/video.mjpg?fps=%d&resolution=%dx%d&compression=%d' is also possible
+        url = 'http://%s/axis-cgi/mjpg/video.cgi?fps=%d&resolution=%dx%d&compression=%d' % (
             self.axis.hostname, self.axis.fps, self.axis.width, self.axis.height, self.axis.compression
         )
 
@@ -56,6 +56,26 @@ class StreamThread(threading.Thread):
     def get_wakeup_url(self):
         url = 'http://%s/axis-cgi/com/ptz.cgi?camera=1&autofocus=on' % self.axis.hostname  # TODO check the API
         return url
+
+    def wakeup_camera(self):
+        """
+        Wake up the camera from standby.
+        :return: If the wakeup succeeded.
+        :rtype: bool
+        """
+        rospy.logdebug("Trying to wake up the camera.")
+
+        wakeup_command = self.get_wakeup_url()
+        wakeup_stream = self.open_url(wakeup_command, valid_statuses=[200, 204])  # 204 = No Content
+
+        if wakeup_stream is None:
+            rospy.logwarn("Cannot get camera stream, and also cannot wake up the camera.")
+            return False
+
+        # if the wakeup succeeded, give it a while to initialize and then proceeed further
+        rospy.loginfo("Camera wakeup succeeded, now waiting for it to initialize.")
+        rospy.sleep(5)
+        return True
 
     def authenticate(self):
         """only try to authenticate if user/pass configured.  I have not
@@ -100,18 +120,9 @@ class StreamThread(threading.Thread):
 
             if stream is None:
                 if self.axis.auto_wakeup_camera:
-                    rospy.logdebug("Trying to wake up the camera.")
-
-                    wakeup_command = self.get_wakeup_url()
-                    wakeup_stream = self.open_url(wakeup_command, valid_statuses=[200])
-
-                    if wakeup_stream is None:
-                        rospy.logwarn("Cannot get camera stream, and also cannot wake up the camera.")
+                    wakeup_succeeded = self.wakeup_camera()
+                    if not wakeup_succeeded:
                         return
-
-                    # if the wakeup succeeded, give it a while to initialize and then proceeed further
-                    rospy.loginfo("Camera wakeup succeeded, now waiting for it to initialize.")
-                    rospy.sleep(5)
                 else:
                     return
 
@@ -141,8 +152,8 @@ class StreamThread(threading.Thread):
 
             if self.axis.video_params_changed:
                 rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
-            elif not rospy.is_shutdown():
-                while self.is_paused:
+            else:
+                while not rospy.is_shutdown() and self.is_paused:
                     rospy.sleep(1)  # wait until someone unpauses us
 
     @staticmethod
