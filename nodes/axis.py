@@ -4,15 +4,20 @@
 # https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera
 # /axis.py
 #
+# Communication with the camera is done using the Axis VAPIX API described at
+# http://www.axis.com/global/en/support/developer-support/vapix
+#
 
 import threading
 import urllib2
+import math
+import re
 
 import rospy 
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
 import dynamic_reconfigure.server
-from axis_camera.cfg import PTZConfig
+from axis_camera.cfg import PTZConfig, VideoStreamConfig
 
 
 class StreamThread(threading.Thread):
@@ -47,8 +52,10 @@ class StreamThread(threading.Thread):
 
     def get_video_url(self):
         # url = 'http://%s/mjpg/video.mjpg?fps=%d&resolution=%dx%d&compression=%d' is also possible
-        url = 'http://%s/axis-cgi/mjpg/video.cgi?fps=%d&resolution=%dx%d&compression=%d' % (
-            self.axis.hostname, self.axis.fps, self.axis.width, self.axis.height, self.axis.compression
+        url = 'http://%s/axis-cgi/mjpg/video.cgi?fps=%d&resolution=%s&compression=%d&color=%d&squarepixel=%d' % (
+            self.axis.hostname, self.axis.fps, self.axis.resolution.name, self.axis.compression,
+            1 if self.axis.use_color else 0,
+            1 if self.axis.use_square_pixels else 0
         )
 
         return url
@@ -228,16 +235,17 @@ class StreamThread(threading.Thread):
 
 
 class Axis(rospy.SubscribeListener):
-    def __init__(self, hostname, username, password, auto_wakeup_camera, width, height, compression,
-                 fps, frame_id, camera_info_url, use_encrypted_password):
+    def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
+                 auto_wakeup_camera=True, resolution_name=None, compression=0, fps=24, use_color=True, use_square_pixels=False):
         # True every time the video parameters have changed and the URL has to be altered.
         self.video_params_changed = False
-
-        self.allowed_resolutions = set([(704, 576), (352, 288), (176, 144)])
 
         self.hostname = hostname
         self.username = username
         self.password = password
+
+        self.allowed_resolutions = self._get_allowed_resolutions()
+        rospy.logwarn(self.allowed_resolutions)
 
         # Sometimes the camera falls into power saving mode and stops streaming.
         # This setting allows the script to try to wake up the camera.
@@ -245,11 +253,22 @@ class Axis(rospy.SubscribeListener):
 
         self.width = None
         self.height = None
+        self.resolution = None
         self.compression = None
         self.fps = None
-        self.set_resolution(width, height)
+        self.use_color = None
+        self.use_square_pixels = None
+
         self.set_compression(compression)
         self.set_fps(fps)
+        self.set_use_color(use_color)
+        self.set_use_square_pixels(use_square_pixels)
+
+        if resolution_name is not None:
+            self.set_resolution(resolution_name)
+        else:
+            resolution = self.find_resolution_by_size(width, height)
+            self.set_resolution(resolution.name)
 
         self.frame_id = frame_id
         self.camera_info_url = camera_info_url
@@ -265,7 +284,8 @@ class Axis(rospy.SubscribeListener):
         # The publishers are started lazily in peer_subscribe/peer_unsubscribe
         self.video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
         self.camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
-        self.dynamic_reconfigure_server = dynamic_reconfigure.server.Server(PTZConfig, self.reconfigure)
+
+        self.video_stream_param_change_server = dynamic_reconfigure.server.Server(VideoStreamConfig, self.reconfigure_video)
 
     def __str__(self):
         """Return string representation."""
@@ -285,27 +305,79 @@ class Axis(rospy.SubscribeListener):
         if num_peers == 0:
             self.streaming_thread.pause()
 
-    def reconfigure(self, config, level):
-        try:
-            self.set_compression(config.compression)
-        except ValueError:
-            config.compression = self.compression
+    def reconfigure_video(self, config, level):
+        self.__try_set_value_from_config(config, 'compression', self.set_compression)
+        self.__try_set_value_from_config(config, 'fps', self.set_fps)
+        self.__try_set_value_from_config(config, 'use_color', self.set_use_color)
+        self.__try_set_value_from_config(config, 'use_square_pixels', self.set_use_square_pixels)
 
         try:
-            self.set_fps(config.fps)
+            self.set_resolution(config.resolution)
         except ValueError:
-            config.fps = self.fps
-
-        try:
-            resolution_parts = config.resolution.split("x", 2)
-            if not len(resolution_parts) == 2:
-                config.resolution = "%dx%d" % (self.width, self.height)
-            else:
-                self.set_resolution(resolution_parts[0], resolution_parts[1])
-        except ValueError:
-            config.resolution = "%dx%d" % (self.width, self.height)
+            config.resolution = self.resolution.name
 
         return config
+
+    def __try_set_value_from_config(self, config, field, setter):
+        try:
+            setter(config[field])
+        except ValueError:
+            config[field] = getattr(self, field)
+
+    def _get_allowed_resolutions(self):
+        config_resolutions = self._read_resolutions_from_config()
+        camera_resolutions = self._get_resolutions_supported_by_camera()
+
+        return dict((k, v) for k, v in config_resolutions.iteritems() if k in camera_resolutions)
+
+    @staticmethod
+    def _read_resolutions_from_config():
+
+        video_stream_parameters = VideoStreamConfig.config_description['parameters']
+        resolutions = dict()
+
+        resolution_size_parser = re.compile(r'\((?P<width>[0-9]+)x(?P<height>[0-9]+)\)')
+
+        for parameter in video_stream_parameters:
+            if parameter['name'] == "resolution":
+                resolution_descriptions = eval(parameter['edit_method'])['enum']
+                for resolution_description in resolution_descriptions:
+                    resolution_name = resolution_description['name']
+
+                    match_result = resolution_size_parser.search(resolution_description['description'])
+                    if match_result is not None:
+                        resolution_size = (match_result.group('width'), match_result.group('height'))
+                    else:
+                        rospy.logwarn("Invalid resolution found in VideoStream.cfg: %s" % resolution_description['description'])
+                        continue
+
+                    resolution = CIFVideoResolution(resolution_name, resolution_size[0], resolution_size[1])
+                    resolutions[resolution_name] = resolution
+
+                break
+
+        if len(resolutions) > 0:
+            return resolutions
+        else:
+            # return a default set of resolutions if we couldn't parse the cfg file for some reason
+            return {
+                '4CIF': CIFVideoResolution('4CIF', 704, 576),
+                'CIF': CIFVideoResolution('CIF', 352, 288),
+                'QCIF': CIFVideoResolution('QCIF', 176, 144),
+            }
+
+    def _get_resolutions_supported_by_camera(self):
+        url = "http://%s/axis-cgi/view/param.cgi?action=list&group=root.Properties.Image.Resolution" % self.hostname
+        resolution_stream = self.open_url(url)
+
+        if resolution_stream is not None:
+            line = resolution_stream.readline()
+            values = line.strip().split("=")
+            resolutions = values[1].split(",")
+            return resolutions
+
+        rospy.logwarn("Could not determine resolutions supported by the camera. Asssuming only CIF.")
+        return ["CIF"]
 
     def set_compression(self, compression):
         if compression != self.compression:
@@ -333,16 +405,90 @@ class Axis(rospy.SubscribeListener):
 
         return fps
 
-    def set_resolution(self, width, height):
-        if width != self.width or height != self.height:
-            (self.width, self.height) = self.sanitize_resolution(width, height)
+    def set_resolution(self, resolution_name):
+        if isinstance(resolution_name, basestring) and (self.resolution is None or resolution_name != self.resolution.name):
+            self.resolution = self._get_resolution_for_name(resolution_name)
+            self.video_params_changed = True
+            # deprecated values
+            self.width = self.resolution.get_resolution(self.use_square_pixels)[0]
+            self.height = self.resolution.get_resolution(self.use_square_pixels)[1]
+
+    def _get_resolution_for_name(self, resolution_name):
+        if resolution_name not in self.allowed_resolutions:
+            raise ValueError("%s is not a valid valid resolution." % resolution_name)
+
+        return self.allowed_resolutions[resolution_name]
+
+    def find_resolution_by_size(self, width, height):
+        size_to_find = (width, height)
+        for resolution in self.allowed_resolutions.values():
+            size = resolution.get_resolution(use_square_pixels=False)
+            if size == size_to_find:
+                return resolution
+
+            size = resolution.get_resolution(use_square_pixels=True)
+            if size == size_to_find:
+                return resolution
+
+        raise ValueError("Cannot find a supported resolution with dimensions %dx%d" % size_to_find)
+
+    def set_use_color(self, use_color):
+        if use_color != self.use_color:
+            self.use_color = self.sanitize_bool(use_color, "use_color")
             self.video_params_changed = True
 
-    def sanitize_resolution(self, width, height):
-        width = int(width)
-        height = int(height)
-        if not (width, height) in self.allowed_resolutions:
-            raise ValueError("%sx%s is not a valid value resolution." % (str(width), str(height)))
+    def set_use_square_pixels(self, use_square_pixels):
+        if use_square_pixels != self.use_square_pixels:
+            self.use_square_pixels = self.sanitize_bool(use_square_pixels, "use_square_pixels")
+            self.video_params_changed = True
+
+    @staticmethod
+    def sanitize_bool(value, field_name):
+
+        if value not in (True, False, "1", "0", 1, 0):
+            raise ValueError("%s is not a valid value for %s." % (str(value), field_name))
+
+        # bool("0") returns True because it is a nonempty string
+        if value == "0":
+            return False
+
+        return bool(value)
+
+    def open_url(self, url, valid_statuses=None):
+        """Open connection to Axis camera using http"""
+        try:
+            rospy.logdebug('Opening ' + url)
+            stream = urllib2.urlopen(url, timeout=2.5)
+            if stream is not None and (valid_statuses is None or stream.getcode() in valid_statuses):
+                return stream
+            else:
+                return None
+        except urllib2.URLError, e:
+            rospy.logwarn('Error opening URL %s' % url + 'Possible timeout.  Looping until camera appears')
+            return None
+
+
+class CIFVideoResolution(object):
+    def __init__(self, name, width, height):
+        super(CIFVideoResolution, self).__init__()
+
+        self.name = name
+        self.width = int(width)
+        self.height = int(height)
+
+        self.square_pixel_conversion_ratio_width = 12.0 / 11.0
+        self.square_pixel_conversion_ratio_height = 1
+
+    def __repr__(self):
+        return "%s (%dx%d)" % (self.name, self.width, self.height)
+
+    def get_resolution(self, use_square_pixels=False):
+        width = self.width
+        height = self.height
+
+        if use_square_pixels:
+            width = int(math.ceil(self.square_pixel_conversion_ratio_width * self.width))
+            height = int(math.ceil(self.square_pixel_conversion_ratio_height * self.height))
 
         return width, height
 
@@ -359,6 +505,8 @@ def main():
         'height': 576,
         'compression': 0,
         'fps': 24,
+        'use_color': True,
+        'use_square_pixels': False,
         'frame_id': 'axis_camera',
         'camera_info_url': '',
         'use_encrypted_password': False}
