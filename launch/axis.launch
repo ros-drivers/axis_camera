@@ -1,6 +1,6 @@
 <launch>
   <arg name="camera_name" default="axis" />
-  <arg name="hostname" default="192.168.1.13" />
+  <arg name="hostname" default="192.168.0.90" />
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
   <arg name="enable_ptz_teleop" default="0" />
