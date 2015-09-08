@@ -24,6 +24,21 @@ class VAPIX(object):
         url = self._form_api_url(api_call)
         return self._open_url(url, valid_statuses=[200])
 
+    def is_video_ok(self):
+        url = self._form_api_url("axis-cgi/view/videostatus.cgi?status=%d" % self.camera_id)
+        response_line = self._read_oneline_response(url, self.connection_timeout)
+        status = self._parse_parameter_and_value_from_response_line(response_line)[1]
+
+        return status == "video"
+
+    def restart_camera(self):
+        """
+        Restart (re-initialize) the camera. This requires admin credentials to be given when creating this API instance.
+        """
+        rospy.loginfo("Restarting camera %d on %s ." % (self.camera_id, self.hostname))
+        self._call_api_no_response("axis-cgi/admin/restart.cgi")
+        rospy.sleep(10)
+
     def _form_api_url(self, api_call):
         """
         Return the URL to be called to execute the given API call.
@@ -98,7 +113,7 @@ class VAPIX(object):
         """
         parts = line.split("=", 2)
         if len(parts) == 2:
-            return parts[0], parts[1]
+            return parts[0].strip(), parts[1].strip()
 
         raise ValueError("Line %s is not a valid key-value parameter API reponse line." % line)
 

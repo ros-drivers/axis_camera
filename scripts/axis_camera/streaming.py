@@ -59,7 +59,7 @@ class ImageStreamingThread(threading.Thread):
         while not rospy.is_shutdown():  # publish until stopped
 
             # if we are paused, wait for a resume before connecting to the stream
-            while not rospy.is_shutdown() and self.is_paused:
+            while not rospy.is_shutdown() and (self.is_paused or not self.axis.api.is_video_ok()):
                 rospy.sleep(1)
 
             try:
