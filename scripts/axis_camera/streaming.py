@@ -42,7 +42,7 @@ class ImageStreamingThread(threading.Thread):
         """
         rospy.logdebug("Trying to wake up the camera.")
 
-        self.axis.api.wakeup_camera()
+        self.axis.api.wakeup_camera(self.axis.hostname, self.axis.camera_id)
 
         # if the wakeup succeeded, give it a while to initialize and then proceeed further
         rospy.loginfo("Camera wakeup succeeded, now waiting for it to initialize.")

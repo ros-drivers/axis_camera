@@ -16,10 +16,6 @@ class VAPIX(object):
     def get_parameter(self, name):
         pass
 
-    def wakeup_camera(self):
-        # TODO what to do if there is no PTZ support?
-        self._call_api_no_response('axis-cgi/com/ptz.cgi?camera=%d&autofocus=on' % (self.camera_id, self.hostname))
-
     def get_video_stream(self, fps=24, resolution_name='CIF', compression=0, use_color=True, use_square_pixels=False):
         api_call = 'axis-cgi/mjpg/video.cgi?camera=%d&fps=%d&resolution=%s&compression=%d&color=%d&squarepixel=%d' % (
             self.camera_id, fps, resolution_name, compression, 1 if use_color else 0, 1 if use_square_pixels else 0
@@ -111,6 +107,13 @@ class VAPIX(object):
         return list_value.split(",")
 
     @staticmethod
+    def wakeup_camera(hostname, camera_id):
+        # TODO what to do if there is no PTZ support?
+        url = 'http://%s/axis-cgi/com/ptz.cgi?camera=%d&autofocus=on' % (hostname, camera_id)
+        with closing(VAPIX._open_url(url, valid_statuses=[200, 204])):
+            pass
+
+    @staticmethod
     def setup_authentication(hostname, username, password, use_encrypted_password=False):
         """only try to authenticate if user/pass configured.  I have not
         used this method (yet)."""
@@ -149,38 +152,68 @@ class VAPIX(object):
         :type use_encrypted_password: bool
         :return: Autodetected API instance.
         :rtype: VAPIX
+        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
+        :raises: RuntimeError If unexpected values are returned by the API.
         """
 
         # Enable HTTP login if a username and password are provided.
         if username is not None and password is not None:
+            rospy.logdebug("Using authentication credentials with user %s on host %s" % (username, hostname))
             VAPIX.setup_authentication(hostname, username, password, use_encrypted_password)
 
+        rospy.logdebug("Starting VAPIX autodetection.")
         try:
-            # First, try the v3 API. This URL is only valid for version 3, so we strictly check for the version number.
-            response = VAPIX._read_oneline_response(
-                "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
-                (hostname, camera_id)
-            )
-            version = VAPIX._parse_parameter_and_value_from_response_line(response)[1]
+            try:
+                # First, try the v3 API. This URL is only valid for version 3, so we strictly check for the version number.
+                return VAPIX._get_v3_api(hostname, camera_id)
+            except (IOError, ValueError):
+                # Next, try the v2 API. This URL should only work in the version 2 API.
+                try:
+                    return VAPIX._get_v2_api(hostname, camera_id)
+                except (IOError, ValueError):
+                    # Maybe the camera is in standby mode. Try to wake it up.
+                    rospy.logdebug("First try on VAPIX autodetection failed. The camera may be in standby mode. "
+                                   "Trying to wake it up.")
+                    VAPIX.wakeup_camera(hostname, camera_id)
 
-            if version != "3":
-                raise RuntimeError("Unexpected VAPIX version: %s" % version)
+                    # After waking up, try again both API v3 and v2
+                    rospy.logdebug("Starting VAPIX autodetection - second try.")
+                    try:
+                        return VAPIX._get_v3_api(hostname, camera_id)
+                    except (IOError, ValueError):
+                        return VAPIX._get_v2_api(hostname, camera_id)
+        except Exception as e:
+            rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
+                         "The camera stream will be unavailable. Cause: %s" % (hostname, camera_id, str(e.args)))
+            raise e
 
-            rospy.loginfo("Autodetected VAPIX version 3 for communication with camera %d" % camera_id)
-            return VAPIXv3(hostname, camera_id)
-        except (IOError, ValueError):
-            # Next, try the v2 API. This URL should only work in the version 2 API.
-            response = VAPIX._read_oneline_response(
-                "http://%s/axis-cgi/view/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
-                (hostname, camera_id)
-            )
-            version = int(VAPIX._parse_parameter_and_value_from_response_line(response)[1])
+    @staticmethod
+    def _get_v3_api(hostname, camera_id=1):
+        response = VAPIX._read_oneline_response(
+            "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
+            (hostname, camera_id)
+        )
+        version = VAPIX._parse_parameter_and_value_from_response_line(response)[1]
 
-            if not 0 < version < 3:
-                raise RuntimeError("Unexpected VAPIX version: %s" % version)
+        if version != "3":
+            raise RuntimeError("Unexpected VAPIX version: %s" % version)
 
-            rospy.loginfo("Autodetected VAPIX version %d for communication with camera %d" % (version, camera_id))
-            return VAPIXv2(hostname, camera_id)
+        rospy.loginfo("Autodetected VAPIX version 3 for communication with camera %d" % camera_id)
+        return VAPIXv3(hostname, camera_id)
+
+    @staticmethod
+    def _get_v2_api(hostname, camera_id=1):
+        response = VAPIX._read_oneline_response(
+            "http://%s/axis-cgi/view/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
+            (hostname, camera_id)
+        )
+        version = int(VAPIX._parse_parameter_and_value_from_response_line(response)[1])
+
+        if not 0 < version < 3:
+            raise RuntimeError("Unexpected VAPIX version: %s" % version)
+
+        rospy.loginfo("Autodetected VAPIX version %d for communication with camera %d" % (version, camera_id))
+        return VAPIXv2(hostname, camera_id)
 
 
 class VAPIXv2(VAPIX):

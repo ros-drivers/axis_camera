@@ -29,12 +29,21 @@ class Axis(rospy.SubscribeListener):
         self.video_params_changed = False
 
         self.hostname = hostname
+        self.camera_id = camera_id
         self.username = username  # deprecated
         self.password = password  # deprecated
         self.use_encrypted_password = use_encrypted_password  # deprecated
 
-        # autodetect the VAPIX API and connect to it
-        self.api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
+        self.api = None
+        # autodetect the VAPIX API and connect to it; try it forever
+        while self.api is None and not rospy.is_shutdown():
+            try:
+                self.api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
+            except (IOError, ValueError):
+                rospy.loginfo("Retrying connection to VAPIX on host %s, camera %d in 2 seconds." % (hostname, camera_id))
+                rospy.sleep(2)
+        if rospy.is_shutdown():
+            return
 
         self.allowed_resolutions = self._get_allowed_resolutions()
         rospy.loginfo("The following resolutions are available for camera %d: %s" % (camera_id, repr(self.allowed_resolutions)))
