@@ -20,6 +20,8 @@ from axis_camera.cfg import VideoStreamConfig
 from axis_camera.vapix import VAPIX
 from axis_camera.streaming import ImageStreamingThread
 
+# BACKWARDS COMPATIBILITY LAYER
+StreamThread = ImageStreamingThread  # deprecated
 
 class Axis(rospy.SubscribeListener):
     def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
@@ -30,9 +32,6 @@ class Axis(rospy.SubscribeListener):
 
         self.hostname = hostname
         self.camera_id = camera_id
-        self.username = username  # deprecated
-        self.password = password  # deprecated
-        self.use_encrypted_password = use_encrypted_password  # deprecated
 
         self.api = None
         # autodetect the VAPIX API and connect to it; try it forever
@@ -92,6 +91,15 @@ class Axis(rospy.SubscribeListener):
         # the publishers are started/stopped lazily in peer_subscribe/peer_unsubscribe
         self.video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
         self.camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
+
+        # BACKWARDS COMPATIBILITY LAYER
+
+        self.username = username  # deprecated
+        self.password = password  # deprecated
+        self.use_encrypted_password = use_encrypted_password  # deprecated
+        self.st = None  # deprecated
+        self.pub = self.video_publisher  # deprecated
+        self.caminfo_pub = self.camera_info_publisher  # deprecated
 
     def __str__(self):
         """Return string representation."""

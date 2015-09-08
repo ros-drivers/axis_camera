@@ -12,6 +12,8 @@ class ImageStreamingThread(threading.Thread):
         self.timeoutSeconds = 2.5
         self.is_paused = True
 
+        self.fp = None  # deprecated
+
     def run(self):
         self.resume()
 
@@ -66,6 +68,8 @@ class ImageStreamingThread(threading.Thread):
                 # now try to open the video stream;
                 with closing(self.axis.api.get_video_stream(self.axis.fps, self.axis.resolution.name, self.axis.compression,
                                                             self.axis.use_color, self.axis.use_square_pixels)) as stream:
+
+                    self.fp = stream  # backwards compatibility
 
                     rate = rospy.Rate(self.axis.fps)
                     self.axis.video_params_changed = False
@@ -183,3 +187,31 @@ class ImageStreamingThread(threading.Thread):
         msg.width = self.axis.width
         msg.height = self.axis.height
         self.axis.camera_info_publisher.publish(msg)
+
+    # BACKWARDS COMPATIBILITY LAYER
+    def authenticate(self):  # is already done when connecting to VAPIX
+        pass
+
+    def publishFramesContinuously(self):
+        self.publish_frames_until_error()
+
+    def findBoundary(self):
+        self.find_boundary_in_stream(self.fp)
+
+    def getImage(self):
+        self.getHeader()
+        self.getImageData()
+
+    def getHeader(self):
+        self.header = self.get_image_header_from_stream(self.fp)
+        self.content_length = int(self.header['Content-Length'])
+
+    def getImageData(self):
+        if self.content_length > 0:
+            self.img = self.get_image_data_from_stream(self.fp, self.content_length)
+
+    def publishMsg(self):
+        self.publish_image(self.header, self.img, rospy.Time.now())
+
+    def publishCameraInfoMsg(self):
+        self.publish_camera_info(self.header, self.img, rospy.Time.now())
