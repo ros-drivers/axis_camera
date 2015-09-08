@@ -18,10 +18,11 @@ import dynamic_reconfigure.server
 from axis_camera.cfg import VideoStreamConfig
 
 from axis_camera.vapix import VAPIX
-from axis_camera.streaming import ImageStreamingThread
+from axis_camera.video_streaming import ImageStreamingThread
 
 # BACKWARDS COMPATIBILITY LAYER
 StreamThread = ImageStreamingThread  # deprecated
+
 
 class Axis(rospy.SubscribeListener):
     def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
