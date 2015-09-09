@@ -5,7 +5,7 @@ from std_msgs.msg import Bool, Float32, Int32
 from dynamic_reconfigure.msg import Config, BoolParameter, IntParameter, DoubleParameter, StrParameter
 
 from axis_camera.cfg import CameraConfig
-from axis_camera.msg import PTZ
+from axis_camera.msg import PTZ, PointInRectangle
 
 
 class AxisCameraController(object):
@@ -92,6 +92,10 @@ class AxisCameraController(object):
             self.velocity_zoom_subscriber = rospy.Subscriber(
                 "control/zoom/velocity", Int32,
                 self._call_with_simple_message_data(self.set_zoom_velocity), queue_size=100)
+
+        if self.api.has_capabilities('AbsolutePan', 'AbsoluteTilt', 'AbsoluteZoom'):
+            self.look_at_subscriber = rospy.Subscriber(
+                "control/look_at", PointInRectangle, self._call_with_pir_message(self.look_at), queue_size=100)
 
         if self.api.has_capability('AutoFocus'):
             self.autofocus_subscriber = rospy.Subscriber(
@@ -217,6 +221,9 @@ class AxisCameraController(object):
 
     def set_zoom_velocity(self, zoom):
         self.api.set_ptz_velocity(zoom=zoom)
+
+    def look_at(self, x, y, image_width, image_height):
+        self.api.look_at(x, y, image_width, image_height)
 
     def set_autofocus(self, use, send_parameter_updates=True):
         self.api.use_autofocus(use)
@@ -430,3 +437,7 @@ class AxisCameraController(object):
     @staticmethod
     def _call_with_pt_message(func):
         return lambda (msg): func(msg.pan, msg.tilt)
+
+    @staticmethod
+    def _call_with_pir_message(func):
+        return lambda (msg): func(msg.x, msg.y, msg.image_width, msg.image_height)

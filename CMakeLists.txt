@@ -20,6 +20,7 @@ catkin_python_setup()
 # ROS message generation
 add_message_files(FILES
   PTZ.msg
+  PointInRectangle.msg
   Axis.msg # deprecated
 )
 generate_messages(DEPENDENCIES ${THIS_PACKAGE_MESSAGE_DEPS})

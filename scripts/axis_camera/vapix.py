@@ -241,6 +241,11 @@ class VAPIX(object):
 
         return pan, tilt, zoom
 
+    def look_at(self, x, y, image_width, image_height):
+        self.require_capabilities('AbsolutePan', 'AbsoluteTilt', 'AbsoluteZoom')
+
+        self._call_ptz_command("center=%d,%d&imagewidth=%d&imageheight=%d" % (x, y, image_width, image_height))
+
     # Focus
     def use_autofocus(self, use):
         self.require_capabilities('AutoFocus')
