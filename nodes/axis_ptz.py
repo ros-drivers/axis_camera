@@ -30,6 +30,9 @@ class AxisPTZ:
         self.camera_id = camera_id
         self.frame_id = frame_id
 
+        self.connection_timeout = 5
+        self.state_publishing_frequency = state_publishing_frequency
+
         self.api = None
         # autodetect the VAPIX API and connect to it; try it forever
         while self.api is None and not rospy.is_shutdown():
@@ -42,174 +45,146 @@ class AxisPTZ:
         if rospy.is_shutdown():
             return
 
-        self.flip = flip
-        # speed_control is true for speed control and false for
-        # position control:
-        self.speedControl = speed_control
-        self.mirror = False
-        self.state_publishing_frequency = state_publishing_frequency
+        if not self.api.has_ptz():
+            raise RuntimeError("Camera %d on host %s doesn't have a Pan-Tilt-Zoom unit." % (self.camera_id, self.hostname))
 
-        self.connection_timeout = 5
-
-        self.camera_controller = AxisCameraController(self.api)
-
-        self.state_publisher = rospy.Publisher("camera/ptz", PTZ, queue_size=100)
-        self.joint_states_publisher = rospy.Publisher("camera/joint_states", JointState, queue_size=100)
-        self.command_subscriber = rospy.Subscriber("cmd", Axis, self.command_callback, queue_size=100)
-        self.mirror_subscriber = rospy.Subscriber("mirror", Bool, self.mirrorCallback, queue_size=100)
-
-        self.dynamic_reconfigure_server = Server(PTZConfig, self.reconfigure)
+        # Create a controller of the camera
+        self.camera_controller = AxisCameraController(self.api, flip_vertically=flip, flip_horizontally=flip)
 
         # BACKWARDS COMPATIBILITY LAYER
         self.username = username  # deprecated
         self.password = password  # deprecated
-        self.pub = rospy.Publisher("state", Axis, queue_size=100)
+        self.flip = flip  # deprecated
+        self.speedControl = speed_control  # deprecated
+        self.mirror = False  # deprecated
 
+        self.msg = None  # deprecated
+        self.cmdString = ""  # deprecated
+
+        self.pub = rospy.Publisher("state", Axis, queue_size=100)  # deprecated
+        self.command_subscriber = rospy.Subscriber("cmd", Axis, self.cmd, queue_size=100)  # deprecated
+        self.mirror_subscriber = rospy.Subscriber("mirror", Bool, self.mirrorCallback, queue_size=100)  # deprecated
+
+        # Needs to be after the backwards compatibility setup
         # start the publisher thread
         self.publisher_thread = PositionStreamingThread(self, self.api)
+        self.st = self.publisher_thread  # deprecated
         self.publisher_thread.start()
 
-    def command_callback(self, message):
+    # BACKWARDS COMPATIBILITY LAYER
+
+    def cmd(self, message):
         """Command the camera with speed control or position control commands"""
-        if self.flip:
-            self.adjustForFlippedOrientation(message)
-        if self.mirror:
-            message.pan = -message.pan
+        self.msg = message
 
-        self.sanitisePTZCommands(message)
-        self.apply_command_to_camera(message)
+        self.sanitisePTZCommands()
 
-    def adjustForFlippedOrientation(self, message):
-        """If camera is mounted backwards and upside down (ie. self.flip==True
-        then apply appropriate transforms to pan and tilt"""
-        message.tilt = -message.tilt
+        self.camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
+        self.camera_controller.set_autofocus(message.autofocus)
+        if not message.autofocus:
+            self.camera_controller.set_focus(message.focus)
+        self.camera_controller.set_autoiris(True)
+        self.camera_controller.set_brightness(message.brightness)
+
+    def adjustForFlippedOrientation(self):
+        '''If camera is mounted backwards and upside down (ie. self.flip==True
+        then apply appropriate transforms to pan and tilt'''
+        self.msg.tilt = -self.msg.tilt
         if self.speedControl:
-            message.pan = -message.pan
+            self.msg.pan = -self.msg.pan
         else:
-            message.pan = 180.0 - message.pan
+            self.msg.pan = 180.0 - self.msg.pan
     
-    def sanitisePTZCommands(self, message):
+    def sanitisePTZCommands(self):
         """Applies limits to message and corrects for flipped camera if
         necessary"""
-        self.sanitisePan(message)
-        self.sanitiseTilt(message)
-        self.sanitiseZoom(message)
-        self.sanitiseFocus(message)
-        self.sanitiseBrightness(message)
-        self.sanitiseIris(message)
+        if not self.speedControl:
+            self.msg.pan = self.api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
+            self.msg.tilt = self.api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
+            self.msg.zoom = self.api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
+            self.msg.focus = self.api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
+            self.msg.brightness = self.api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
+            self.msg.iris = self.api.ptz_limits['Iris'].absolute.crop_value(self.msg.iris)
+        else:
+            self.msg.pan = self.api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
+            self.msg.tilt = self.api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
+            self.msg.zoom = self.api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
+            self.msg.focus = self.api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
+            self.msg.brightness = self.api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
+            self.msg.iris = self.api.ptz_limits['Iris'].velocity.crop_value(self.msg.iris)
 
-    def sanitisePan(self, message):
-        """Pan speed (in percent) must be: -100<pan<100'
-        Pan must be: -180<pan<180 even though the Axis cameras can only achieve
-        +/-170 degrees rotation."""
+    def sanitisePan(self):
         if self.speedControl:
-            if abs(message.pan) > 100.0:
-                message.pan = math.copysign(100.0, message.pan)
-        else: # position control so need to ensure -180<pan<180:
-            message.pan = ((message.pan + 180.0) % 360.0) - 180.0
+            self.msg.pan = self.api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
+        else:
+            self.msg.pan = self.api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
 
-    def sanitiseTilt(self, message):
-        '''Similar to self.sanitisePan() but for tilt'''
+    def sanitiseTilt(self):
         if self.speedControl:
-            if abs(message.tilt) > 100.0:
-                message.tilt = math.copysign(100.0, message.tilt)
-        else: # position control so ensure tilt: -180<tilt<180:
-            message.tilt = ((message.tilt + 180.0) % 360) - 180.0
+            self.msg.tilt = self.api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
+        else:
+            self.msg.tilt = self.api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
 
-    def sanitiseZoom(self, message):
-        '''Zoom must be: 1<zoom<9999.  continuouszoommove must be: 
-        -100<zoom<100'''
+    def sanitiseZoom(self):
         if self.speedControl:
-            if abs(message.zoom) > 100:
-                message.zoom = math.copysign(100, message.zoom)
-        else: # position control:
-            if message.zoom > 9999:
-                message.zoom = 9999
-            elif message.zoom < 1:
-                message.zoom = 1
-        message.zoom = int(message.zoom)
+            self.msg.zoom = self.api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
+        else:
+            self.msg.zoom = self.api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
         
-    def sanitiseFocus(self, message):
-        '''Focus must be: 1<focus<9999.  continuousfocusmove: -100<rfocus<100'''
+    def sanitiseFocus(self):
         if self.speedControl:
-            if abs(message.focus) > 100.0:
-                message.focus = math.copysign(100, message.focus)
-        else: # position control:
-            if message.focus > 9999:
-                message.focus = 9999
-            elif message.focus < 1:
-                message.focus = 1
-        message.focus = int(message.focus)
+            self.msg.focus = self.api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
+        else:
+            self.msg.focus = self.api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
             
-    def sanitiseBrightness(self, message):
-        '''Brightness must be: 1<brightness<9999.  continuousbrightnessmove must
-        be: -100<rbrightness<100.  Note that it appears that the brightness
-        cannot be adjusted on the Axis 214PTZ'''
+    def sanitiseBrightness(self):
         if self.speedControl:
-            if abs(message.brightness) > 100:
-                message.brightness = math.copysign(100, message.brightness)
-        else: # position control:
-            if message.brightness > 9999:
-                message.brightness = 9999
-            elif message.brightness < 1:
-                message.brightness = 1
-        message.brightness = int(message.brightness)
+            self.msg.brightness = self.api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
+        else:
+            self.msg.brightness = self.api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
 
-    def sanitiseIris(self, message):
-        '''Iris value is read only because autoiris has been set to "on"'''
-        if message.iris > 0.000001:
+    def sanitiseIris(self):
+        if self.msg.iris > 0.000001:
             rospy.logwarn("Iris value is read-only.")
 
-    def apply_command_to_camera(self, command):
+    def applySetpoints(self):
         """Apply the command to the camera using the HTTP API"""
-        url = self.construct_command_string_from_message(command)
-        stream = self.open_url(url, valid_statuses=[200, 204])
-        if stream is None:
-            rospy.logwarn('Failed to connect to camera to send command message')
+        self.camera_controller.set_ptz(self.msg.pan, self.msg.tilt, self.msg.zoom)
+        self.camera_controller.set_autofocus(self.msg.autofocus)
+        if not self.msg.autofocus:
+            self.camera_controller.set_focus(self.msg.focus)
+        self.camera_controller.set_autoiris(True)
+        self.camera_controller.set_brightness(self.msg.brightness)
 
-    def open_url(self, url, valid_statuses=None):
-        """Open connection to Axis camera using http"""
-        try:
-            rospy.logdebug('Opening ' + url)
-            stream = urllib2.urlopen(url, timeout=self.connection_timeout)
-            if stream is not None and (valid_statuses is None or stream.getcode() in valid_statuses):
-                return stream
-            else:
-                return None
-        except urllib2.URLError, e:
-            rospy.logwarn('Error opening URL %s' % url + 'Possible timeout.')
-            return None
-
-    def construct_command_string_from_message(self, message):
+    def createCmdString(self):
         """Created tje HTTP API string to command PTZ camera"""
-        result = 'http://%s/axis-cgi/com/ptz.cgi?' % self.hostname
+        self.cmdString = '/axis-cgi/com/ptz.cgi?'
         if self.speedControl:
-            result += 'continuouspantiltmove=%d,%d&' % (int(message.pan), int(message.tilt))
-            result += 'continuouszoommove=%d&' % message.zoom
-            result += 'continuousbrightnessmove=%d&' % message.brightness
+            self.cmdString += 'continuouspantiltmove=%d,%d&' % (int(self.msg.pan), int(self.msg.tilt))
+            self.cmdString += 'continuouszoommove=%d&' % self.msg.zoom
+            self.cmdString += 'continuousbrightnessmove=%d&' % self.msg.brightness
             # Note that brightness adjustment has no effect for Axis 214PTZ.
-            if message.autofocus:
-                result += 'autofocus=on&'
+            if self.msg.autofocus:
+                self.cmdString += 'autofocus=on&'
             else:
-                result += 'autofocus=off&continuousfocusmove=%d&' % message.focus
-            result += 'autoiris=on'
+                self.cmdString += 'autofocus=off&continuousfocusmove=%d&' % self.msg.focus
+            self.cmdString += 'autoiris=on'
         else: # position control:
-            result += 'pan=%f&tilt=%f&' % (message.pan, message.tilt)
-            result += 'zoom=%d&' % message.zoom
-            result += 'brightness=%d&' % message.brightness
-            if message.autofocus:
-                result += 'autofocus=on&'
+            self.cmdString += 'pan=%f&tilt=%f&' % (self.msg.pan, self.msg.tilt)
+            self.cmdString += 'zoom=%d&' % self.msg.zoom
+            self.cmdString += 'brightness=%d&' % self.msg.brightness
+            if self.msg.autofocus:
+                self.cmdString += 'autofocus=on&'
             else:
-                result += 'autofocus=off&focus=%d&' % message.focus
-            result += 'autoiris=on'
-
-        return result
+                self.cmdString += 'autofocus=off&focus=%d&' % self.msg.focus
+            self.cmdString += 'autoiris=on'
 
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
+        self.camera_controller.mirror_horizontally = self.mirror
         
-    def reconfigure(self, config, level):
+    def callback(self, config, level):
         #self.speedControl = config.speed_control
         
         # create temporary message and fill with data from dynamic reconfigure
@@ -222,15 +197,15 @@ class AxisPTZ:
         command.autofocus = config.autofocus
         
         # check sanity and apply values
-        self.command_callback(command)
+        self.cmd(command)
         
         # read sanitized values and update GUI
         config.pan = command.pan
         config.tilt = command.tilt
         config.zoom = command.zoom
-        config.focus = command.focus
-        config.brightness = command.brightness
-        config.autofocus = command.autofocus
+        config.focus = self.camera_controller.focus
+        config.brightness = self.camera_controller.brightness
+        config.autofocus = self.camera_controller.autofocus
         
         # update GUI with sanitized values
         return config
@@ -243,7 +218,7 @@ def main():
         'hostname': '192.168.0.90',
         'username': '',
         'password': '',
-        'flip': False,  # things get weird if flip=true
+        'flip': False,
         'speed_control': False,
         'frame_id': 'axis_camera',
         'use_encrypted_password': False,
@@ -254,6 +229,8 @@ def main():
 
     # Start the driver
     my_ptz = AxisPTZ(**args)
+
+    srv = Server(PTZConfig, my_ptz.callback)  # deprecated
 
     rospy.spin()
 

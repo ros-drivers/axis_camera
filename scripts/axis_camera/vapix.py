@@ -91,7 +91,7 @@ class VAPIX(object):
         self._has_ptz = self.has_ptz()
         if self._has_ptz:
             self._ptz_capabilities = self.get_ptz_capabilities()
-            self._ptz_limits = self.get_ptz_limits()
+            self.ptz_limits = self.get_ptz_limits()
 
     @abstractmethod
     def _form_parameter_url(self, group):
@@ -167,7 +167,7 @@ class VAPIX(object):
                 self._has_ptz = self.has_ptz()
                 if self._has_ptz:
                     self._ptz_capabilities = self.get_ptz_capabilities()
-                    self._ptz_limits = self.get_ptz_limits()
+                    self.ptz_limits = self.get_ptz_limits()
                 break
             except (IOError, ValueError, RuntimeError):
                 rospy.logdebug("Cannot get camera capabilities. Waiting 1s.")
@@ -178,9 +178,9 @@ class VAPIX(object):
     def move_ptz_absolute(self, pan=None, tilt=None, zoom=None):
         self.require_capabilities('AbsolutePan', 'AbsoluteTilt', 'AbsoluteZoom')
 
-        pan = (self._ptz_limits['Pan'].absolute.crop_value(pan) if pan is not None else None)
-        tilt = (self._ptz_limits['Tilt'].absolute.crop_value(tilt) if tilt is not None else None)
-        zoom = (self._ptz_limits['Zoom'].absolute.crop_value(zoom) if zoom is not None else None)
+        pan = (self.ptz_limits['Pan'].absolute.crop_value(pan) if pan is not None else None)
+        tilt = (self.ptz_limits['Tilt'].absolute.crop_value(tilt) if tilt is not None else None)
+        zoom = (self.ptz_limits['Zoom'].absolute.crop_value(zoom) if zoom is not None else None)
 
         commands = []
         if pan is not None:
@@ -199,9 +199,9 @@ class VAPIX(object):
     def move_ptz_relative(self, pan=None, tilt=None, zoom=None):
         self.require_capabilities('RelativePan', 'RelativeTilt', 'RelativeZoom')
 
-        pan = (self._ptz_limits['Pan'].relative.crop_value(pan) if pan is not None else None)
-        tilt = (self._ptz_limits['Tilt'].relative.crop_value(tilt) if tilt is not None else None)
-        zoom = (self._ptz_limits['Zoom'].relative.crop_value(zoom) if zoom is not None else None)
+        pan = (self.ptz_limits['Pan'].relative.crop_value(pan) if pan is not None else None)
+        tilt = (self.ptz_limits['Tilt'].relative.crop_value(tilt) if tilt is not None else None)
+        zoom = (self.ptz_limits['Zoom'].relative.crop_value(zoom) if zoom is not None else None)
 
         commands = []
         if pan is not None:
@@ -220,9 +220,9 @@ class VAPIX(object):
     def set_ptz_velocity(self, pan=None, tilt=None, zoom=None):
         self.require_capabilities('ContinuousPan', 'ContinuousTilt', 'ContinuousZoom')
 
-        pan = (self._ptz_limits['Pan'].velocity.crop_value(pan) if pan is not None else None)
-        tilt = (self._ptz_limits['Tilt'].velocity.crop_value(tilt) if tilt is not None else None)
-        zoom = (self._ptz_limits['Zoom'].velocity.crop_value(zoom) if zoom is not None else None)
+        pan = (self.ptz_limits['Pan'].velocity.crop_value(pan) if pan is not None else None)
+        tilt = (self.ptz_limits['Tilt'].velocity.crop_value(tilt) if tilt is not None else None)
+        zoom = (self.ptz_limits['Zoom'].velocity.crop_value(zoom) if zoom is not None else None)
 
         commands = []
         if pan is not None:
@@ -249,19 +249,19 @@ class VAPIX(object):
 
     def set_focus(self, focus):
         self.require_capabilities('AbsoluteFocus')
-        focus = self._ptz_limits['Focus'].absolute.crop_value(focus)
+        focus = self.ptz_limits['Focus'].absolute.crop_value(focus)
         self._call_ptz_command("autofocus=off&focus=%d" % focus)
         return focus
 
     def adjust_focus(self, amount):
         self.require_capabilities('RelativeFocus')
-        amount = self._ptz_limits['Focus'].relative.crop_value(amount)
+        amount = self.ptz_limits['Focus'].relative.crop_value(amount)
         self._call_ptz_command("autofocus=off&rfocus=%d" % amount)
         return amount
 
     def set_focus_velocity(self, velocity):
         self.require_capabilities('ContinuousFocus')
-        velocity = self._ptz_limits['Focus'].velocity.crop_value(velocity)
+        velocity = self.ptz_limits['Focus'].velocity.crop_value(velocity)
         self._call_ptz_command("autofocus=off&countinuousfocusmove=%d" % velocity)
         return velocity
 
@@ -273,38 +273,38 @@ class VAPIX(object):
 
     def set_iris(self, iris):
         self.require_capabilities('AbsoluteIris')
-        iris = self._ptz_limits['Iris'].absolute.crop_value(iris)
+        iris = self.ptz_limits['Iris'].absolute.crop_value(iris)
         self._call_ptz_command("autoiris=off&iris=%d" % iris)
         return iris
 
     def adjust_iris(self, amount):
         self.require_capabilities('RelativeIris')
-        amount = self._ptz_limits['Iris'].relative.crop_value(amount)
+        amount = self.ptz_limits['Iris'].relative.crop_value(amount)
         self._call_ptz_command("autoiris=off&riris=%d" % amount)
         return amount
 
     def set_iris_velocity(self, velocity):
         self.require_capabilities('ContinuousIris')
-        velocity = self._ptz_limits['Iris'].velocity.crop_value(velocity)
+        velocity = self.ptz_limits['Iris'].velocity.crop_value(velocity)
         self._call_ptz_command("autoiris=off&countinuousirismove=%d" % velocity)
         return velocity
 
     # Brightness
     def set_brightness(self, brightness):
-        self.require_capabilities('AbsoluteBrightness')
-        brightness = self._ptz_limits['Brightness'].absolute.crop_value(brightness)
+        # self.require_capabilities('AbsoluteBrightness')  # this capability is not present in the list
+        brightness = self.ptz_limits['Brightness'].absolute.crop_value(brightness)
         self._call_ptz_command("brightness=%d" % brightness)
         return brightness
 
     def adjust_brightness(self, amount):
         self.require_capabilities('RelativeBrightness')
-        amount = self._ptz_limits['Brightness'].relative.crop_value(amount)
+        amount = self.ptz_limits['Brightness'].relative.crop_value(amount)
         self._call_ptz_command("rbrightness=%d" % amount)
         return amount
 
     def set_brightness_velocity(self, velocity):
         self.require_capabilities('ContinuousBrightness')
-        velocity = self._ptz_limits['Brightness'].velocity.crop_value(velocity)
+        velocity = self.ptz_limits['Brightness'].velocity.crop_value(velocity)
         self._call_ptz_command("countinuousbrightnessmove=%d" % velocity)
         return velocity
 
@@ -477,11 +477,20 @@ class VAPIX(object):
             if valid_statuses is None or stream.getcode() in valid_statuses:
                 return stream
             else:
-                if int(stream.getcode) == 401:
+                if int(stream.getcode()) == 401:
                     raise IOError('Authentication required to access VAPIX URL %s . Either provide login credentials or'
                                   ' set up anonymous usage in the camera setup.' % url)
+                elif int(stream.getcode()) == 200:
+                    # if we e.g. expect only 204 No Content, and we receive something, it is an error
+                    line = stream.readline().strip()
+                    if line == "Error:":
+                        line = stream.readline().strip()
+                        raise RuntimeError('Request %s ended with error %s.' % (url, line))
+                    else:
+                        raise IOError(
+                            'Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
                 else:
-                    raise IOError('Received HTTP code %d in response to API request at URL %s .' % (stream.getcode, url))
+                    raise IOError('Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
         else:
             raise IOError('Error opening URL %s .' % url)
 

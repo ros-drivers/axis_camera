@@ -2,6 +2,7 @@ import threading
 
 import rospy
 from sensor_msgs.msg import JointState
+from dynamic_reconfigure.msg import Config, IntParameter, DoubleParameter
 
 from axis_camera.msg import Axis, PTZ
 
@@ -39,6 +40,10 @@ class PositionStreamingThread(threading.Thread):
         """Run the thread."""
         rate = rospy.Rate(self.axis.state_publishing_frequency)
 
+        state_publisher = rospy.Publisher("camera/ptz", PTZ, queue_size=100)
+        joint_states_publisher = rospy.Publisher("camera/joint_states", JointState, queue_size=100)
+        parameter_updates_publisher = rospy.Publisher("axis_ptz/parameter_updates", Config, queue_size=100)
+
         while not rospy.is_shutdown():
             # publish position forever
             try:
@@ -48,11 +53,20 @@ class PositionStreamingThread(threading.Thread):
 
                 # Create and publish the PTZ message
                 message = self._create_camera_position_message(camera_position, message_time)
-                self.axis.state_publisher.publish(message)
+                state_publisher.publish(message)
 
                 # Create and publish JointState
                 joint_states_message = self._create_camera_joint_states_message(camera_position, message_time)
-                self.axis.joint_states_publisher.publish(joint_states_message)
+                joint_states_publisher.publish(joint_states_message)
+
+                # Publish the parameter updates (because of backwards compatibility)
+                parameter_updates_message = self._create_parameter_updates_message(camera_position)
+                parameter_updates_publisher.publish(parameter_updates_message)
+
+                # set the parameters (because of backwards compatibility)
+                rospy.set_param("axis_ptz/pan", camera_position['pan'])
+                rospy.set_param("axis_ptz/tilt", camera_position['tilt'])
+                rospy.set_param("axis_ptz/zoom", camera_position['zoom'])
 
                 # Create and publish the deprecated Axis message
                 self.cameraPosition = camera_position  # backwards compatibility
@@ -108,6 +122,22 @@ class PositionStreamingThread(threading.Thread):
 
         # TODO message.velocity???
         # TODO flipping?
+
+        return message
+
+    def _create_parameter_updates_message(self, camera_position):
+        """
+        Create a parameter_updates message to update the deprecated dynamic_reconigurable pan, tilt and zoom params.
+        :param camera_position: The camera position. Should contain keys 'pan', 'tilt', and probably also 'zoom'.
+        :type camera_position: dict
+        :return: The Config message.
+        :rtype: Config
+        """
+        message = Config()
+
+        message.doubles.append(DoubleParameter(name="pan", value=camera_position['pan']))
+        message.doubles.append(DoubleParameter(name="tilt", value=camera_position['tilt']))
+        message.ints.append(IntParameter(name="zoom", value=camera_position['zoom']))
 
         return message
 
