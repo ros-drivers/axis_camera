@@ -7,8 +7,8 @@ set(THIS_PACKAGE_MESSAGE_DEPS
 set(THIS_PACKAGE_DEPS
   camera_info_manager_py
   dynamic_reconfigure
-  std_msgs
   rospy
+  sensor_msgs
   std_msgs
   tf
   ${THIS_PACKAGE_MESSAGE_DEPS}

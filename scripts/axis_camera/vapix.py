@@ -31,6 +31,47 @@ class VAPIX(object):
 
         return status == "video"
 
+    def get_camera_position(self, get_zoom=True, get_focus=True, get_iris=True):
+        """
+        Get current camera position using the Axis VAPIX PTZ API
+        :param get_zoom: If true, also try to get zoom. Set to false if using with no-zoom cameras.
+        :type get_zoom: bool
+        :param get_focus: If true, also try to get autofocus and focus. Set to false if using with no-focus cameras. Value True is deprecated.
+        :type get_focus: bool
+        :param get_iris: If true, also try to get autoiris and iris. Set to false if using with no-iris cameras. Value True is deprecated.
+        :type get_iris: bool
+        :return: The current camera position.
+        :rtype: dict {'pan': ..., 'tilt': ..., ['zoom': ...]}
+        :raises: IOError, urllib2.URLError
+        """
+        url = self._form_api_url("axis-cgi/com/ptz.cgi?query=position&camera=%d" % self.camera_id)
+        response_lines = self._read_multiline_response(url, self.connection_timeout)
+
+        position_keys = set(['pan', 'tilt'])
+        if get_zoom:
+            position_keys.add('zoom')
+        if get_focus:  # deprecated
+            position_keys.add('autofocus')
+            position_keys.add('focus')
+        if get_iris:  # deprecated
+            position_keys.add('autoiris')
+            position_keys.add('iris')
+
+        position = dict()
+        for line in response_lines:
+            (key, value) = self._parse_parameter_and_value_from_response_line(line)
+            if key in position_keys:
+                if not key.startswith('auto'):
+                    position[key] = float(value)
+                else:
+                    position[key] = True if value == 'on' else False
+
+        if 'pan' not in position or 'tilt' not in position or (get_zoom and 'zoom' not in position):
+            rospy.logdebug('Only succeeded to parse the following position values: %s' % repr(position))
+            raise RuntimeError('Error requesting the current position of the camera. Unexpected API response.')
+
+        return position
+
     def restart_camera(self):
         """
         Restart (re-initialize) the camera. This requires admin credentials to be given when creating this API instance.
@@ -66,7 +107,7 @@ class VAPIX(object):
         :type timeout: int
         :return: The stream with the response. The stream is never None (IOException would be thrown in such case).
         :rtype urllib.addinfourl:
-        :raises: IOException, urllib2.URLException
+        :raises: IOError, urllib2.URLError
         """
 
         rospy.logdebug('Opening VAPIX URL %s .' % url)
@@ -77,7 +118,11 @@ class VAPIX(object):
             if valid_statuses is None or stream.getcode() in valid_statuses:
                 return stream
             else:
-                raise IOError('Received HTTP code %d in response to API request at URL %s .' % (stream.getcode, url))
+                if int(stream.getcode) == 401:
+                    raise IOError('Authentication required to access VAPIX URL %s . Either provide login credentials or'
+                                  ' set up anonymous usage in the camera setup.' % url)
+                else:
+                    raise IOError('Received HTTP code %d in response to API request at URL %s .' % (stream.getcode, url))
         else:
             raise IOError('Error opening URL %s .' % url)
 
@@ -91,15 +136,48 @@ class VAPIX(object):
         :type timeout: int
         :return: The response text line (without newline at the end).
         :rtype: basestring
-        :raises: IOException, urllib2.URLException
+        :raises: IOError, urllib2.URLError
         """
-        with closing(VAPIX._open_url(url, valid_statuses=[200, 204], timeout=timeout)) as response_stream:
+        with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             line = response_stream.readline()
 
             if line is None:
                 raise IOError("Error reading response for API request at URL %s ." % url)
 
+            if line.strip() == "Error:":
+                line = response_stream.readline().strip()
+                raise RuntimeError("API request %s returned error: %s" % (url, line))
+
             return line.strip("\n")
+
+    @staticmethod
+    def _read_multiline_response(url, timeout=2):
+        """
+        Read a standard multiline result for a given API request.
+        :param url: The API URL to query.
+        :type url: basestring
+        :param timeout: Timeout for the API request.
+        :type timeout: int
+        :return: The response text lines (without newline at the end).
+        :rtype: list
+        :raises: IOError, urllib2.URLError
+        """
+        with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
+            lines = []
+
+            while not rospy.is_shutdown():
+                line = response_stream.readline()
+
+                if line is None or len(line) == 0 or line == "\n":
+                    break
+
+                if line.strip() == "Error:":
+                    line = response_stream.readline().strip()
+                    raise RuntimeError("API request %s returned error: %s" % (url, line))
+
+                lines.append(line.strip())
+
+            return lines
 
     @staticmethod
     def _parse_parameter_and_value_from_response_line(line):
@@ -115,7 +193,7 @@ class VAPIX(object):
         if len(parts) == 2:
             return parts[0].strip(), parts[1].strip()
 
-        raise ValueError("Line %s is not a valid key-value parameter API reponse line." % line)
+        raise ValueError("Line '%s' is not a valid key-value parameter API reponse line." % line)
 
     @staticmethod
     def parse_list_parameter_value(list_value):
