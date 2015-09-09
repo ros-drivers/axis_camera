@@ -4,16 +4,97 @@ from abc import ABCMeta, abstractmethod
 
 import rospy
 
+
+class Range(object):
+    def __init__(self, min=float('-inf'), max=float('inf'), period=None):
+        self.min = min
+        self.max = max
+        self.period = period
+
+    def _normalize(self, value):
+        if self.period is None:
+            return value
+
+        result = value
+        while result > self.period/2.0:
+            result -= self.period
+        while result < -self.period / 2.0:
+            result += self.period
+        return result
+
+    def is_in_range(self, value):
+        return self.min <= self._normalize(value) <= self.max
+
+    def crop_value(self, value):
+        value = self._normalize(value)
+        if value > self.max:
+            return self.max
+        elif value < self.min:
+            return self.min
+        else:
+            return value
+
+    def merge(self, range):
+        assert isinstance(range, Range)
+
+        period = None
+        if self.period is not None:
+            if range.period is not None:
+                period = max(self.period, range.period)  # TODO: better handling in case of different periods
+            else:
+                period = self.period
+        elif range.period is not None:
+                period = range.period
+
+        return Range(max(range.min, self.min), min(range.max, self.max), period)
+
+    def __str__(self):
+        result = "<%f, %f>" % (self.min, self.max)
+        if self.period is not None:
+            result += " + k*%f" % self.period
+        return result
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class PTZLimit(object):
+    def __init__(self, absolute=None, relative=None, velocity=None):
+        self.absolute = absolute if absolute is not None else Range()
+        self.relative = relative if relative is not None else Range()
+        self.velocity = velocity if velocity is not None else Range()
+
+    def merge(self, limit):
+        assert isinstance(limit, PTZLimit)
+
+        return PTZLimit(
+            self.absolute.merge(limit.absolute),
+            self.relative.merge(limit.relative),
+            self.velocity.merge(limit.velocity)
+        )
+
+    def __str__(self):
+        return "[absolute=%s, relative=%s, velocity=%s]" % (str(self.absolute), str(self.relative), str(self.velocity))
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class VAPIX(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, hostname, camera_id=1, connection_timeout=2):
+    def __init__(self, hostname, camera_id=1, connection_timeout=5):
         self.hostname = hostname
         self.camera_id = camera_id
         self.connection_timeout = connection_timeout
 
+        self._has_ptz = self.has_ptz()
+        if self._has_ptz:
+            self._ptz_capabilities = self.get_ptz_capabilities()
+            self._ptz_limits = self.get_ptz_limits()
+
     @abstractmethod
-    def get_parameter(self, name):
+    def _form_parameter_url(self, group):
         pass
 
     def get_video_stream(self, fps=24, resolution_name='CIF', compression=0, use_color=True, use_square_pixels=False):
@@ -78,7 +159,285 @@ class VAPIX(object):
         """
         rospy.loginfo("Restarting camera %d on %s ." % (self.camera_id, self.hostname))
         self._call_api_no_response("axis-cgi/admin/restart.cgi")
-        rospy.sleep(10)
+
+        # and now try to reload camera capabilities which might have changed after restart
+        # (here we also just wait until the camera is ready again)
+        while not rospy.is_shutdown():
+            try:
+                self._has_ptz = self.has_ptz()
+                if self._has_ptz:
+                    self._ptz_capabilities = self.get_ptz_capabilities()
+                    self._ptz_limits = self.get_ptz_limits()
+                break
+            except (IOError, ValueError, RuntimeError):
+                rospy.logdebug("Cannot get camera capabilities. Waiting 1s.")
+                rospy.sleep(1)
+
+
+    # PTZ movement
+    def move_ptz_absolute(self, pan=None, tilt=None, zoom=None):
+        self.require_capabilities('AbsolutePan', 'AbsoluteTilt', 'AbsoluteZoom')
+
+        pan = (self._ptz_limits['Pan'].absolute.crop_value(pan) if pan is not None else None)
+        tilt = (self._ptz_limits['Tilt'].absolute.crop_value(tilt) if tilt is not None else None)
+        zoom = (self._ptz_limits['Zoom'].absolute.crop_value(zoom) if zoom is not None else None)
+
+        commands = []
+        if pan is not None:
+            commands.append("pan=%f" % pan)
+        if tilt is not None:
+            commands.append("tilt=%f" % tilt)
+        if zoom is not None:
+            commands.append("zoom=%d" % zoom)
+
+        if len(commands) > 0:
+            command = "&".join(commands)
+            self._call_ptz_command(command)
+
+        return pan, tilt, zoom
+
+    def move_ptz_relative(self, pan=None, tilt=None, zoom=None):
+        self.require_capabilities('RelativePan', 'RelativeTilt', 'RelativeZoom')
+
+        pan = (self._ptz_limits['Pan'].relative.crop_value(pan) if pan is not None else None)
+        tilt = (self._ptz_limits['Tilt'].relative.crop_value(tilt) if tilt is not None else None)
+        zoom = (self._ptz_limits['Zoom'].relative.crop_value(zoom) if zoom is not None else None)
+
+        commands = []
+        if pan is not None:
+            commands.append("rpan=%f" % pan)
+        if tilt is not None:
+            commands.append("rtilt=%f" % tilt)
+        if zoom is not None:
+            commands.append("rzoom=%d" % zoom)
+
+        if len(commands) > 0:
+            command = "&".join(commands)
+            self._call_ptz_command(command)
+
+        return pan, tilt, zoom
+
+    def set_ptz_velocity(self, pan=None, tilt=None, zoom=None):
+        self.require_capabilities('ContinuousPan', 'ContinuousTilt', 'ContinuousZoom')
+
+        pan = (self._ptz_limits['Pan'].velocity.crop_value(pan) if pan is not None else None)
+        tilt = (self._ptz_limits['Tilt'].velocity.crop_value(tilt) if tilt is not None else None)
+        zoom = (self._ptz_limits['Zoom'].velocity.crop_value(zoom) if zoom is not None else None)
+
+        commands = []
+        if pan is not None:
+            if tilt is not None:
+                commands.append("continuouspantiltmove=%d,%d" % (pan, tilt))
+            else:
+                commands.append("continuouspantiltmove=%d,0" % pan)
+        elif tilt is not None:
+            commands.append("continuouspantiltmove=0,%d" % tilt)
+        if zoom is not None:
+            commands.append("continuouszoommove=%d" % zoom)
+
+        if len(commands) > 0:
+            command = "&".join(commands)
+            self._call_ptz_command(command)
+
+        return pan, tilt, zoom
+
+    # Focus
+    def use_autofocus(self, use):
+        self.require_capabilities('AutoFocus')
+        self._call_ptz_command("autofocus=%s" % "on" if use else "off")
+        return use
+
+    def set_focus(self, focus):
+        self.require_capabilities('AbsoluteFocus')
+        focus = self._ptz_limits['Focus'].absolute.crop_value(focus)
+        self._call_ptz_command("autofocus=off&focus=%d" % focus)
+        return focus
+
+    def adjust_focus(self, amount):
+        self.require_capabilities('RelativeFocus')
+        amount = self._ptz_limits['Focus'].relative.crop_value(amount)
+        self._call_ptz_command("autofocus=off&rfocus=%d" % amount)
+        return amount
+
+    def set_focus_velocity(self, velocity):
+        self.require_capabilities('ContinuousFocus')
+        velocity = self._ptz_limits['Focus'].velocity.crop_value(velocity)
+        self._call_ptz_command("autofocus=off&countinuousfocusmove=%d" % velocity)
+        return velocity
+
+    # Iris
+    def use_autoiris(self, use):
+        self.require_capabilities('AutoIris')
+        self._call_ptz_command("autoiris=%s" % "on" if use else "off")
+        return use
+
+    def set_iris(self, iris):
+        self.require_capabilities('AbsoluteIris')
+        iris = self._ptz_limits['Iris'].absolute.crop_value(iris)
+        self._call_ptz_command("autoiris=off&iris=%d" % iris)
+        return iris
+
+    def adjust_iris(self, amount):
+        self.require_capabilities('RelativeIris')
+        amount = self._ptz_limits['Iris'].relative.crop_value(amount)
+        self._call_ptz_command("autoiris=off&riris=%d" % amount)
+        return amount
+
+    def set_iris_velocity(self, velocity):
+        self.require_capabilities('ContinuousIris')
+        velocity = self._ptz_limits['Iris'].velocity.crop_value(velocity)
+        self._call_ptz_command("autoiris=off&countinuousirismove=%d" % velocity)
+        return velocity
+
+    # Brightness
+    def set_brightness(self, brightness):
+        self.require_capabilities('AbsoluteBrightness')
+        brightness = self._ptz_limits['Brightness'].absolute.crop_value(brightness)
+        self._call_ptz_command("brightness=%d" % brightness)
+        return brightness
+
+    def adjust_brightness(self, amount):
+        self.require_capabilities('RelativeBrightness')
+        amount = self._ptz_limits['Brightness'].relative.crop_value(amount)
+        self._call_ptz_command("rbrightness=%d" % amount)
+        return amount
+
+    def set_brightness_velocity(self, velocity):
+        self.require_capabilities('ContinuousBrightness')
+        velocity = self._ptz_limits['Brightness'].velocity.crop_value(velocity)
+        self._call_ptz_command("countinuousbrightnessmove=%d" % velocity)
+        return velocity
+
+    def _call_ptz_command(self, command):
+        rospy.logdebug("Calling PTZ command %s on host %s, camera %d" % (command, self.hostname, self.camera_id))
+        self._call_api_no_response("axis-cgi/com/ptz.cgi?camera=%d&%s" % (self.camera_id, command))
+
+    # Backlight compensation
+    def use_backlight_compensation(self, use):
+        self.require_capabilities('BackLight')
+        self._call_ptz_command("backlight=%s" % ("on" if use else "off"))
+        return use
+
+    # Infrared filter usage ("auto" value signalized by use=None)
+    def use_ir_cut_filter(self, use):
+        self.require_capabilities('IrCutFilter')
+        self._call_ptz_command("ircutfilter=%s" % ("auto" if use is None else ("on" if use else "off")))
+        return use
+
+    # PTZ presence checks
+    def has_ptz(self):
+        return self.get_parameter("root.Properties.PTZ.PTZ") == "yes"
+
+    def is_digital_ptz(self):
+        return self.get_parameter("root.Properties.PTZ.DigitalPTZ") == "yes"
+
+    # Camera and PTZ capabilities
+
+    def has_capability(self, capability):
+        if not self._has_ptz:
+            return False
+        return capability in self._ptz_capabilities
+
+    def has_capabilities(self, *capabilities):
+        if not self._has_ptz:
+            return False
+
+        for capability in capabilities:
+            if not self.has_capability(capability):
+                return False
+
+        return True
+
+    def require_capabilities(self, *capabilities):
+        for capability in capabilities:
+            if not self.has_capability(capability):
+                raise RuntimeError("Camera %d on host %s doesn't support the required capability %s." % (
+                    self.camera_id, self.hostname, capability))
+
+    def get_ptz_capabilities(self):
+        prefix = "root.PTZ.Support.S%d" % self.camera_id
+        parameters = self.get_parameter_list(prefix)
+
+        result = set()
+        for (key, value) in parameters.iteritems():
+            if value == "true":
+                key_stripped = key.replace(prefix + ".", "")
+                result.add(key_stripped)
+
+        return result
+
+    def get_ptz_limits(self):
+        real_limits = self.get_real_ptz_limits()
+        api_limits = self.get_api_ptz_limits()
+
+        result = dict()
+        keys = set().union(real_limits.keys()).union(api_limits.keys())
+        for key in keys:
+            if key not in real_limits.keys():
+                if key in api_limits.keys():
+                    result[key] = api_limits[key]
+            elif key not in api_limits.keys():
+                if key in real_limits.keys():
+                    result[key] = real_limits[key]
+            else:
+                result[key] = api_limits[key].merge(real_limits[key])
+
+        return result
+
+    # PTZ limits
+    def get_real_ptz_limits(self):
+        prefix = "root.PTZ.Limit.L%d" % self.camera_id
+        parameters = self.get_parameter_list(prefix)
+
+        result = dict()
+        for (key, value) in parameters.iteritems():
+            key_stripped = key.replace(prefix + ".", "")
+
+            limit = float(value)
+            capability = key_stripped.replace("Min", "").replace("Max", "")
+
+            if capability not in result.keys():
+                result[capability] = PTZLimit()
+
+            if key_stripped.startswith("Min"):
+                result[capability].absolute.min = limit
+            else:
+                result[capability].absolute.max = limit
+
+        result['Pan'].absolute.period = 360
+        result['Tilt'].absolute.period = 360
+
+        return result
+
+    @staticmethod
+    def get_api_ptz_limits():
+        return {
+            'Pan': PTZLimit(absolute=Range(-180, 180, 360), relative=Range(-360, 360, 720), velocity=Range(-100, 100)),
+            'Tilt': PTZLimit(absolute=Range(-180, 180, 360), relative=Range(-360, 360, 720), velocity=Range(-100, 100)),
+            'Zoom': PTZLimit(absolute=Range(1, 9999), relative=Range(-9999, 9999), velocity=Range(-100, 100)),
+            'Focus': PTZLimit(absolute=Range(1, 9999), relative=Range(-9999, 9999), velocity=Range(-100, 100)),
+            'Iris': PTZLimit(absolute=Range(1, 9999), relative=Range(-9999, 9999), velocity=Range(-100, 100)),
+            'Brightness': PTZLimit(absolute=Range(1, 9999), relative=Range(-9999, 9999), velocity=Range(-100, 100)),
+        }
+
+    def get_parameter(self, name):
+        url = self._form_parameter_url(name)
+        response_line = self._read_oneline_response(url, self.connection_timeout)
+        value = self._parse_parameter_and_value_from_response_line(response_line)
+        return value[1]
+
+    def get_parameter_list(self, group):
+        url = self._form_parameter_url(group)
+        response_lines = self._read_multiline_response(url, self.connection_timeout)
+
+        result = dict()
+        for response_line in response_lines:
+            parameter_and_value = self._parse_parameter_and_value_from_response_line(response_line)
+            result[parameter_and_value[0]] = parameter_and_value[1]
+
+        return result
+
+    # HELPER FUNCTIONS
 
     def _form_api_url(self, api_call):
         """
@@ -91,11 +450,11 @@ class VAPIX(object):
         return "http://%s/%s" % (self.hostname, api_call)
 
     def _call_api_no_response(self, api_call):
-        with closing(self._open_url(self._form_api_url(api_call), valid_statuses=[200, 204, 304])):
+        with closing(self._open_url(self._form_api_url(api_call), valid_statuses=[204], timeout=self.connection_timeout)):
             pass
 
     @staticmethod
-    def _open_url(url, valid_statuses=None, timeout=2):
+    def _open_url(url, valid_statuses=None, timeout=5):
         """
         Open connection to Axis camera using HTTP
 
@@ -196,8 +555,10 @@ class VAPIX(object):
         raise ValueError("Line '%s' is not a valid key-value parameter API reponse line." % line)
 
     @staticmethod
-    def parse_list_parameter_value(list_value):
+    def _parse_list_parameter_value(list_value):
         return list_value.split(",")
+
+    # Static API that can be used before obtaining a VAPIX instance
 
     @staticmethod
     def wakeup_camera(hostname, camera_id):
@@ -313,19 +674,13 @@ class VAPIXv2(VAPIX):
     def __repr__(self):
         return "VAPIX v2"
 
-    def get_parameter(self, name):
-        url = self._form_api_url("axis-cgi/view/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, name))
-        response_line = self._read_oneline_response(url, self.connection_timeout)
-        value = self._parse_parameter_and_value_from_response_line(response_line)
-        return value[1]
+    def _form_parameter_url(self, group):
+        return self._form_api_url("axis-cgi/view/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))
 
 
 class VAPIXv3(VAPIX):
     def __repr__(self):
         return "VAPIX v3"
 
-    def get_parameter(self, name):
-        url = self._form_api_url("axis-cgi/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, name))
-        response_line = self._read_oneline_response(url, self.connection_timeout)
-        value = self._parse_parameter_and_value_from_response_line(response_line)
-        return value[1]
+    def _form_parameter_url(self, group):
+        return self._form_api_url("axis-cgi/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))

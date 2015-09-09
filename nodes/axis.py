@@ -212,7 +212,7 @@ class Axis(rospy.SubscribeListener):
 
     def _get_resolutions_supported_by_camera(self):
         try:
-            return self.api.parse_list_parameter_value(self.api.get_parameter("root.Properties.Image.Resolution"))
+            return self.api._parse_list_parameter_value(self.api.get_parameter("root.Properties.Image.Resolution"))
         except (IOError, ValueError):
             rospy.logwarn("Could not determine resolutions supported by the camera. Asssuming only CIF.")
             return ["CIF"]

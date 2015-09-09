@@ -1,4 +1,4 @@
 Header header
 float32 pan
 float32 tilt
-float32 zoom
+int32 zoom
