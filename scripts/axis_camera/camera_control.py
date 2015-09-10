@@ -1,23 +1,26 @@
 import rospy
-# we already run one Server in axis_ptz for backwards compatibility, so we need to use a custom one allowing for subnamsepacing
-from axis_camera.dynamic_reconfigure_server2 import Server
+import threading
+
 from std_msgs.msg import Bool, Float32, Int32
-from dynamic_reconfigure.msg import Config, BoolParameter, IntParameter, DoubleParameter, StrParameter
 
 from axis_camera.cfg import CameraConfig
 from axis_camera.msg import PTZ, PointInRectangle
-
+# we already run one Server in axis_ptz for backwards compatibility, so we need to use a custom one allowing for subnamsepacing
+from axis_camera.dynamic_reconfigure_server2 import Server
 
 class AxisCameraController(object):
-    def __init__(self, api, flip_vertically=False, flip_horizontally=False, mirror_horizontally=False):
+    def __init__(self, api, axis, flip_vertically=False, flip_horizontally=False, mirror_horizontally=False):
 
         self.api = api
+        self.axis = axis
         self.flip_vertically = flip_vertically
         self.flip_horizontally = flip_horizontally
         self.mirror_horizontally = mirror_horizontally
 
-        self._parameter_updates_publisher_deprecated = rospy.Publisher("axis_ptz/parameter_updates", Config, queue_size=100)
-        self._parameter_updates_publisher = rospy.Publisher("axis_ptz_driver/parameter_updates", Config, queue_size=100)
+        self._parameter_update_mutex = threading.Lock()
+        self._executing_parameter_update = False
+        self._reconfigure_mutex = threading.Lock()
+        self._executing_reconfigure = False
 
         self.autofocus = True
         self.focus = 0
@@ -225,24 +228,27 @@ class AxisCameraController(object):
     def look_at(self, x, y, image_width, image_height):
         self.api.look_at(x, y, image_width, image_height)
 
-    def set_autofocus(self, use, send_parameter_updates=True):
+    def set_autofocus(self, use):
         self.api.use_autofocus(use)
         self.autofocus = use
         self._send_parameter_update("autofocus", use)
 
-    def set_focus(self, focus):
+    def set_focus(self, focus, set_also_autofocus=True):
         focus = self.api.set_focus(focus)
-        self.autofocus = False
         self.focus = focus
         self._send_parameter_update("focus", focus)
-        self._send_parameter_update("autofocus", False)
+        if set_also_autofocus:
+            self.autofocus = False
+            self._send_parameter_update("autofocus", False)
         return focus
 
-    def adjust_focus(self, amount):
+    def adjust_focus(self, amount, set_also_autofocus=True):
         amount = self.api.adjust_focus(amount)
         self.focus += amount
         self._send_parameter_update("focus", self.focus)
-        self._send_parameter_update("autofocus", False)
+        if set_also_autofocus:
+            self.autofocus = False
+            self._send_parameter_update("autofocus", False)
         return amount
 
     def set_focus_velocity(self, velocity):
@@ -254,19 +260,22 @@ class AxisCameraController(object):
         self.autoiris = use
         self._send_parameter_update("autoiris", use)
 
-    def set_iris(self, iris):
+    def set_iris(self, iris, set_also_autoiris=True):
         iris = self.api.set_iris(iris)
         self.iris = iris
-        self.autoiris = False
         self._send_parameter_update("iris", iris)
-        self._send_parameter_update("autoiris", False)
+        if set_also_autoiris:
+            self.autoiris = False
+            self._send_parameter_update("autoiris", False)
         return iris
 
-    def adjust_iris(self, amount):
+    def adjust_iris(self, amount, set_also_autoiris=True):
         amount = self.api.adjust_iris(amount)
         self.iris += amount
         self._send_parameter_update("iris", self.iris)
-        self._send_parameter_update("autoiris", False)
+        if set_also_autoiris:
+            self.autoiris = False
+            self._send_parameter_update("autoiris", False)
         return amount
 
     def set_iris_velocity(self, velocity):
@@ -322,79 +331,91 @@ class AxisCameraController(object):
         return use
 
     def _reconfigure(self, config, level, subname):
-        try:
-            if config.autofocus != self.autofocus:
-                self.set_autofocus(config.autofocus)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for autofocus. Cause: %s" % repr(e))
+        if self._executing_reconfigure or self._executing_parameter_update or self.axis._executing_reconfigure:
+            return config
 
-        try:
-            if config.focus != self.focus:
-                self.set_focus(config.focus)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for focus. Cause: %s" % repr(e))
+        with self._reconfigure_mutex:
+            self._executing_reconfigure = True
 
-        try:
-            if config.autoiris != self.autoiris:
-                self.set_autoiris(config.autoiris)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for autoiris. Cause: %s" % repr(e))
+            try:
+                if config.autofocus != self.autofocus:
+                    self.set_autofocus(config.autofocus)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for autofocus. Cause: %s" % repr(e))
 
-        try:
-            if config.iris != self.iris:
-                self.set_iris(config.iris)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for iris. Cause: %s" % repr(e))
+            try:
+                if config.focus != self.focus:
+                    self.set_focus(config.focus)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for focus. Cause: %s" % repr(e))
 
-        try:
-            if config.brightness != self.brightness:
-                self.set_brightness(config.brightness)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for brightness. Cause: %s" % repr(e))
+            try:
+                if config.autoiris != self.autoiris:
+                    self.set_autoiris(config.autoiris)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for autoiris. Cause: %s" % repr(e))
 
-        try:
-            if config.backlight != self.backlight:
-                self.use_backlight_compensation(config.backlight)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for backlight compenstaion. Cause: %s" % repr(e))
+            try:
+                if config.iris != self.iris:
+                    self.set_iris(config.iris)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for iris. Cause: %s" % repr(e))
 
-        try:
-            ir = None if config.ircutfilter == "auto" else (config.ircutfilter == "on")
-            if ir != self.ir_cut_filter:
-                if ir is None or self.ir_cut_filter is None:
-                    self.set_ir_cut_filter_auto(config.ircutfilter)
-                if ir is not None:
-                    self.set_ir_cut_filter_use(ir)
-        except (IOError, ValueError, RuntimeError) as e:
-            rospy.logwarn("Could not apply dynamic reconfigure for IR cut filter. Cause: %s" % repr(e))
+            try:
+                if config.brightness != self.brightness:
+                    self.set_brightness(config.brightness)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for brightness. Cause: %s" % repr(e))
 
-        config.autofocus = self.autofocus
-        config.focus = self.focus
-        config.autoiris = self.autoiris
-        config.iris = self.iris
-        config.brightness = self.brightness
-        config.backlight = self.backlight
-        config.ircutfilter = ("auto" if self.ir_cut_filter is None else ("on" if self.ir_cut_filter else "off"))
+            try:
+                if config.backlight != self.backlight:
+                    self.use_backlight_compensation(config.backlight)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for backlight compenstaion. Cause: %s" % repr(e))
 
-        return config
+            try:
+                ir = None if config.ircutfilter == "auto" else (config.ircutfilter == "on")
+                if ir != self.ir_cut_filter:
+                    if ir is None or self.ir_cut_filter is None:
+                        self.set_ir_cut_filter_auto(config.ircutfilter)
+                    if ir is not None:
+                        self.set_ir_cut_filter_use(ir)
+            except (IOError, ValueError, RuntimeError) as e:
+                rospy.logwarn("Could not apply dynamic reconfigure for IR cut filter. Cause: %s" % repr(e))
+
+            config.autofocus = self.autofocus
+            config.focus = self.focus
+            config.autoiris = self.autoiris
+            config.iris = self.iris
+            config.brightness = self.brightness
+            config.backlight = self.backlight
+            config.ircutfilter = ("auto" if self.ir_cut_filter is None else ("on" if self.ir_cut_filter else "off"))
+
+            self._executing_reconfigure = False
+
+            return config
 
     # Helper functions
 
     def _send_parameter_update(self, parameter, value):
-        config = Config()
-        if type(value) == bool:
-            config.bools = [BoolParameter(parameter, value)]
-        elif type(value) == int:
-            config.ints = [IntParameter(parameter, value)]
-        elif type(value) == float:
-            config.doubles = [DoubleParameter(parameter, value)]
-        elif isinstance(value, basestring):
-            config.strs = [StrParameter(parameter, value)]
+        if self._executing_parameter_update:
+            return
 
-        self._parameter_updates_publisher.publish(config)
-        self._parameter_updates_publisher_deprecated.publish(config)
-        rospy.set_param("axis_ptz/" + parameter, value)
-        rospy.set_param("axis_ptz_driver/" + parameter, value)
+        with self._parameter_update_mutex:
+            update = dict()
+            update[parameter] = value
+
+            self._executing_parameter_update = True
+
+            if hasattr(self.axis, 'srv') and self.axis.srv is not None and not self.axis._executing_reconfigure:
+                # axis.srv is instantiated after camera controller
+                self.axis.srv.update_configuration(update)
+
+            if hasattr(self, 'dynamic_reconfigure_server') and self.dynamic_reconfigure_server is not None and not self._executing_reconfigure:
+                # this server can also be initialized later
+                self.dynamic_reconfigure_server.update_configuration(update)
+
+            self._executing_parameter_update = False
 
     def _apply_flip_and_mirror_absolute(self, pan, tilt):
         if self.flip_vertically:

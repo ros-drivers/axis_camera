@@ -4,13 +4,10 @@
 #   http://www.axis.com/global/en/support/developer-support/vapix
 #
 import threading
-import httplib, urllib
-import urllib2
-import rospy 
-from axis_camera.msg import Axis, PTZ
-from sensor_msgs.msg import JointState
+
+import rospy
+from axis_camera.msg import Axis
 from std_msgs.msg import Bool
-import math
 from dynamic_reconfigure.server import Server
 from axis_camera.cfg import PTZConfig
 
@@ -18,7 +15,7 @@ from axis_camera.vapix import VAPIX
 from axis_camera.position_streaming import PositionStreamingThread
 from axis_camera.camera_control import AxisCameraController
 
-StateThread = PositionStreamingThread
+StateThread = PositionStreamingThread  # deprecated
 
 
 class AxisPTZ:
@@ -32,6 +29,9 @@ class AxisPTZ:
 
         self.connection_timeout = 5
         self.state_publishing_frequency = state_publishing_frequency
+
+        self._executing_reconfigure = False
+        self._reconfigure_mutex = threading.Lock()
 
         self.api = None
         # autodetect the VAPIX API and connect to it; try it forever
@@ -49,7 +49,7 @@ class AxisPTZ:
             raise RuntimeError("Camera %d on host %s doesn't have a Pan-Tilt-Zoom unit." % (self.camera_id, self.hostname))
 
         # Create a controller of the camera
-        self.camera_controller = AxisCameraController(self.api, flip_vertically=flip, flip_horizontally=flip)
+        self.camera_controller = AxisCameraController(self.api, self, flip_vertically=flip, flip_horizontally=flip)
 
         # BACKWARDS COMPATIBILITY LAYER
         self.username = username  # deprecated
@@ -64,6 +64,8 @@ class AxisPTZ:
         self.pub = rospy.Publisher("state", Axis, queue_size=100)  # deprecated
         self.command_subscriber = rospy.Subscriber("cmd", Axis, self.cmd, queue_size=100)  # deprecated
         self.mirror_subscriber = rospy.Subscriber("mirror", Bool, self.mirrorCallback, queue_size=100)  # deprecated
+
+        self.srv = Server(PTZConfig, self.callback)  # deprecated
 
         # Needs to be after the backwards compatibility setup
         # start the publisher thread
@@ -80,9 +82,11 @@ class AxisPTZ:
         self.sanitisePTZCommands()
 
         self.camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
-        self.camera_controller.set_autofocus(message.autofocus)
-        if not message.autofocus:
-            self.camera_controller.set_focus(message.focus)
+        self.camera_controller.set_focus(message.focus, set_also_autofocus=False)
+        if message.focus != self.camera_controller.focus:
+            self.camera_controller.set_autofocus(False)
+        else:
+            self.camera_controller.set_autofocus(message.autofocus)
         self.camera_controller.set_autoiris(True)
         self.camera_controller.set_brightness(message.brightness)
 
@@ -186,29 +190,37 @@ class AxisPTZ:
         
     def callback(self, config, level):
         #self.speedControl = config.speed_control
-        
-        # create temporary message and fill with data from dynamic reconfigure
-        command = Axis()
-        command.pan = config.pan
-        command.tilt = config.tilt
-        command.zoom = config.zoom
-        command.focus = config.focus
-        command.brightness = config.brightness
-        command.autofocus = config.autofocus
-        
-        # check sanity and apply values
-        self.cmd(command)
-        
-        # read sanitized values and update GUI
-        config.pan = command.pan
-        config.tilt = command.tilt
-        config.zoom = command.zoom
-        config.focus = self.camera_controller.focus
-        config.brightness = self.camera_controller.brightness
-        config.autofocus = self.camera_controller.autofocus
-        
-        # update GUI with sanitized values
-        return config
+
+        if self._executing_reconfigure or (hasattr(self, 'camera_controller') and (self.camera_controller._executing_parameter_update or self.camera_controller._executing_reconfigure)):
+            return config
+
+        with self._reconfigure_mutex:
+            self._executing_reconfigure = True
+
+            # create temporary message and fill with data from dynamic reconfigure
+            command = Axis()
+            command.pan = config.pan
+            command.tilt = config.tilt
+            command.zoom = config.zoom
+            command.focus = config.focus
+            command.brightness = config.brightness
+            command.autofocus = config.autofocus
+
+            # check sanity and apply values
+            self.cmd(command)
+
+            # read sanitized values and update GUI
+            config.pan = command.pan
+            config.tilt = command.tilt
+            config.zoom = command.zoom
+            config.focus = self.camera_controller.focus
+            config.brightness = self.camera_controller.brightness
+            config.autofocus = self.camera_controller.autofocus
+
+            self._executing_reconfigure = False
+
+            # update GUI with sanitized values
+            return config
 
 
 def main():
@@ -229,8 +241,6 @@ def main():
 
     # Start the driver
     my_ptz = AxisPTZ(**args)
-
-    srv = Server(PTZConfig, my_ptz.callback)  # deprecated
 
     rospy.spin()
 
