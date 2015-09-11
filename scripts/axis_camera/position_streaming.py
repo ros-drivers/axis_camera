@@ -1,5 +1,7 @@
 import threading
 
+from math import radians
+
 import rospy
 from sensor_msgs.msg import JointState
 from dynamic_reconfigure.msg import Config, IntParameter, DoubleParameter
@@ -117,8 +119,8 @@ class PositionStreamingThread(threading.Thread):
         message.header.stamp = timestamp
         message.header.frame_id = self.axis.frame_id
 
-        message.name = ["pan_j", "tilt_j"]
-        message.position = [camera_position['pan'], camera_position['tilt']]
+        message.name = ["axis_pan_j", "axis_tilt_j"]
+        message.position = [radians(camera_position['pan']), radians(camera_position['tilt'])]
 
         # TODO message.velocity???
         # TODO flipping?
