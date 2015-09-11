@@ -4,6 +4,7 @@ project(axis_camera)
 set(THIS_PACKAGE_MESSAGE_DEPS
   std_msgs
 )
+# packages which are both build and run dependencies
 set(THIS_PACKAGE_DEPS
   camera_info_manager_py
   dynamic_reconfigure
@@ -14,7 +15,7 @@ set(THIS_PACKAGE_DEPS
   ${THIS_PACKAGE_MESSAGE_DEPS}
 )
 
-find_package(catkin REQUIRED COMPONENTS message_generation ${THIS_PACKAGE_DEPS})
+find_package(catkin REQUIRED COMPONENTS message_generation xacro ${THIS_PACKAGE_DEPS})
 catkin_python_setup()
 
 # ROS message generation
@@ -31,6 +32,10 @@ generate_dynamic_reconfigure_options(
   cfg/PTZ.cfg # deprecated
 )
 
+xacro_add_xacro_file(${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.xacro
+                    ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
+add_custom_target(axis_camera_media_files_urdf ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
+
 catkin_package(CATKIN_DEPENDS message_runtime ${THIS_PACKAGE_DEPS})
 
 install(PROGRAMS
@@ -41,6 +46,6 @@ install(PROGRAMS
   nodes/teleop_speed_control.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(DIRECTORY launch tests
+install(DIRECTORY launch tests meshes urdf
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 

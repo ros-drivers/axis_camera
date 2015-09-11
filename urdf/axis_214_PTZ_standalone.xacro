@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="axis_214_PTZ">    
+    <!-- This is a virtual link which serves as the fixed world link. --> 
+    <link name="axis_origin" />
+    <joint name="axis_origin_j" type="fixed">
+        <parent link="axis_origin"/>
+        <child link="axis_stand"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <!-- INCLUDES -->
+    <xacro:include filename="$(find axis_camera)/urdf/axis_214_PTZ.urdf" />
+</robot>
