@@ -153,6 +153,16 @@ class VAPIX(object):
 
         return position
 
+    def take_snapshot(self):
+        """
+        Take a snapshot at the current camera's position.
+        :return: The binary data of the image.
+        :rtype: bytes
+        """
+        image_data = self._read_binary_response(self._form_api_url("axis-cgi/jpg/image.cgi?camera=%d" % self.camera_id))
+        return image_data
+
+
     def restart_camera(self):
         """
         Restart (re-initialize) the camera. This requires admin credentials to be given when creating this API instance.
@@ -551,6 +561,21 @@ class VAPIX(object):
                 lines.append(line.strip())
 
             return lines
+
+    @staticmethod
+    def _read_binary_response(url, timeout=2):
+        """
+        Read a binary result for a given API request (e.g. an image).
+        :param url: The API URL to query.
+        :type url: basestring
+        :param timeout: Timeout for the API request.
+        :type timeout: int
+        :return: The response data.
+        :rtype: bytes
+        :raises: IOError, urllib2.URLError
+        """
+        with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
+            return response_stream.read()
 
     @staticmethod
     def _parse_parameter_and_value_from_response_line(line):

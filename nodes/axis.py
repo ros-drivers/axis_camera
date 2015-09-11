@@ -15,8 +15,9 @@ import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
 import dynamic_reconfigure.server
-from axis_camera.cfg import VideoStreamConfig
 
+from axis_camera.cfg import VideoStreamConfig
+from axis_camera.srv import TakeSnapshot, TakeSnapshotResponse
 from axis_camera.vapix import VAPIX
 from axis_camera.video_streaming import ImageStreamingThread
 
@@ -93,6 +94,8 @@ class Axis(rospy.SubscribeListener):
         self.video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
         self.camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
 
+        self.snapshot_server = rospy.Service("take_snapshot", TakeSnapshot, self.take_snapshot)
+
         # BACKWARDS COMPATIBILITY LAYER
 
         self.username = username  # deprecated
@@ -120,6 +123,23 @@ class Axis(rospy.SubscribeListener):
         """Lazy-stop the image-publisher when nobody is interested"""
         if num_peers == 0:
             self.streaming_thread.pause()
+
+    def take_snapshot(self, request):
+        image_data = self.api.take_snapshot()
+
+        image = CompressedImage()
+
+        image.header.stamp = rospy.Time.now()
+        image.header.frame_id = self.frame_id
+
+        image.format = "jpeg"
+
+        image.data = image_data
+
+        response = TakeSnapshotResponse()
+        response.image = image
+
+        return response
 
     def reconfigure_video(self, config, level):
         self.__try_set_value_from_config(config, 'compression', self.set_compression)

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(axis_camera)
 
 set(THIS_PACKAGE_MESSAGE_DEPS
+  sensor_msgs
   std_msgs
 )
 # packages which are both build and run dependencies
@@ -23,6 +24,9 @@ add_message_files(FILES
   PTZ.msg
   PointInRectangle.msg
   Axis.msg # deprecated
+)
+add_service_files(FILES
+  TakeSnapshot.srv
 )
 generate_messages(DEPENDENCIES ${THIS_PACKAGE_MESSAGE_DEPS})
 
