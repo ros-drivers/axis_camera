@@ -650,7 +650,7 @@ class VAPIX(object):
         """
 
         # Enable HTTP login if a username and password are provided.
-        if username is not None and password is not None:
+        if username is not None and len(username) > 0 and password is not None and len(password) > 0:
             rospy.logdebug("Using authentication credentials with user %s on host %s" % (username, hostname))
             VAPIX.setup_authentication(hostname, username, password, use_encrypted_password)
 

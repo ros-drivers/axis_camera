@@ -316,8 +316,8 @@ def main():
 
     arg_defaults = {
         'hostname': '192.168.0.90',       # default IP address
-        'username': 'root',               # default login name
-        'password': '',
+        'username': None,               # default login name
+        'password': None,
         'width': 704,
         'height': 576,
         'frame_id': 'axis_camera',

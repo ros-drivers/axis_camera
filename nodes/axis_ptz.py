@@ -228,8 +228,8 @@ def main():
 
     arg_defaults = {
         'hostname': '192.168.0.90',
-        'username': '',
-        'password': '',
+        'username': None,
+        'password': None,
         'flip': False,
         'speed_control': False,
         'frame_id': 'axis_camera',
