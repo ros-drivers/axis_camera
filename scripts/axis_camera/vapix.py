@@ -244,7 +244,7 @@ class VAPIX(object):
         .. note:: Unfortunately, not all video errors are recognized (e.g. the black-image stream).
         """
         url = self._form_api_url("axis-cgi/view/videostatus.cgi?status=%d" % self.camera_id)
-        response_line = self._read_oneline_response(url, self.connection_timeout)
+        response_line = self._call_api_oneline_response(url)
         status = self._parse_parameter_and_value_from_response_line(response_line)[1]
 
         return status == "video"
@@ -264,7 +264,7 @@ class VAPIX(object):
         .. note:: The get_focus and get_iris parameters are only supported for backwards compatibility.
         """
         url = self._form_api_url("axis-cgi/com/ptz.cgi?query=position&camera=%d" % self.camera_id)
-        response_lines = self._read_multiline_response(url, self.connection_timeout)
+        response_lines = self._call_api_multiline_response(url)
 
         position_keys = {'pan', 'tilt'}
         if get_zoom:
@@ -300,7 +300,7 @@ class VAPIX(object):
 
         .. todo:: Implement more snapshotting functionality.
         """
-        image_data = self._read_binary_response(self._form_api_url("axis-cgi/jpg/image.cgi?camera=%d" % self.camera_id))
+        image_data = self._call_api_binary_response(self._form_api_url("axis-cgi/jpg/image.cgi?camera=%d" % self.camera_id))
         return image_data
 
     def restart_camera(self):
@@ -866,6 +866,10 @@ class VAPIX(object):
             'Brightness': PTZLimit(absolute=Range(1, 9999), relative=Range(-9999, 9999), velocity=Range(-100, 100)),
         }
 
+    ######################
+    # Parameter handling #
+    ######################
+
     def get_parameter(self, name):
         """Get the value of the specified parameter through VAPIX.
         :param name: Full name of the parameter (e.g. 'root.Properties.PTZ.PTZ').
@@ -876,7 +880,7 @@ class VAPIX(object):
         :raises: ValueError if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(name)
-        response_line = self._read_oneline_response(url, self.connection_timeout)
+        response_line = self._call_api_oneline_response(url)
         value = self._parse_parameter_and_value_from_response_line(response_line)
         return value[1]
 
@@ -890,7 +894,7 @@ class VAPIX(object):
         :raises: ValueError if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(group)
-        response_lines = self._read_multiline_response(url, self.connection_timeout)
+        response_lines = self._call_api_multiline_response(url)
 
         result = dict()
         for response_line in response_lines:
@@ -899,11 +903,12 @@ class VAPIX(object):
 
         return result
 
-    # HELPER FUNCTIONS
+    ########################
+    # API HELPER FUNCTIONS #
+    ########################
 
     def _form_api_url(self, api_call):
-        """
-        Return the URL to be called to execute the given API call.
+        """Return the URL to be called to execute the given API call.
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
         :return: The URL.
@@ -911,30 +916,74 @@ class VAPIX(object):
         """
         return "http://%s/%s" % (self.hostname, api_call)
 
+    def _call_api_no_response(self, api_call):
+        """Call the given API command expecting no content in response.
+        :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
+        :type api_call: basestring
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
+        with closing(
+                self._open_url(self._form_api_url(api_call), valid_statuses=[204], timeout=self.connection_timeout)):
+            pass
+
+    def _call_api_oneline_response(self, api_call):
+        """Call the given API command expecting a one-line result.
+        :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
+        :type api_call: basestring
+        :return: The response text line (without newline at the end).
+        :rtype: basestring
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
+        return self._read_oneline_response(self._form_api_url(api_call), self.connection_timeout)
+
+    def _call_api_multiline_response(self, api_call):
+        """Call the given API command expecting a multiline result.
+        :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
+        :type api_call: basestring
+        :return: The response text lines (without newlines at the end).
+        :rtype: list of basestring
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
+        return self._read_multiline_response(self._form_api_url(api_call), self.connection_timeout)
+
+    def _call_api_binary_response(self, api_call):
+        """Call the given API command expecting a binary result (e.g. an image).
+        :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
+        :type api_call: basestring
+        :return: The response data.
+        :rtype: bytes
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
+        return self._read_binary_response(self._form_api_url(api_call), self.connection_timeout)
+
     def _call_ptz_command(self, command):
+        """Call the given PTZ command.
+        :param command: The command to execute. It is an ampersand-delimited string of type 'pan=1&tilt=5'.
+        :type command: basestring
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
+
         rospy.logdebug("Calling PTZ command %s on host %s, camera %d" % (command, self.hostname, self.camera_id))
         self._call_api_no_response("axis-cgi/com/ptz.cgi?camera=%d&%s" % (self.camera_id, command))
 
-    def _call_api_no_response(self, api_call):
-        with closing(self._open_url(self._form_api_url(api_call), valid_statuses=[204], timeout=self.connection_timeout)):
-            pass
+    #################################################################
+    # Static API that can be used before obtaining a VAPIX instance #
+    #################################################################
 
     @staticmethod
-    def _open_url(url, valid_statuses=None, timeout=5):
-        """
-        Open connection to Axis camera using HTTP
-
-        :param url: The API URL to query.
+    def _open_url(url, valid_statuses=None, timeout=2):
+        """Open connection to Axis camera using HTTP
+        :param url: The full URL to query.
         :type url: basestring
-        :param valid_statuses: Status codes denoting valid responses. Other codes will raise an IOException.
-        :type valid_statuses: list
-        :param timeout: Timeout for the API request.
+        :param valid_statuses: Status codes denoting valid responses. Other codes will raise an IOException. If None,
+                               the reposnse status code is not examined.
+        :type valid_statuses: list of int
+        :param timeout: Timeout for the request.
         :type timeout: int
         :return: The stream with the response. The stream is never None (IOException would be thrown in such case).
         :rtype urllib.addinfourl:
-        :raises: IOError, urllib2.URLError
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
         """
-
         rospy.logdebug('Opening VAPIX URL %s .' % url)
         stream = urllib2.urlopen(url, timeout=timeout)
 
@@ -956,21 +1005,22 @@ class VAPIX(object):
                         raise IOError(
                             'Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
                 else:
-                    raise IOError('Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
+                    raise IOError(
+                        'Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
         else:
             raise IOError('Error opening URL %s .' % url)
 
+
     @staticmethod
     def _read_oneline_response(url, timeout=2):
-        """
-        Read a standard one-line result for a given API request.
-        :param url: The API URL to query.
+        """Call the given full URL expecting a one-line response and return it.
+        :param url: The full URL to query.
         :type url: basestring
-        :param timeout: Timeout for the API request.
+        :param timeout: Timeout for the request.
         :type timeout: int
         :return: The response text line (without newline at the end).
         :rtype: basestring
-        :raises: IOError, urllib2.URLError
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
         """
         with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             line = response_stream.readline()
@@ -986,15 +1036,14 @@ class VAPIX(object):
 
     @staticmethod
     def _read_multiline_response(url, timeout=2):
-        """
-        Read a standard multiline result for a given API request.
-        :param url: The API URL to query.
+        """Call the given full URL expecting a multiline result.
+        :param url: The full URL to query.
         :type url: basestring
-        :param timeout: Timeout for the API request.
+        :param timeout: Timeout for the request.
         :type timeout: int
-        :return: The response text lines (without newline at the end).
-        :rtype: list
-        :raises: IOError, urllib2.URLError
+        :return: The response text lines (without newlines at the end).
+        :rtype: list of basestring
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
         """
         with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             lines = []
@@ -1015,9 +1064,8 @@ class VAPIX(object):
 
     @staticmethod
     def _read_binary_response(url, timeout=2):
-        """
-        Read a binary result for a given API request (e.g. an image).
-        :param url: The API URL to query.
+        """Read a binary result for a given full URL (e.g. an image).
+        :param url: The full URL to query.
         :type url: basestring
         :param timeout: Timeout for the API request.
         :type timeout: int
@@ -1030,10 +1078,9 @@ class VAPIX(object):
 
     @staticmethod
     def _parse_parameter_and_value_from_response_line(line):
-        """
-        Parse an API response line of the form key=value.
+        """Parse an API response line of the form key=value.
         :param line: The response line to parse.
-        :type line: basestring
+        :type line: str|unicode
         :return: The parsed tuple (key, value).
         :rtype: tuple
         :raises: ValueError When the line cannot be parsed.
@@ -1046,12 +1093,23 @@ class VAPIX(object):
 
     @staticmethod
     def _parse_list_parameter_value(list_value):
+        """Parse an API response value that is a list and return the list.
+        :param list_value: The value to be parsed as a (comma separated) list.
+        :type list_value: str|unicode
+        :return: The list of parsed values.
+        :rtype: list of basestring
+        """
         return list_value.split(",")
-
-    # Static API that can be used before obtaining a VAPIX instance
 
     @staticmethod
     def wakeup_camera(hostname, camera_id):
+        """Try to wake up a camera in standby mode.
+        :param hostname: Hostname of the camera.
+        :type hostname: basestring
+        :param camera_id: Id of the camera. Usually 1-4.
+        :type camera_id: int
+        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        """
         # TODO what to do if there is no PTZ support?
         url = 'http://%s/axis-cgi/com/ptz.cgi?camera=%d&autofocus=on' % (hostname, camera_id)
         with closing(VAPIX._open_url(url, valid_statuses=[200, 204])):
@@ -1059,9 +1117,16 @@ class VAPIX(object):
 
     @staticmethod
     def setup_authentication(hostname, username, password, use_encrypted_password=False):
-        """only try to authenticate if user/pass configured.  I have not
-        used this method (yet)."""
-
+        """Set user credentials to the HTTP handler, so that if authentication is required, they will be used.
+        :param hostname: Hostname of the camera.
+        :type hostname: basestring
+        :param username: Username.
+        :type username: basestring
+        :param password: Password.
+        :type password: basestring
+        :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
+        :type use_encrypted_password: bool
+        """
         # create a password manager
         password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
 
@@ -1082,33 +1147,31 @@ class VAPIX(object):
 
     @staticmethod
     def get_api_for_camera(hostname, username=None, password=None, camera_id=1, use_encrypted_password=False):
-        """
-        Return the VAPIX API instance corresponding to the autodetected API version (both v2 and v3 are supported).
+        """Return the VAPIX API instance corresponding to the autodetected API version (both v2 and v3 are supported).
         :param hostname: Hostname of the camera (without http://, may be an IP address).
         :type hostname: basestring
         :param username: If login is needed, provide a username here.
         :type username: basestring|None
         :param password: If login is needed, provide a password here.
         :type password: basestring|None
-        :param camera_id: Id (number) of the camera. Can be 1 to 4.
+        :param camera_id: ID (number) of the camera. Can be 1 to 4.
         :type camera_id: int
-        :param use_encrypted_password: If True, HTTP auth will use the Digest method, otherwise Basic will be used.
+        :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
         :type use_encrypted_password: bool
         :return: Autodetected API instance.
         :rtype: VAPIX
         :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
         :raises: RuntimeError If unexpected values are returned by the API.
         """
-
         # Enable HTTP login if a username and password are provided.
-        if username is not None and len(username) > 0 and password is not None and len(password) > 0:
+        if username is not None and len(username) > 0 and password is not None:
             rospy.logdebug("Using authentication credentials with user %s on host %s" % (username, hostname))
             VAPIX.setup_authentication(hostname, username, password, use_encrypted_password)
 
         rospy.logdebug("Starting VAPIX autodetection.")
         try:
             try:
-                # First, try the v3 API. This URL is only valid for version 3, so we strictly check for the version number.
+                # First, try the v3 API. This URL is only valid for v3, so we strictly check for the version number.
                 return VAPIX._get_v3_api(hostname, camera_id)
             except (IOError, ValueError):
                 # Next, try the v2 API. This URL should only work in the version 2 API.
@@ -1133,6 +1196,16 @@ class VAPIX(object):
 
     @staticmethod
     def _get_v3_api(hostname, camera_id=1):
+        """Check if the camera supports VAPIX v3, and if it does, return a corresponding VAPIXv3 instance.
+        :param hostname: Hostname of the camera (without http://, may be an IP address)
+        :type hostname: basestring
+        :param camera_id: ID (number) of the camera. Can be 1 to 4.
+        :type camera_id: int
+        :return: The VAPIXv3 instance.
+        :rtype: VAPIXv3
+        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
+        :raises: RuntimeError If unexpected values are returned by the API.
+        """
         response = VAPIX._read_oneline_response(
             "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
             (hostname, camera_id)
@@ -1147,6 +1220,16 @@ class VAPIX(object):
 
     @staticmethod
     def _get_v2_api(hostname, camera_id=1):
+        """Check if the camera supports VAPIX v2, and if it does, return a corresponding VAPIXv2 instance.
+        :param hostname: Hostname of the camera (without http://, may be an IP address)
+        :type hostname: basestring
+        :param camera_id: ID (number) of the camera. Can be 1 to 4.
+        :type camera_id: int
+        :return: The VAPIXv2 instance.
+        :rtype: VAPIXv2
+        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
+        :raises: RuntimeError If unexpected values are returned by the API.
+        """
         response = VAPIX._read_oneline_response(
             "http://%s/axis-cgi/view/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
             (hostname, camera_id)
@@ -1161,16 +1244,28 @@ class VAPIX(object):
 
 
 class VAPIXv2(VAPIX):
+    """A class representing the VAPIX API version 2.
+
+    Most of the functionalities should be implemented in the parent class VAPIX.
+    Here, only version-specific implementations have their place.
+    """
     def __repr__(self):
-        return "VAPIX v2"
+        return "VAPIXv2(hostname=%r, camera_id=%r, connection_timeout=%r)" % (
+            self.hostname, self.camera_id, self.connection_timeout)
 
     def _form_parameter_url(self, group):
         return self._form_api_url("axis-cgi/view/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))
 
 
 class VAPIXv3(VAPIX):
+    """A class representing the VAPIX API version 3.
+
+    Most of the functionalities should be implemented in the parent class VAPIX.
+    Here, only version-specific implementations have their place.
+    """
     def __repr__(self):
-        return "VAPIX v3"
+        return "VAPIXv3(hostname=%r, camera_id=%r, connection_timeout=%r)" % (
+            self.hostname, self.camera_id, self.connection_timeout)
 
     def _form_parameter_url(self, group):
         return self._form_api_url("axis-cgi/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))
