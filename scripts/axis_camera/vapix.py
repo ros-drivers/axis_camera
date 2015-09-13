@@ -245,7 +245,7 @@ class VAPIX(object):
         """
         url = self._form_api_url("axis-cgi/view/videostatus.cgi?status=%d" % self.camera_id)
         response_line = self._call_api_oneline_response(url)
-        status = self._parse_parameter_and_value_from_response_line(response_line)[1]
+        status = self.parse_parameter_and_value_from_response_line(response_line)[1]
 
         return status == "video"
 
@@ -279,7 +279,7 @@ class VAPIX(object):
         # now read everything returned in the API response and pick up the data we are requested for
         position = dict()
         for line in response_lines:
-            (key, value) = self._parse_parameter_and_value_from_response_line(line)
+            (key, value) = self.parse_parameter_and_value_from_response_line(line)
             if key in position_keys:
                 if not key.startswith('auto'):
                     position[key] = float(value)
@@ -881,7 +881,7 @@ class VAPIX(object):
         """
         url = self._form_parameter_url(name)
         response_line = self._call_api_oneline_response(url)
-        value = self._parse_parameter_and_value_from_response_line(response_line)
+        value = self.parse_parameter_and_value_from_response_line(response_line)
         return value[1]
 
     def get_parameter_list(self, group):
@@ -898,7 +898,7 @@ class VAPIX(object):
 
         result = dict()
         for response_line in response_lines:
-            parameter_and_value = self._parse_parameter_and_value_from_response_line(response_line)
+            parameter_and_value = self.parse_parameter_and_value_from_response_line(response_line)
             result[parameter_and_value[0]] = parameter_and_value[1]
 
         return result
@@ -1077,7 +1077,7 @@ class VAPIX(object):
             return response_stream.read()
 
     @staticmethod
-    def _parse_parameter_and_value_from_response_line(line):
+    def parse_parameter_and_value_from_response_line(line):
         """Parse an API response line of the form key=value.
         :param line: The response line to parse.
         :type line: str|unicode
@@ -1092,7 +1092,7 @@ class VAPIX(object):
         raise ValueError("Line '%s' is not a valid key-value parameter API reponse line." % line)
 
     @staticmethod
-    def _parse_list_parameter_value(list_value):
+    def parse_list_parameter_value(list_value):
         """Parse an API response value that is a list and return the list.
         :param list_value: The value to be parsed as a (comma separated) list.
         :type list_value: str|unicode
@@ -1210,7 +1210,7 @@ class VAPIX(object):
             "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
             (hostname, camera_id)
         )
-        version = VAPIX._parse_parameter_and_value_from_response_line(response)[1]
+        version = VAPIX.parse_parameter_and_value_from_response_line(response)[1]
 
         if version != "3":
             raise RuntimeError("Unexpected VAPIX version: %s" % version)
@@ -1234,7 +1234,7 @@ class VAPIX(object):
             "http://%s/axis-cgi/view/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
             (hostname, camera_id)
         )
-        version = int(VAPIX._parse_parameter_and_value_from_response_line(response)[1])
+        version = int(VAPIX.parse_parameter_and_value_from_response_line(response)[1])
 
         if not 0 < version < 3:
             raise RuntimeError("Unexpected VAPIX version: %s" % version)
