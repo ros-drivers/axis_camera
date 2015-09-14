@@ -7,6 +7,7 @@
   <arg name="state_publishing_frequency" default="1" />
   <arg name="run_rviz" default="0" />
   <arg name="publish_tf" default="1" />
+  <arg name="use_standalone_model" default="1" />
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
@@ -16,7 +17,8 @@
     <node pkg="axis_camera" type="axis.py" name="axis" />
 
     <group if="$(arg enable_ptz)">
-      <param name="robot_description" textfile="$(find axis_camera)/urdf/axis_214_PTZ_standalone.urdf"/>
+      <param name="robot_description" textfile="$(find axis_camera)/urdf/axis_214_PTZ_standalone.urdf" if="$(arg use_standalone_model)"/>
+      <param name="robot_description" textfile="$(find axis_camera)/urdf/axis_214_PTZ.urdf" unless="$(arg use_standalone_model)"/>
 
       <!-- To control the PTZ, issue commands like:
       rostopic pub /axis/control/pan_tilt_zoom/absolute axis_camera/PTZ '{ pan: 100, tilt: 10, zoom: 0 }'

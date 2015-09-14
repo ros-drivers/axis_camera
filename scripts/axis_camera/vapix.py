@@ -244,7 +244,7 @@ class VAPIX(object):
         .. note:: Unfortunately, not all video errors are recognized (e.g. the black-image stream).
         """
         url = self._form_api_url("axis-cgi/view/videostatus.cgi?status=%d" % self.camera_id)
-        response_line = self._call_api_oneline_response(url)
+        response_line = self._read_oneline_response(url)
         status = self.parse_parameter_and_value_from_response_line(response_line)[1]
 
         return status == "video"
@@ -264,7 +264,7 @@ class VAPIX(object):
         .. note:: The get_focus and get_iris parameters are only supported for backwards compatibility.
         """
         url = self._form_api_url("axis-cgi/com/ptz.cgi?query=position&camera=%d" % self.camera_id)
-        response_lines = self._call_api_multiline_response(url)
+        response_lines = self._read_multiline_response(url)
 
         position_keys = {'pan', 'tilt'}
         if get_zoom:
@@ -300,7 +300,7 @@ class VAPIX(object):
 
         .. todo:: Implement more snapshotting functionality.
         """
-        image_data = self._call_api_binary_response(self._form_api_url("axis-cgi/jpg/image.cgi?camera=%d" % self.camera_id))
+        image_data = self._read_binary_response(self._form_api_url("axis-cgi/jpg/image.cgi?camera=%d" % self.camera_id))
         return image_data
 
     def restart_camera(self):

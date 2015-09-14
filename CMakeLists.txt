@@ -38,6 +38,8 @@ generate_dynamic_reconfigure_options(
 
 xacro_add_xacro_file(${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.xacro
                     ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
+xacro_add_xacro_file(${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ.xacro
+                    ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ.urdf)
 add_custom_target(axis_camera_media_files_urdf ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
 
 catkin_package(CATKIN_DEPENDS message_runtime ${THIS_PACKAGE_DEPS})

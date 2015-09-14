@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!-- Axis 214 PTZ camera model. Contains both a simple visual model and a primitive-shape-only collision model. -->
-<root>
+<robot name="axis">
   <link name="axis_stand">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -85,4 +85,4 @@
     <dynamics damping="10000000"/>
     <limit effort="0" lower="-0.5236" upper="1.5708" velocity="4"/>
   </joint>
-</root>
+</robot>
