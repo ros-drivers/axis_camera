@@ -880,7 +880,7 @@ class VAPIX(object):
         :raises: ValueError if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(name)
-        response_line = self._call_api_oneline_response(url)
+        response_line = self._read_oneline_response(url)
         value = self.parse_parameter_and_value_from_response_line(response_line)
         return value[1]
 
@@ -894,7 +894,7 @@ class VAPIX(object):
         :raises: ValueError if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(group)
-        response_lines = self._call_api_multiline_response(url)
+        response_lines = self._read_multiline_response(url)
 
         result = dict()
         for response_line in response_lines:
