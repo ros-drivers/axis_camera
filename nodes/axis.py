@@ -89,6 +89,7 @@ class Axis(rospy.SubscribeListener):
 
         self.allowed_resolutions = self._get_allowed_resolutions()
         rospy.loginfo("The following resolutions are available for camera %d: %s" % (camera_id, repr(self.allowed_resolutions)))
+        rospy.set_param("~allowed_resolutions", self.allowed_resolutions)
 
         # Sometimes the camera falls into power saving mode and stops streaming.
         # This setting allows the script to try to wake up the camera.
