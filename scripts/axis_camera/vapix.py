@@ -249,6 +249,121 @@ class VAPIX(object):
 
         return status == "video"
 
+    @staticmethod
+    def read_next_image_from_video_stream(stream):
+        """
+        Read the next image header and image from the stream, skipping any irrelevant data in the stream.
+
+        The stream is supposed to be in a state such that an image and the empty line after it have just been read (or
+        at the very start of the stream).
+        :param stream: The video stream.
+        :type stream: urllib.addinfourl
+        :return: Video frame header and the frame. Return (None, None) if reading the image fails. The frame is in JPG.
+        :rtype: tuple (dict, string)
+        :raises: IOError, urllib.URLError If reading from the stream fails.
+        """
+        found_boundary = VAPIX._find_boundary_in_stream(stream)
+        if not found_boundary:
+            return None, None
+
+        return VAPIX._read_image_from_stream(stream)
+
+    @staticmethod
+    def _find_boundary_in_stream(stream):
+        """
+        The string "--myboundary" is used to denote the start of an image in Axis cameras.
+
+        :param stream: The video stream.
+        :type stream: urllib.addinfourl
+        :return: Returns False if end of stream was reached.
+        :rtype: bool
+        :raises: IOError, urllib.URLError If reading from the stream fails.
+        """
+        while not rospy.is_shutdown():
+            line = stream.readline()
+            if line is None:
+                # end of stream
+                return False
+            if line == '--myboundary\r\n':
+                return True
+                # throw away all other data until a boundary is found
+
+    @staticmethod
+    def _read_image_from_stream(stream):
+        """
+        Get the image header and image itself.
+
+        The stream is supposed to be in a state such that the boundary is the last line read from the stream.
+        :param stream: The video stream.
+        :type stream: urllib.addinfourl
+        :return: Video header and the frame. Return (None, None) if reading the image fails. The frame is in JPG.
+        :rtype: tuple (dict, string)
+        :raises: IOError, urllib.URLError If reading from the stream fails.
+        """
+        header = VAPIX._get_image_header_from_stream(stream)
+
+        image = None
+        if header['Content-Length'] > 0:
+            content_length = int(header['Content-Length'])
+            image = VAPIX._get_image_data_from_stream(stream, content_length)
+        else:
+            return None, None
+
+        return header, image
+
+    @staticmethod
+    def _get_image_header_from_stream(stream):
+        """
+        Read an HTTP-like header of the next video stream.
+
+        The stream is supposed to be in a state such that the boundary is the last line read from the stream.
+        :param stream: The video stream.
+        :type stream: urllib.addinfourl
+        :return: A dcitionary of HTTP-like headers. Most notably, the 'Content-Length' denotes the byte-size of the next
+                 video frame, which follows right after this header in the stream.
+        :rtype: dict
+        :raises: IOError, urllib.URLError If reading from the stream fails.
+        """
+        header = {}
+        while not rospy.is_shutdown():
+            line = stream.readline()
+            if line == "\r\n": # the header is finished with an empty line
+                break
+            line = line.strip()
+            parts = line.split(": ", 1)
+
+            if len(parts) != 2:
+                rospy.logwarn('Problem encountered with image header. Setting content_length to zero. The problem '
+                              'header was: "%s"' % line)
+                header['Content-Length'] = 0  # set content_length to zero if there is a problem reading header
+            else:
+                try:
+                    header[parts[0]] = parts[1]
+                except KeyError, e:
+                    rospy.logwarn('Problem encountered with image header. Invalid header key: %r' % e)
+                    header['Content-Length'] = 0  # set content_length to zero if there is a problem reading header
+
+        return header
+
+    @staticmethod
+    def _get_image_data_from_stream(stream, num_bytes):
+        """
+        Get the binary image data itself (ie. without header)
+
+        The stream is supposed to be in a state such that the empty line after header is the last line read from the
+        stream.
+        :param stream: The video stream.
+        :type stream: urllib.addinfourl
+        :param num_bytes: The byte-size of the video frame.
+        :type num_bytes: int
+        :return: The byte data of the video frame (encoded as JPG).
+        :rtype: str
+        :raises: IOError, urllib.URLError If reading from the stream fails.
+        """
+        image = stream.read(num_bytes)
+        stream.readline()  # Read terminating \r\n and do nothing with it
+        return image
+
     def get_camera_position(self, get_zoom=True, get_focus=True, get_iris=True):
         """Get current camera PTZ position.
         :param get_zoom: If true, also try to get zoom. Set to false if using with no-zoom cameras.
@@ -1009,7 +1124,6 @@ class VAPIX(object):
                         'Received HTTP code %d in response to API request at URL %s .' % (stream.getcode(), url))
         else:
             raise IOError('Error opening URL %s .' % url)
-
 
     @staticmethod
     def _read_oneline_response(url, timeout=2):
