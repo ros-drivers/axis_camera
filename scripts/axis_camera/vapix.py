@@ -452,7 +452,7 @@ class VAPIX(object):
                      The value is automatically normalized to <-180,+180>
         :type tilt: float
         :param zoom: The desired zoom level. In None, zoom is not commanded at all.
-        :type pan: int
+        :type zoom: int
         :return: The pan, tilt and zoom values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
@@ -497,7 +497,7 @@ class VAPIX(object):
                      The value is automatically normalized to <-360,+360>. May be negative.
         :type tilt: float
         :param zoom: The zoom change. In None or 0, zoom remains unchanged. May be negative.
-        :type pan: int
+        :type zoom: int
         :return: The pan, tilt and zoom change values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
@@ -539,8 +539,8 @@ class VAPIX(object):
                     May be negative.
         :type tilt: int
         :param zoom: Zoom speed. In None or 0, zoom remains unchanged. May be negative.
-        :type pan: int
-        :return: The pan, tilt and zoom change values that were really applied (e.g. the cropped and normalized input)
+        :type zoom: int
+        :return: The pan, tilt and zoom velocity values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
         :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
