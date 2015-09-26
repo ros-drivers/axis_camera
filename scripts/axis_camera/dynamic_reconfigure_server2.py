@@ -44,7 +44,6 @@ from __future__ import with_statement
 
 try:
     import roslib;
-
     roslib.load_manifest('dynamic_reconfigure')
 except:
     pass

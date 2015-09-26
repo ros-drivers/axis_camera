@@ -3,7 +3,6 @@ import threading
 
 import rospy
 from sensor_msgs.msg import CompressedImage
-
 from axis_camera.vapix import VAPIX
 
 
