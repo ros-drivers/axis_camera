@@ -73,36 +73,38 @@ class Axis(rospy.SubscribeListener):
         # True every time the video parameters have changed and the URL has to be altered (set from other threads).
         self.video_params_changed = False
 
-        self.hostname = hostname
-        self.camera_id = camera_id
+        self._hostname = hostname
+        self._camera_id = camera_id
 
-        self.api = None
+        self._api = None
         # autodetect the VAPIX API and connect to it; try it forever
-        while self.api is None and not rospy.is_shutdown():
+        while self._api is None and not rospy.is_shutdown():
             try:
-                self.api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
+                self._api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
             except (IOError, ValueError):
-                rospy.loginfo("Retrying connection to VAPIX on host %s, camera %d in 2 seconds." % (hostname, camera_id))
+                rospy.loginfo("Retrying connection to VAPIX on host %s, camera %d in 2 seconds." %
+                              (hostname, camera_id))
                 rospy.sleep(2)
         if rospy.is_shutdown():
             return
 
-        self.allowed_resolutions = self._get_allowed_resolutions()
-        rospy.loginfo("The following resolutions are available for camera %d: %s" % (camera_id, repr(self.allowed_resolutions)))
-        rospy.set_param("~allowed_resolutions", self.allowed_resolutions)
+        self._allowed_resolutions = self._get_allowed_resolutions()
+        rospy.loginfo("The following resolutions are available for camera %d: %s" %
+                      (camera_id, repr(self._allowed_resolutions)))
+        rospy.set_param("~allowed_resolutions", self._allowed_resolutions)
 
         # Sometimes the camera falls into power saving mode and stops streaming.
         # This setting allows the script to try to wake up the camera.
-        self.auto_wakeup_camera = auto_wakeup_camera
+        self._auto_wakeup_camera = auto_wakeup_camera
 
         # dynamic-reconfigurable properties - definitions
-        self.width = None  # deprecated
-        self.height = None  # deprecated
-        self.resolution = None
-        self.compression = None
-        self.fps = None
-        self.use_color = None
-        self.use_square_pixels = None
+        self._width = None  # deprecated
+        self._height = None  # deprecated
+        self._resolution = None
+        self._compression = None
+        self._fps = None
+        self._use_color = None
+        self._use_square_pixels = None
 
         # dynamic-reconfigurable properties - defaults
         if resolution_name is not None:
@@ -117,25 +119,26 @@ class Axis(rospy.SubscribeListener):
         self.set_use_square_pixels(use_square_pixels)
 
         # dynamic reconfigure server
-        self.video_stream_param_change_server = dynamic_reconfigure.server.Server(VideoStreamConfig, self.reconfigure_video)
+        self._video_stream_param_change_server = dynamic_reconfigure.server.Server(VideoStreamConfig,
+                                                                                   self.reconfigure_video)
 
         # camera info setup
-        self.frame_id = frame_id
-        self.camera_info_url = camera_info_url
+        self._frame_id = frame_id
+        self._camera_info_url = camera_info_url
 
         # generate a valid camera name based on the hostname
-        self.camera_name = camera_info_manager.genCameraName(self.hostname)
-        self.camera_info = camera_info_manager.CameraInfoManager(cname=self.camera_name, url=self.camera_info_url)
-        self.camera_info.loadCameraInfo()  # required before getCameraInfo()
+        self._camera_name = camera_info_manager.genCameraName(self._hostname)
+        self._camera_info = camera_info_manager.CameraInfoManager(cname=self._camera_name, url=self._camera_info_url)
+        self._camera_info.loadCameraInfo()  # required before getCameraInfo()
 
         # the thread used for streaming images (is instantiated when the first image subscriber subscribes)
-        self.streaming_thread = None
+        self._streaming_thread = None
 
         # the publishers are started/stopped lazily in peer_subscribe/peer_unsubscribe
-        self.video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
-        self.camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
+        self._video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
+        self._camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
 
-        self.snapshot_server = rospy.Service("take_snapshot", TakeSnapshot, self.take_snapshot)
+        self._snapshot_server = rospy.Service("take_snapshot", TakeSnapshot, self.take_snapshot)
 
         # BACKWARDS COMPATIBILITY LAYER
 
@@ -143,27 +146,26 @@ class Axis(rospy.SubscribeListener):
         self.password = password  # deprecated
         self.use_encrypted_password = use_encrypted_password  # deprecated
         self.st = None  # deprecated
-        self.pub = self.video_publisher  # deprecated
-        self.caminfo_pub = self.camera_info_publisher  # deprecated
+        self.pub = self._video_publisher  # deprecated
+        self.caminfo_pub = self._camera_info_publisher  # deprecated
 
     def __str__(self):
-        """Return string representation."""
-        (width, height) = self.resolution.get_resolution(self.use_square_pixels)
+        (width, height) = self._resolution.get_resolution(self._use_square_pixels)
         return 'Axis driver on host %s, camera %d (%dx%d px @ %d FPS)' % \
-               (self.hostname, self.api.camera_id, width, height, self.fps)
+               (self._hostname, self._api.camera_id, width, height, self._fps)
 
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         """Lazy-start the image-publisher."""
-        if self.streaming_thread is None:
-            self.streaming_thread = ImageStreamingThread(self)
-            self.streaming_thread.start()
+        if self._streaming_thread is None:
+            self._streaming_thread = ImageStreamingThread(self)
+            self._streaming_thread.start()
         else:
-            self.streaming_thread.resume()
+            self._streaming_thread.resume()
 
     def peer_unsubscribe(self, topic_name, num_peers):
         """Lazy-stop the image-publisher when nobody is interested"""
         if num_peers == 0:
-            self.streaming_thread.pause()
+            self._streaming_thread.pause()
 
     def take_snapshot(self, request):
         """Retrieve a snapshot from the camera.
@@ -173,12 +175,12 @@ class Axis(rospy.SubscribeListener):
         :rtype: TakeSnapshotResponse
         :raises: IOError, urllib2.URLError
         """
-        image_data = self.api.take_snapshot()
+        image_data = self._api.take_snapshot()
 
         image = CompressedImage()
 
         image.header.stamp = rospy.Time.now()
-        image.header.frame_id = self.frame_id
+        image.header.frame_id = self._frame_id
 
         image.format = "jpeg"
 
@@ -206,7 +208,7 @@ class Axis(rospy.SubscribeListener):
         try:
             self.set_resolution(config.resolution)
         except ValueError:
-            config.resolution = self.resolution.name
+            config.resolution = self._resolution.name
 
         return config
 
@@ -225,6 +227,10 @@ class Axis(rospy.SubscribeListener):
         except ValueError:
             config[field] = getattr(self, field)
 
+    #################################
+    # DYNAMIC RECONFIGURE CALLBACKS #
+    #################################
+
     def set_resolution(self, resolution_name):
         """Request a new resolution for the video stream.
         :param resolution_name: The CIF standard name of the resolution. E.g. '4CIF'.
@@ -232,12 +238,12 @@ class Axis(rospy.SubscribeListener):
         :raises: ValueError if the resolution is unknown/unsupported.
         """
         if isinstance(resolution_name, basestring) and (
-                self.resolution is None or resolution_name != self.resolution.name):
-            self.resolution = self._get_resolution_for_name(resolution_name)
+                self._resolution is None or resolution_name != self._resolution.name):
+            self._resolution = self._get_resolution_for_name(resolution_name)
             self.video_params_changed = True
             # deprecated values
-            self.width = self.resolution.get_resolution(self.use_square_pixels)[0]
-            self.height = self.resolution.get_resolution(self.use_square_pixels)[1]
+            self._width = self._resolution.get_resolution(self._use_square_pixels)[0]
+            self._height = self._resolution.get_resolution(self._use_square_pixels)[1]
 
     def _get_resolution_for_name(self, resolution_name):
         """Return a CIFVideoResolution object corresponding to the given CIF resolution name.
@@ -247,10 +253,10 @@ class Axis(rospy.SubscribeListener):
         :rtype: CIFVideoResolution
         :raises: ValueError if the resolution is unknown/unsupported.
         """
-        if resolution_name not in self.allowed_resolutions:
+        if resolution_name not in self._allowed_resolutions:
             raise ValueError("%s is not a valid valid resolution." % resolution_name)
 
-        return self.allowed_resolutions[resolution_name]
+        return self._allowed_resolutions[resolution_name]
 
     def find_resolution_by_size(self, width, height):
         """Return a CIFVideoResolution object with the given dimensions.
@@ -265,7 +271,7 @@ class Axis(rospy.SubscribeListener):
         :raises: ValueError if no resolution with the given dimensions can be found.
         """
         size_to_find = (width, height)
-        for resolution in self.allowed_resolutions.values():
+        for resolution in self._allowed_resolutions.values():
             size = resolution.get_resolution(use_square_pixels=False)
             if size == size_to_find:
                 return resolution
@@ -333,7 +339,7 @@ class Axis(rospy.SubscribeListener):
         :rtype: list
         """
         try:
-            return self.api.parse_list_parameter_value(self.api.get_parameter("root.Properties.Image.Resolution"))
+            return self._api.parse_list_parameter_value(self._api.get_parameter("root.Properties.Image.Resolution"))
         except (IOError, ValueError):
             rospy.logwarn("Could not determine resolutions supported by the camera. Asssuming only CIF.")
             return ["CIF"]
@@ -344,8 +350,8 @@ class Axis(rospy.SubscribeListener):
         :type compression: int
         :raises: ValueError if the given compression level is outside the allowed range.
         """
-        if compression != self.compression:
-            self.compression = self.sanitize_compression(compression)
+        if compression != self._compression:
+            self._compression = self.sanitize_compression(compression)
             self.video_params_changed = True
 
     @staticmethod
@@ -368,8 +374,8 @@ class Axis(rospy.SubscribeListener):
         :type fps: int
         :raises: ValueError if the given FPS is outside the allowed range.
         """
-        if fps != self.fps:
-            self.fps = self.sanitize_fps(fps)
+        if fps != self._fps:
+            self._fps = self.sanitize_fps(fps)
             self.video_params_changed = True
 
     @staticmethod
@@ -392,8 +398,8 @@ class Axis(rospy.SubscribeListener):
         :type use_color: bool
         :raises: ValueError if the given argument is not a bool.
         """
-        if use_color != self.use_color:
-            self.use_color = self.sanitize_bool(use_color, "use_color")
+        if use_color != self._use_color:
+            self._use_color = self.sanitize_bool(use_color, "use_color")
             self.video_params_changed = True
 
     def set_use_square_pixels(self, use_square_pixels):
@@ -403,8 +409,8 @@ class Axis(rospy.SubscribeListener):
         :type use_square_pixels: bool
         :raises: ValueError if the given argument is not a bool.
         """
-        if use_square_pixels != self.use_square_pixels:
-            self.use_square_pixels = self.sanitize_bool(use_square_pixels, "use_square_pixels")
+        if use_square_pixels != self._use_square_pixels:
+            self._use_square_pixels = self.sanitize_bool(use_square_pixels, "use_square_pixels")
             self.video_params_changed = True
 
     @staticmethod
@@ -430,6 +436,7 @@ class Axis(rospy.SubscribeListener):
 
 class CIFVideoResolution(object):
     """A class representing a CIF standard resolution."""
+
     def __init__(self, name, width, height):
         """Create a representation of a CIF resolution.
         :param name: CIF standard name of the resolution.

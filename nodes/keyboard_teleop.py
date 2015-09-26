@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""
+Keyboard teleoperation node for the Axis camera.
+
+Use WSAD to control pan-tilt, and QE to control zoom. Shift increases speed.
+Do not hold the buttons all the time, the commands need some time to get executed.
+"""
+
 import rospy
 
 from axis_camera.msg import PTZ
@@ -42,6 +49,11 @@ moveBindings = {
 
 
 def get_key():
+    """
+    Read a key typed to the terminal.
+    :return: The key that was typed.
+    :rtype: basestring
+    """
     tty.setraw(sys.stdin.fileno())
     select.select([sys.stdin], [], [], 0)
     key = sys.stdin.read(1)
@@ -51,6 +63,7 @@ def get_key():
     return key
 
 if __name__ == "__main__":
+    # save current terminal settings
     settings = termios.tcgetattr(sys.stdin)
 
     rospy.init_node('axis_keyboard_teleop')

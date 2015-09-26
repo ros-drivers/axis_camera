@@ -2,7 +2,7 @@
 #
 # Basic VAPIX PTZ node, based on documentation here:
 #   http://www.axis.com/global/en/support/developer-support/vapix
-#
+
 import threading
 
 import rospy
@@ -19,25 +19,46 @@ StateThread = PositionStreamingThread  # deprecated
 
 
 class AxisPTZ:
-    """This class creates a node to manage the PTZ functions of an Axis PTZ camera"""
+    """This class is a node to manage the PTZ functions of an Axis PTZ camera."""
+
     def __init__(self, hostname, username, password, flip, speed_control, frame_id="axis_camera",
                  use_encrypted_password=False, state_publishing_frequency=1, camera_id=1):
+        """
+        Initialize the PTZ driver and start publishing positional data.
+        :param hostname: Hostname of the camera (without http://, can be an IP address).
+        :type hostname: basestring
+        :param username: If login is needed, provide a username here.
+        :type username: basestring|None
+        :param password: If login is needed, provide a password here.
+        :type password: basestring|None
+        :param flip: Whether to flip the controls (for ceiling-mounted cameras). Deprecated.
+        :type flip: bool
+        :param speed_control: Use speed control instead of positional. Deprecated.
+        :type speed_control: bool
+        :param frame_id: Id of the frame in which positinal data should be published.
+        :type frame_id: basestring
+        :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
+        :type use_encrypted_password: bool
+        :param state_publishing_frequency: The frequency at which joint states should be published.
+        :type state_publishing_frequency: int
+        :param camera_id: ID (number) of the camera. Can be 1 to 4.
+        :type camera_id: int
+        """
 
-        self.hostname = hostname
-        self.camera_id = camera_id
-        self.frame_id = frame_id
+        self._hostname = hostname
+        self._camera_id = camera_id
+        self._frame_id = frame_id
 
-        self.connection_timeout = 5
-        self.state_publishing_frequency = state_publishing_frequency
+        self._state_publishing_frequency = state_publishing_frequency
 
         self._executing_reconfigure = False
         self._reconfigure_mutex = threading.Lock()
 
-        self.api = None
+        self._api = None
         # autodetect the VAPIX API and connect to it; try it forever
-        while self.api is None and not rospy.is_shutdown():
+        while self._api is None and not rospy.is_shutdown():
             try:
-                self.api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
+                self._api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
             except (IOError, ValueError):
                 rospy.loginfo(
                     "Retrying connection to VAPIX on host %s, camera %d in 2 seconds." % (hostname, camera_id))
@@ -45,11 +66,11 @@ class AxisPTZ:
         if rospy.is_shutdown():
             return
 
-        if not self.api.has_ptz():
-            raise RuntimeError("Camera %d on host %s doesn't have a Pan-Tilt-Zoom unit." % (self.camera_id, self.hostname))
+        if not self._api.has_ptz():
+            raise RuntimeError("Camera %d on host %s doesn't have a Pan-Tilt-Zoom unit." % (self._camera_id, self._hostname))
 
         # Create a controller of the camera
-        self.camera_controller = AxisCameraController(self.api, self, flip_vertically=flip, flip_horizontally=flip)
+        self._camera_controller = AxisCameraController(self._api, self, flip_vertically=flip, flip_horizontally=flip)
 
         # BACKWARDS COMPATIBILITY LAYER
         self.username = username  # deprecated
@@ -69,9 +90,9 @@ class AxisPTZ:
 
         # Needs to be after the backwards compatibility setup
         # start the publisher thread
-        self.publisher_thread = PositionStreamingThread(self, self.api)
-        self.st = self.publisher_thread  # deprecated
-        self.publisher_thread.start()
+        self._publisher_thread = PositionStreamingThread(self, self._api)
+        self.st = self._publisher_thread  # deprecated
+        self._publisher_thread.start()
 
     # BACKWARDS COMPATIBILITY LAYER
 
@@ -81,14 +102,14 @@ class AxisPTZ:
 
         self.sanitisePTZCommands()
 
-        self.camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
-        self.camera_controller.set_focus(message.focus, set_also_autofocus=False)
-        if message.focus != self.camera_controller.focus:
-            self.camera_controller.set_autofocus(False)
+        self._camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
+        self._camera_controller.set_focus(message.focus, set_also_autofocus=False)
+        if message.focus != self._camera_controller.focus:
+            self._camera_controller.set_autofocus(False)
         else:
-            self.camera_controller.set_autofocus(message.autofocus)
-        self.camera_controller.set_autoiris(True)
-        self.camera_controller.set_brightness(message.brightness)
+            self._camera_controller.set_autofocus(message.autofocus)
+        self._camera_controller.set_autoiris(True)
+        self._camera_controller.set_brightness(message.brightness)
 
     def adjustForFlippedOrientation(self):
         '''If camera is mounted backwards and upside down (ie. self.flip==True
@@ -103,49 +124,49 @@ class AxisPTZ:
         """Applies limits to message and corrects for flipped camera if
         necessary"""
         if not self.speedControl:
-            self.msg.pan = self.api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
-            self.msg.tilt = self.api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
-            self.msg.zoom = self.api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
-            self.msg.focus = self.api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
-            self.msg.brightness = self.api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
-            self.msg.iris = self.api.ptz_limits['Iris'].absolute.crop_value(self.msg.iris)
+            self.msg.pan = self._api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
+            self.msg.tilt = self._api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
+            self.msg.zoom = self._api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
+            self.msg.focus = self._api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
+            self.msg.brightness = self._api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
+            self.msg.iris = self._api.ptz_limits['Iris'].absolute.crop_value(self.msg.iris)
         else:
-            self.msg.pan = self.api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
-            self.msg.tilt = self.api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
-            self.msg.zoom = self.api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
-            self.msg.focus = self.api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
-            self.msg.brightness = self.api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
-            self.msg.iris = self.api.ptz_limits['Iris'].velocity.crop_value(self.msg.iris)
+            self.msg.pan = self._api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
+            self.msg.tilt = self._api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
+            self.msg.zoom = self._api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
+            self.msg.focus = self._api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
+            self.msg.brightness = self._api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
+            self.msg.iris = self._api.ptz_limits['Iris'].velocity.crop_value(self.msg.iris)
 
     def sanitisePan(self):
         if self.speedControl:
-            self.msg.pan = self.api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
+            self.msg.pan = self._api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
         else:
-            self.msg.pan = self.api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
+            self.msg.pan = self._api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
 
     def sanitiseTilt(self):
         if self.speedControl:
-            self.msg.tilt = self.api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
+            self.msg.tilt = self._api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
         else:
-            self.msg.tilt = self.api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
+            self.msg.tilt = self._api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
 
     def sanitiseZoom(self):
         if self.speedControl:
-            self.msg.zoom = self.api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
+            self.msg.zoom = self._api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
         else:
-            self.msg.zoom = self.api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
+            self.msg.zoom = self._api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
         
     def sanitiseFocus(self):
         if self.speedControl:
-            self.msg.focus = self.api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
+            self.msg.focus = self._api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
         else:
-            self.msg.focus = self.api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
+            self.msg.focus = self._api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
             
     def sanitiseBrightness(self):
         if self.speedControl:
-            self.msg.brightness = self.api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
+            self.msg.brightness = self._api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
         else:
-            self.msg.brightness = self.api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
+            self.msg.brightness = self._api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
 
     def sanitiseIris(self):
         if self.msg.iris > 0.000001:
@@ -153,12 +174,12 @@ class AxisPTZ:
 
     def applySetpoints(self):
         """Apply the command to the camera using the HTTP API"""
-        self.camera_controller.set_ptz(self.msg.pan, self.msg.tilt, self.msg.zoom)
-        self.camera_controller.set_autofocus(self.msg.autofocus)
+        self._camera_controller.set_ptz(self.msg.pan, self.msg.tilt, self.msg.zoom)
+        self._camera_controller.set_autofocus(self.msg.autofocus)
         if not self.msg.autofocus:
-            self.camera_controller.set_focus(self.msg.focus)
-        self.camera_controller.set_autoiris(True)
-        self.camera_controller.set_brightness(self.msg.brightness)
+            self._camera_controller.set_focus(self.msg.focus)
+        self._camera_controller.set_autoiris(True)
+        self._camera_controller.set_brightness(self.msg.brightness)
 
     def createCmdString(self):
         """Created tje HTTP API string to command PTZ camera"""
@@ -186,12 +207,12 @@ class AxisPTZ:
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
-        self.camera_controller.mirror_horizontally = self.mirror
+        self._camera_controller.mirror_horizontally = self.mirror
         
     def callback(self, config, level):
         #self.speedControl = config.speed_control
 
-        if self._executing_reconfigure or (hasattr(self, 'camera_controller') and (self.camera_controller._executing_parameter_update or self.camera_controller._executing_reconfigure)):
+        if self._executing_reconfigure or (hasattr(self, 'camera_controller') and (self._camera_controller._executing_parameter_update or self._camera_controller._executing_reconfigure)):
             return config
 
         with self._reconfigure_mutex:
@@ -213,9 +234,9 @@ class AxisPTZ:
             config.pan = command.pan
             config.tilt = command.tilt
             config.zoom = command.zoom
-            config.focus = self.camera_controller.focus
-            config.brightness = self.camera_controller.brightness
-            config.autofocus = self.camera_controller.autofocus
+            config.focus = self._camera_controller.focus
+            config.brightness = self._camera_controller.brightness
+            config.autofocus = self._camera_controller.autofocus
 
             self._executing_reconfigure = False
 
@@ -246,9 +267,9 @@ def main():
 
 
 def read_args_with_defaults(arg_defaults):
-    '''Look up parameters starting in the driver's private parameter space, but
+    """Look up parameters starting in the driver's private parameter space, but
     also searching outer namespaces.  Defining them in a higher namespace allows
-    the axis_ptz.py script to share parameters with the driver.'''
+    the axis_ptz.py script to share parameters with the driver."""
     args = {}
     for name, val in arg_defaults.iteritems():
         full_name = rospy.search_param(name)
