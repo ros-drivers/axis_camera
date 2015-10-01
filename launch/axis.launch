@@ -24,7 +24,7 @@
       rostopic pub /axis/control/pan_tilt_zoom/absolute axis_camera/PTZ '{ pan: 100, tilt: 10, zoom: 0 }'
       -->
       <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz">
-        <param name="state_publising_frequency" value="$(arg state_publishing_frequency)" />
+        <param name="state_publishing_frequency" value="$(arg state_publishing_frequency)" />
       </node>
 
 
