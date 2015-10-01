@@ -22,7 +22,7 @@ class AxisPTZ:
     """This class is a node to manage the PTZ functions of an Axis PTZ camera."""
 
     def __init__(self, hostname, username, password, flip, speed_control, frame_id="axis_camera",
-                 use_encrypted_password=False, state_publishing_frequency=1, camera_id=1):
+                 use_encrypted_password=False, state_publishing_frequency=50, camera_id=1):
         """
         Initialize the PTZ driver and start publishing positional data.
         :param hostname: Hostname of the camera (without http://, can be an IP address).
@@ -255,7 +255,7 @@ def main():
         'speed_control': False,
         'frame_id': 'axis_camera',
         'use_encrypted_password': False,
-        'state_publishing_frequency': 1,
+        'state_publishing_frequency': 50,
         'camera_id': 1,
         }
     args = read_args_with_defaults(arg_defaults)

@@ -4,7 +4,7 @@
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
   <arg name="enable_ptz_teleop" default="0" />
-  <arg name="state_publishing_frequency" default="1" />
+  <arg name="state_publishing_frequency" default="50" />
   <arg name="run_rviz" default="0" />
   <arg name="publish_tf" default="1" />
   <arg name="use_standalone_model" default="1" />
