@@ -80,7 +80,7 @@ class ImageStreamingThread(threading.Thread):
         rospy.logdebug("Trying to wake up the camera.")
 
         try:
-            self._axis.api._wakeup_camera(self._axis.hostname, self._axis.camera_id)
+            self._axis._api._wakeup_camera(self._axis.hostname, self._axis._camera_id)
 
             # if the wakeup succeeded, give the camera a while to initialize and then proceed further
             rospy.loginfo("Camera wakeup succeeded, now waiting for the camera to initialize.")
@@ -100,20 +100,20 @@ class ImageStreamingThread(threading.Thread):
         while not rospy.is_shutdown():  # publish until an error occurs (then, a return is called to end this loop)
 
             # if we are paused, wait for a resume before connecting to the stream
-            while not rospy.is_shutdown() and (self._is_paused or not self._axis.api.is_video_ok()):
+            while not rospy.is_shutdown() and (self._is_paused or not self._is_video_ok()):
                 rospy.sleep(1)
 
             try:  # now try to open the video stream;
                 with closing(
-                        self._axis.api.get_video_stream(self._axis.fps, self._axis.resolution.name, self._axis.compression,
-                                                       self._axis.use_color, self._axis.use_square_pixels)
+                        self._axis._api.get_video_stream(self._axis._fps, self._axis._resolution.name, self._axis._compression,
+                                                         self._axis._use_color, self._axis._use_square_pixels)
                 ) as stream:
 
                     self.fp = stream  # backwards compatibility
 
                     # this is the rate at which we wake up to read new data; there is no need for it to happen faster
                     # than at the requested FPS
-                    rate = rospy.Rate(self._axis.fps)
+                    rate = rospy.Rate(self._axis._fps)
 
                     # we've just crerated a video stream with the most recently requested parameters, so clear the dirty
                     # flag
@@ -163,6 +163,18 @@ class ImageStreamingThread(threading.Thread):
             if self._axis.video_params_changed:
                 rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
 
+    def _is_video_ok(self):
+        """
+        Return True if the video stream is in good condition.
+        :return: True if the video stream is in good condition.
+        :rtype: bool
+        """
+        try:
+            return self._axis._api.is_video_ok()
+        except IOError, e:
+            rospy.logerr(repr(e))
+            return False
+
     def _publish_image(self, header, image, timestamp):
         """
         Publish JPG image as a ROS message.
@@ -175,10 +187,10 @@ class ImageStreamingThread(threading.Thread):
         """
         msg = CompressedImage()
         msg.header.stamp = timestamp
-        msg.header.frame_id = self._axis.frame_id
+        msg.header.frame_id = self._axis._frame_id
         msg.format = "jpeg"
         msg.data = image
-        self._axis.video_publisher.publish(msg)
+        self._axis._video_publisher.publish(msg)
 
     def _publish_camera_info(self, header, image, timestamp):
         """
@@ -190,12 +202,12 @@ class ImageStreamingThread(threading.Thread):
         :param timestamp: The time when the frame was captured (or its best estimation).
         :type timestamp: rospy.Time
         """
-        msg = self._axis.camera_info.getCameraInfo()
+        msg = self._axis._camera_info.getCameraInfo()
         msg.header.stamp = timestamp
-        msg.header.frame_id = self._axis.frame_id
-        msg.width = self._axis.width
-        msg.height = self._axis.height
-        self._axis.camera_info_publisher.publish(msg)
+        msg.header.frame_id = self._axis._frame_id
+        msg.width = self._axis._width
+        msg.height = self._axis._height
+        self._axis._camera_info_publisher.publish(msg)
 
     # BACKWARDS COMPATIBILITY LAYER
     def authenticate(self):  # is already done when connecting to VAPIX
