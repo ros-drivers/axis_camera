@@ -104,7 +104,7 @@ class AxisPTZ:
 
         self._camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
         self._camera_controller.set_focus(message.focus, set_also_autofocus=False)
-        if message.focus != self._camera_controller.focus:
+        if message.focus != self._camera_controller._focus:
             self._camera_controller.set_autofocus(False)
         else:
             self._camera_controller.set_autofocus(message.autofocus)
@@ -212,7 +212,7 @@ class AxisPTZ:
     def callback(self, config, level):
         #self.speedControl = config.speed_control
 
-        if self._executing_reconfigure or (hasattr(self, 'camera_controller') and (self._camera_controller._executing_parameter_update or self._camera_controller._executing_reconfigure)):
+        if self._executing_reconfigure or (hasattr(self, '_camera_controller') and (self._camera_controller._executing_parameter_update or self._camera_controller._executing_reconfigure)):
             return config
 
         with self._reconfigure_mutex:
@@ -234,9 +234,9 @@ class AxisPTZ:
             config.pan = command.pan
             config.tilt = command.tilt
             config.zoom = command.zoom
-            config.focus = self._camera_controller.focus
-            config.brightness = self._camera_controller.brightness
-            config.autofocus = self._camera_controller.autofocus
+            config.focus = self._camera_controller._focus
+            config.brightness = self._camera_controller._brightness
+            config.autofocus = self._camera_controller._autofocus
 
             self._executing_reconfigure = False
 

@@ -39,7 +39,7 @@ class PositionStreamingThread(threading.Thread):
 
     def run(self):
         """Run the thread."""
-        rate = rospy.Rate(self.axis.state_publishing_frequency)
+        rate = rospy.Rate(self.axis._state_publishing_frequency)
 
         state_publisher = rospy.Publisher("camera/ptz", PTZ, queue_size=100)
         joint_states_publisher = rospy.Publisher("camera/joint_states", JointState, queue_size=100)
@@ -91,7 +91,7 @@ class PositionStreamingThread(threading.Thread):
         message = PTZ()
 
         message.header.stamp = timestamp
-        message.header.frame_id = self.axis.frame_id
+        message.header.frame_id = self.axis._frame_id
 
         message.pan = camera_position['pan']
         message.tilt = camera_position['tilt']
@@ -116,7 +116,7 @@ class PositionStreamingThread(threading.Thread):
         message = JointState()
 
         message.header.stamp = timestamp
-        message.header.frame_id = self.axis.frame_id
+        message.header.frame_id = self.axis._frame_id
 
         message.name = ["axis_pan_j", "axis_tilt_j"]
         message.position = [radians(camera_position['pan']), radians(camera_position['tilt'])]
