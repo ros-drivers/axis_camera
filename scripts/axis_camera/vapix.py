@@ -29,6 +29,7 @@ http://origin-www.axis.com/ftp/pub_soft/cam_srv/ before issuing a bug.
 """
 
 import urllib2
+import socket
 from contextlib import closing
 from abc import ABCMeta, abstractmethod
 
@@ -1100,7 +1101,10 @@ class VAPIX(object):
         :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
         """
         rospy.logdebug('Opening VAPIX URL %s .' % url)
-        stream = urllib2.urlopen(url, timeout=timeout)
+        try:
+            stream = urllib2.urlopen(url, timeout=timeout)
+        except socket.timeout, e:  # sometimes the socket.timeout error is not correctly wrapped in URLError
+            raise urllib2.URLError(e)
 
         if stream is not None:
             # check the response status
