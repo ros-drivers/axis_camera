@@ -1,5 +1,5 @@
-camera_info_manager: ROS CameraInfo support for Python camera drivers
-=====================================================================
+axis_camera: ROS Axis PTZ cameras support
+=========================================
 
 Contents:
 
