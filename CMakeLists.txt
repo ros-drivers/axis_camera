@@ -36,10 +36,9 @@ generate_dynamic_reconfigure_options(
   cfg/PTZ.cfg # deprecated
 )
 
+# Generate the standalone URDF version.
 xacro_add_xacro_file(${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.xacro
                     ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
-xacro_add_xacro_file(${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ.xacro
-                    ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ.urdf)
 add_custom_target(axis_camera_media_files_urdf ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/urdf/axis_214_PTZ_standalone.urdf)
 
 catkin_package(CATKIN_DEPENDS message_runtime ${THIS_PACKAGE_DEPS})
@@ -47,9 +46,9 @@ catkin_package(CATKIN_DEPENDS message_runtime ${THIS_PACKAGE_DEPS})
 install(PROGRAMS
   nodes/axis.py
   nodes/axis_ptz.py
-  nodes/publish_axis_tf.py
   nodes/teleop.py
   nodes/teleop_speed_control.py
+  nodes/keyboard_teleop.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch tests meshes urdf
