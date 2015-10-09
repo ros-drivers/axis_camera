@@ -164,17 +164,17 @@ class AxisCameraController(object):
 
         if self._api.has_capability('AbsoluteFocus'):
             self._focus_subscriber = rospy.Subscriber(
-                "control/camera/focus/absolute", Float32,
+                "control/camera/focus/absolute", Int32,
                 self._call_with_simple_message_data(self.set_focus), queue_size=100)
 
         if self._api.has_capability('RelativeFocus'):
             self._focus_relative_subscriber = rospy.Subscriber(
-                "control/camera/focus/relative", Float32,
+                "control/camera/focus/relative", Int32,
                 self._call_with_simple_message_data(self.adjust_focus), queue_size=100)
 
         if self._api.has_capability('ContinuousFocus'):
             self._focus_velocity_subscriber = rospy.Subscriber(
-                "control/camera/focus/velocity", Float32,
+                "control/camera/focus/velocity", Int32,
                 self._call_with_simple_message_data(self.set_focus_velocity), queue_size=100)
 
         if self._api.has_capability('AutoIris'):
@@ -183,32 +183,32 @@ class AxisCameraController(object):
 
         if self._api.has_capability('AbsoluteIris'):
             self._iris_subscriber = rospy.Subscriber(
-                "control/camera/iris/absolute", Float32,
+                "control/camera/iris/absolute", Int32,
                 self._call_with_simple_message_data(self.set_iris), queue_size=100)
 
         if self._api.has_capability('RelativeIris'):
             self._iris_relative_subscriber = rospy.Subscriber(
-                "control/camera/iris/relative", Float32,
+                "control/camera/iris/relative", Int32,
                 self._call_with_simple_message_data(self.adjust_iris), queue_size=100)
 
         if self._api.has_capability('ContinuousIris'):
             self._iris_velocity_subscriber = rospy.Subscriber(
-                "control/camera/iris/velocity", Float32,
+                "control/camera/iris/velocity", Int32,
                 self._call_with_simple_message_data(self.set_iris_velocity), queue_size=100)
 
         if self._api.has_capability('AbsoluteBrightness'):
             self._brightness_subscriber = rospy.Subscriber(
-                "control/camera/brightness/absolute", Float32,
+                "control/camera/brightness/absolute", Int32,
                 self._call_with_simple_message_data(self.set_brightness), queue_size=100)
 
         if self._api.has_capability('RelativeBrightness'):
             self._brightness_relative_subscriber = rospy.Subscriber(
-                "control/camera/brightness/relative", Float32,
+                "control/camera/brightness/relative", Int32,
                 self._call_with_simple_message_data(self.adjust_brightness), queue_size=100)
 
         if self._api.has_capability('ContinuousBrightness'):
             self._brightness_velocity_subscriber = rospy.Subscriber(
-                "control/camera/brightness/velocity", Float32,
+                "control/camera/brightness/velocity", Int32,
                 self._call_with_simple_message_data(self.set_brightness_velocity), queue_size=100)
 
         if self._api.has_capability('BackLight'):

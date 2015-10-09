@@ -71,23 +71,23 @@ To use this driver in ROS:
   
     - Focus:
     
-      - Topic ``axis/control/camera/focus/absolute`` (type ``std_msgs/Float32``): Set an absolute focus value (0-9999).
-      - Topic ``axis/control/camera/focus/relative`` (type ``std_msgs/Float32``): Adjust the focus value by the given amount (0-9999).
-      - Topic ``axis/control/camera/focus/velocity`` (type ``std_msgs/Float32``): Set focus change velocity, active until another focus command is issued (0-9999).
+      - Topic ``axis/control/camera/focus/absolute`` (type ``std_msgs/Int32``): Set an absolute focus value (0-9999).
+      - Topic ``axis/control/camera/focus/relative`` (type ``std_msgs/Int32``): Adjust the focus value by the given amount (0-9999).
+      - Topic ``axis/control/camera/focus/velocity`` (type ``std_msgs/Int32``): Set focus change velocity, active until another focus command is issued (0-9999).
       - Topic ``axis/control/camera/focus/auto`` (type ``std_msgs/Bool``): Set the autofocus feature. If on, setting the focus value has no effect.
       
     - Iris:
     
-      - Topic ``axis/control/camera/iris/absolute`` (type ``std_msgs/Float32``): Set an absolute iris value (0-9999).
-      - Topic ``axis/control/camera/iris/relative`` (type ``std_msgs/Float32``): Adjust the iris value by the given amount (0-9999).
-      - Topic ``axis/control/camera/iris/velocity`` (type ``std_msgs/Float32``): Set iris change velocity, active until another focus command is issued (0-9999).
+      - Topic ``axis/control/camera/iris/absolute`` (type ``std_msgs/Int32``): Set an absolute iris value (0-9999).
+      - Topic ``axis/control/camera/iris/relative`` (type ``std_msgs/Int32``): Adjust the iris value by the given amount (0-9999).
+      - Topic ``axis/control/camera/iris/velocity`` (type ``std_msgs/Int32``): Set iris change velocity, active until another focus command is issued (0-9999).
       - Topic ``axis/control/camera/iris/auto`` (type ``std_msgs/Bool``): Set the autoiris feature. If on, setting the focus value has no effect. Having autoiris on is needed for backlight compensation and for auto IR cut filter.
       
     - Brightness:
     
-      - Topic ``axis/control/camera/brightness/absolute`` (type ``std_msgs/Float32``): Set an absolute brightness value (0-9999).
-      - Topic ``axis/control/camera/brightness/relative`` (type ``std_msgs/Float32``): Adjust the brightness value by the given amount (0-9999).
-      - Topic ``axis/control/camera/brightness/velocity`` (type ``std_msgs/Float32``): Set brightness change velocity, active until another focus command is issued (0-9999).
+      - Topic ``axis/control/camera/brightness/absolute`` (type ``std_msgs/Int32``): Set an absolute brightness value (0-9999).
+      - Topic ``axis/control/camera/brightness/relative`` (type ``std_msgs/Int32``): Adjust the brightness value by the given amount (0-9999).
+      - Topic ``axis/control/camera/brightness/velocity`` (type ``std_msgs/Int32``): Set brightness change velocity, active until another focus command is issued (0-9999).
 
     - Backlight compensation:
     
