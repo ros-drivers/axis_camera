@@ -206,7 +206,7 @@ class AxisCameraController(object):
                 "control/camera/brightness/relative", Float32,
                 self._call_with_simple_message_data(self.adjust_brightness), queue_size=100)
 
-        if self._api.has_capability('ContinuousIris'):
+        if self._api.has_capability('ContinuousBrightness'):
             self._brightness_velocity_subscriber = rospy.Subscriber(
                 "control/camera/brightness/velocity", Float32,
                 self._call_with_simple_message_data(self.set_brightness_velocity), queue_size=100)
