@@ -7,8 +7,10 @@ https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera/a
 Communication with the camera is done using the Axis VAPIX API described at
 http://www.axis.com/global/en/support/developer-support/vapix
 
-This is a major rewrite of the former ros-drivers/axis_camera node, so it contains a backwards compatibility layer for
-the previous API.
+.. note::
+
+    This is a major rewrite of the former ros-drivers/axis_camera node, so it contains a (deprecated) backwards
+    compatibility layer for the previous (non-released) API.
 """
 
 import math
@@ -35,12 +37,13 @@ class Axis(rospy.SubscribeListener):
                  camera_id=1, auto_wakeup_camera=True, resolution_name=None, compression=0, fps=24, use_color=True,
                  use_square_pixels=False):
         """Create the ROS-VAPIX interface.
+
         :param hostname: Hostname of the camera (without http://, can be an IP address).
         :type hostname: basestring
         :param username: If login is needed, provide a username here.
-        :type username: basestring|None
+        :type username: :py:obj:`basestring` | None
         :param password: If login is needed, provide a password here.
-        :type password: basestring|None
+        :type password: :py:obj:`basestring` | None
         :param width: Width of the requested video stream in pixels (can be changed later). Must be one of the supported
                       resolutions.
         :type width: int
@@ -68,7 +71,8 @@ class Axis(rospy.SubscribeListener):
         :param use_square_pixels: If True, the resolution will be stretched to match 1:1 pixels.
                                   By default, the pixels have a ratio of 11:12.
         :type use_square_pixels: bool
-        :raises: ValueError if the requested resolution (either the `resolution`, or `width`+`height` is not supported.
+        :raises: :py:exc:`ValueError` if the requested resolution (either the `resolution`, or `width`+`height`
+                 is not supported.
         """
         # True every time the video parameters have changed and the URL has to be altered (set from other threads).
         self.video_params_changed = False
@@ -169,11 +173,12 @@ class Axis(rospy.SubscribeListener):
 
     def take_snapshot(self, request):
         """Retrieve a snapshot from the camera.
+
         :param request: The service request.
-        :type request: TakeSnapshotRequest
+        :type request: :py:class:`axis_camera.srv.TakeSnapshotRequest`
         :return: The response containing the image.
-        :rtype: TakeSnapshotResponse
-        :raises: IOError, urllib2.URLError
+        :rtype: :py:class:`axis_camera.srv.TakeSnapshotResponse`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
         """
         image_data = self._api.take_snapshot()
 
@@ -193,6 +198,7 @@ class Axis(rospy.SubscribeListener):
 
     def reconfigure_video(self, config, level):
         """Dynamic reconfigure callback for video parameters.
+
         :param config: The requested configuration.
         :type config: dict
         :param level: Unused here.
@@ -215,12 +221,13 @@ class Axis(rospy.SubscribeListener):
     def __try_set_value_from_config(self, config, field, setter):
         """First, try to call `setter(config[field])`, and if this call doesn't succeed. set the field in config to
         its value stored in this class.
+
         :param config: The dynamic reconfigure config dictionary.
         :type config: dict
-        :param field: The field name (both in `config` and in `self`).
+        :param field: The field name (both in :py:obj:`config` and in :py:obj:`self`).
         :type field: basestring
         :param setter: The setter to use to set the value.
-        :type setter: lambda value
+        :type setter: lambda function
         """
         try:
             setter(config[field])
@@ -233,9 +240,10 @@ class Axis(rospy.SubscribeListener):
 
     def set_resolution(self, resolution_name):
         """Request a new resolution for the video stream.
+
         :param resolution_name: The CIF standard name of the resolution. E.g. '4CIF'.
         :type resolution_name: basestring
-        :raises: ValueError if the resolution is unknown/unsupported.
+        :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
         """
         if isinstance(resolution_name, basestring) and (
                 self._resolution is None or resolution_name != self._resolution.name):
@@ -246,12 +254,13 @@ class Axis(rospy.SubscribeListener):
             self._height = self._resolution.get_resolution(self._use_square_pixels)[1]
 
     def _get_resolution_for_name(self, resolution_name):
-        """Return a CIFVideoResolution object corresponding to the given CIF resolution name.
+        """Return a :py:class:`CIFVideoResolution` object corresponding to the given CIF resolution name.
+
         :param resolution_name: The CIF standard name of the resolution. E.g. '4CIF'.
         :type resolution_name: basestring
         :return: The CIFVideoResolution corresponding to the given resolution name.
-        :rtype: CIFVideoResolution
-        :raises: ValueError if the resolution is unknown/unsupported.
+        :rtype: :py:class:`CIFVideoResolution`
+        :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
         """
         if resolution_name not in self._allowed_resolutions:
             raise ValueError("%s is not a valid valid resolution." % resolution_name)
@@ -259,16 +268,17 @@ class Axis(rospy.SubscribeListener):
         return self._allowed_resolutions[resolution_name]
 
     def find_resolution_by_size(self, width, height):
-        """Return a CIFVideoResolution object with the given dimensions.
+        """Return a :py:class:`CIFVideoResolution` object with the given dimensions.
 
         If there are more resolutions with the same size, any of them may be returned.
+
         :param width: Image width in pixels.
         :type width: int
         :param height: Image height in pixels.
         :type height: int
         :return: The corresponding resolution object.
-        :rtype: CIFVideoResolution
-        :raises: ValueError if no resolution with the given dimensions can be found.
+        :rtype: :py:class:`CIFVideoResolution`
+        :raises: :py:exc:`ValueError` if no resolution with the given dimensions can be found.
         """
         size_to_find = (width, height)
         for resolution in self._allowed_resolutions.values():
@@ -285,8 +295,9 @@ class Axis(rospy.SubscribeListener):
     def _get_allowed_resolutions(self):
         """Return a dict (resolution_name=>resolution) of resolutions supported both by this implementation and the
         camera.
+
         :return: The supported resolutions dictionary.
-        :rtype: dict(basestring => basestring)
+        :rtype: dict(:py:obj:`basestring` => :py:obj:`basestring`)
         """
         config_resolutions = self._read_resolutions_from_config()
         camera_resolutions = self._get_resolutions_supported_by_camera()
@@ -296,8 +307,9 @@ class Axis(rospy.SubscribeListener):
     @staticmethod
     def _read_resolutions_from_config():
         """Return a dict (resolution_name=>resolution) of resolutions supported by the VideoStream.cfg config.
+
         :return: The supported resolutions dictionary.
-        :rtype: dict(basestring => basestring)
+        :rtype: dict(:py:obj:`basestring` => :py:obj:`basestring`)
         """
         video_stream_parameters = VideoStreamConfig.config_description['parameters']
         resolutions = dict()
@@ -335,6 +347,7 @@ class Axis(rospy.SubscribeListener):
 
     def _get_resolutions_supported_by_camera(self):
         """Return a list of names of resolutions supported the camera.
+
         :return: The supported resolutions list.
         :rtype: list
         """
@@ -346,9 +359,10 @@ class Axis(rospy.SubscribeListener):
 
     def set_compression(self, compression):
         """Request the given compression level for the video stream.
+
         :param compression: Compression of the image (0 - no compression, 100 - max compression).
         :type compression: int
-        :raises: ValueError if the given compression level is outside the allowed range.
+        :raises: :py:exc:`ValueError` if the given compression level is outside the allowed range.
         """
         if compression != self._compression:
             self._compression = self.sanitize_compression(compression)
@@ -357,10 +371,12 @@ class Axis(rospy.SubscribeListener):
     @staticmethod
     def sanitize_compression(compression):
         """Make sure the given value can be used as a compression level of the video stream.
+
         :param compression: Compression of the image (0 - no compression, 100 - max compression).
         :type compression: int
         :return: The given compression converted to an int.
-        :raises: ValueError if the given compression level is outside the allowed range.
+        :rtype: int
+        :raises: :py:exc:`ValueError` if the given compression level is outside the allowed range.
         """
         compression = int(compression)
         if not (0 <= compression <= 100):
@@ -370,9 +386,10 @@ class Axis(rospy.SubscribeListener):
 
     def set_fps(self, fps):
         """Request the given compression level for the video stream.
+
         :param fps: The desired frames per second.
         :type fps: int
-        :raises: ValueError if the given FPS is outside the allowed range.
+        :raises: :py:exc:`ValueError` if the given FPS is outside the allowed range.
         """
         if fps != self._fps:
             self._fps = self.sanitize_fps(fps)
@@ -381,10 +398,12 @@ class Axis(rospy.SubscribeListener):
     @staticmethod
     def sanitize_fps(fps):
         """Make sure the given value can be used as FPS of the video stream.
+
         :param fps: The desired frames per second.
         :type fps: int
         :return: The given FPS converted to an int.
-        :raises: ValueError if the given FPS is outside the allowed range.
+        :rtype: int
+        :raises: :py:exc:`ValueError` if the given FPS is outside the allowed range.
         """
         fps = int(fps)
         if not (1 <= fps <= 30):
@@ -395,8 +414,9 @@ class Axis(rospy.SubscribeListener):
     def set_use_color(self, use_color):
         """Request using/not using color in the video stream.
         :param use_color: If True, send a color stream, otherwise send only grayscale image.
+
         :type use_color: bool
-        :raises: ValueError if the given argument is not a bool.
+        :raises: :py:exc:`ValueError` if the given argument is not a bool.
         """
         if use_color != self._use_color:
             self._use_color = self.sanitize_bool(use_color, "use_color")
@@ -404,10 +424,11 @@ class Axis(rospy.SubscribeListener):
 
     def set_use_square_pixels(self, use_square_pixels):
         """Request using/not using square pixels.
+
         :param use_square_pixels: If True, the resolution will be stretched to match 1:1 pixels.
                                   By default, the pixels have a ratio of 11:12.
         :type use_square_pixels: bool
-        :raises: ValueError if the given argument is not a bool.
+        :raises: :py:exc:`ValueError` if the given argument is not a bool.
         """
         if use_square_pixels != self._use_square_pixels:
             self._use_square_pixels = self.sanitize_bool(use_square_pixels, "use_square_pixels")
@@ -416,13 +437,14 @@ class Axis(rospy.SubscribeListener):
     @staticmethod
     def sanitize_bool(value, field_name):
         """Convert the given value to a bool.
+
         :param value: Either True, False,, "1", "0", 1 or 0.
-        :type value: basestring|bool|int
+        :type value: :py:class:`basestring` | :py:class:`bool` | :py:class:`int`
         :param field_name: Name of the field this value belongs to (just for debug messages).
         :type field_name: basestring
         :return: The bool value of the given value.
-        :rtype: bool
-        :raises: ValueError if the given value is not supported in this conversion.
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`ValueError` if the given value is not supported in this conversion.
         """
         if value not in (True, False, "1", "0", 1, 0):
             raise ValueError("%s is not a valid value for %s." % (str(value), field_name))
@@ -439,6 +461,7 @@ class CIFVideoResolution(object):
 
     def __init__(self, name, width, height):
         """Create a representation of a CIF resolution.
+
         :param name: CIF standard name of the resolution.
         :type name: basestring
         :param width: Width of the resolution in pixels.
@@ -463,6 +486,7 @@ class CIFVideoResolution(object):
 
     def get_resolution(self, use_square_pixels=False):
         """Get the image dimensions corresponding to this resolution.
+
         :param use_square_pixels: Whether to strech the resulting resolution to square pixels.
         :type use_square_pixels: bool
         :return: A tuple (width, height)

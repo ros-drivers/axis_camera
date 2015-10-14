@@ -1,3 +1,14 @@
+axis_camera: ROS Axis PTZ cameras support
+=========================================
+
+.. toctree::
+   :hidden:
+
+   axis_camera
+   axis
+   axis_ptz
+   changelog
+
 Overview
 ========
 

@@ -11,14 +11,13 @@ from axis_camera.dynamic_reconfigure_server2 import Server
 
 
 class AxisCameraController(object):
-    """
-    A class serving as the Python and ROS controller of the Axis camera.
+    """A class serving as the Python and ROS controller of the Axis camera.
 
     It provides numerous topics/methods using which the camera can be controlled via VAPIX.
-    Each topic is only subscribed only if the camera reports capabilities required for executing the topic's
-    functionality.
+    Each topic is only subscribed if the camera reports capabilities required for executing the topic's functionality.
 
     Currently provided topics are:
+
     - control/pan_tilt_zoom/absolute
     - control/pan_tilt_zoom/relative
     - control/pan_tilt_zoom/velocity
@@ -52,10 +51,10 @@ class AxisCameraController(object):
     """
 
     def __init__(self, api, axis, flip_vertically=False, flip_horizontally=False, mirror_horizontally=False):
-        """
-        Create the controller.
+        """Create the controller.
+
         :param api: The VAPIX instance to be used to communicate with the camera.
-        :type api: axis_camera.VAPIX
+        :type api: :py:class:`axis_camera.VAPIX`
         :param axis: The parameter holding class.
         :type axis: axis.Axis
         :param flip_vertically: If True, flip the controls vertically (for ceiling mounted cameras).
@@ -228,6 +227,7 @@ class AxisCameraController(object):
 
     def set_ptz(self, pan, tilt, zoom):
         """Command the PTZ unit with an absolute pose taking into account flips and mirroring.
+
         :param pan: The desired pan. In None, pan is not commanded at all.
                     The value is automatically normalized to <-180,+180>
         :type pan: float
@@ -239,14 +239,14 @@ class AxisCameraController(object):
         :return: The pan, tilt and zoom values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
 
         .. note:: Since the pan and tilt values are periodic and normalization takes place in this function, you can
-                  simply call this command in loops like e.g. `for pan in range(0,3600,30): move_ptz_absolute(pan)`
+                  simply call this command in loops like e.g. ``for pan in range(0,3600,30): move_ptz_absolute(pan)``
                   to rotate the camera 10 times.
         """
         (pan, tilt) = self._apply_flip_and_mirror_absolute(pan, tilt)
@@ -254,6 +254,7 @@ class AxisCameraController(object):
 
     def adjust_ptz(self, pan, tilt, zoom):
         """Command the PTZ unit with a relative pose shift taking into account flips and mirroring.
+
         :param pan: The pan change. In None or 0, pan remains unchanged.
                     The value is automatically normalized to <-360,+360>. May be negative.
         :type pan: float
@@ -265,8 +266,8 @@ class AxisCameraController(object):
         :return: The pan, tilt and zoom change values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -276,6 +277,7 @@ class AxisCameraController(object):
 
     def set_ptz_velocity(self, pan, tilt, zoom):
         """Command the PTZ unit velocity in terms of pan, tilt and zoom taking into account flips and mirroring.
+
         :param pan: Pan speed. In None or 0, pan remains unchanged. Pan speed is aperiodic (can be higher than 360).
                     May be negative.
         :type pan: int
@@ -287,8 +289,8 @@ class AxisCameraController(object):
         :return: The pan, tilt and zoom change values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -300,6 +302,7 @@ class AxisCameraController(object):
 
     def set_pan_tilt(self, pan, tilt):
         """Command the PTZ unit with an absolute pan and tilt taking into account flips and mirroring.
+
         :param pan: The desired pan. In None, pan is not commanded at all.
                     The value is automatically normalized to <-180,+180>
         :type pan: float
@@ -309,14 +312,14 @@ class AxisCameraController(object):
         :return: The pan and tilt values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
 
         .. note:: Since the pan and tilt values are periodic and normalization takes place in this function, you can
-                  simply call this command in loops like e.g. `for pan in range(0,3600,30): move_ptz_absolute(pan)`
+                  simply call this command in loops like e.g. ``for pan in range(0,3600,30): move_ptz_absolute(pan)``
                   to rotate the camera 10 times.
         """
         (pan, tilt) = self._apply_flip_and_mirror_absolute(pan, tilt)
@@ -324,6 +327,7 @@ class AxisCameraController(object):
 
     def adjust_pan_tilt(self, pan, tilt):
         """Command the PTZ unit with a relative pan and tilt taking into account flips and mirroring.
+
         :param pan: The pan change. In None or 0, pan remains unchanged.
                     The value is automatically normalized to <-360,+360>. May be negative.
         :type pan: float
@@ -333,8 +337,8 @@ class AxisCameraController(object):
         :return: The pan and tilt change values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -344,6 +348,7 @@ class AxisCameraController(object):
 
     def set_pan_tilt_velocity(self, pan, tilt):
         """Command the PTZ unit velocity in terms of pan, tilt and zoom taking into account flips and mirroring.
+
         :param pan: Pan speed. In None or 0, pan remains unchanged. Pan speed is aperiodic (can be higher than 360).
                     May be negative.
         :type pan: int
@@ -353,8 +358,8 @@ class AxisCameraController(object):
         :return: The pan and tilt velocity values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -366,19 +371,20 @@ class AxisCameraController(object):
 
     def set_pan(self, pan):
         """Command an absolute pan taking into account flips and mirroring.
+
         :param pan: The desired pan. The value is automatically normalized to <-180,+180>
         :type pan: float
         :return: The pan value that was really applied (e.g. the cropped and normalized input)
         :rtype: float
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
 
         .. note:: Since the pan and tilt values are periodic and normalization takes place in this function, you can
-                  simply call this command in loops like e.g. `for pan in range(0,3600,30): move_ptz_absolute(pan)`
+                  simply call this command in loops like e.g. ``for pan in range(0,3600,30): move_ptz_absolute(pan)``
                   to rotate the camera 10 times.
         """
         (pan, tilt) = self._apply_flip_and_mirror_absolute(pan, 0)
@@ -386,19 +392,20 @@ class AxisCameraController(object):
 
     def set_tilt(self, tilt):
         """Command an absolute tilt taking into account flips and mirroring.
+
         :param tilt: The desired tilt. The value is automatically normalized to <-180,+180>
         :type tilt: float
         :return: The tilt value that was really applied (e.g. the cropped and normalized input)
         :rtype: float
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
 
         .. note:: Since the pan and tilt values are periodic and normalization takes place in this function, you can
-                  simply call this command in loops like e.g. `for pan in range(0,3600,30): move_ptz_absolute(pan)`
+                  simply call this command in loops like e.g. ``for pan in range(0,3600,30): move_ptz_absolute(pan)``
                   to rotate the camera 10 times.
         """
         (pan, tilt) = self._apply_flip_and_mirror_absolute(0, tilt)
@@ -406,32 +413,34 @@ class AxisCameraController(object):
 
     def set_zoom(self, zoom):
         """Command an absolute zoom.
+
         :param zoom: The desired zoom level.
         :type zoom: int
         :return: The zoom value that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
 
         .. note:: Since the pan and tilt values are periodic and normalization takes place in this function, you can
-                  simply call this command in loops like e.g. `for pan in range(0,3600,30): move_ptz_absolute(pan)`
+                  simply call this command in loops like e.g. ``for pan in range(0,3600,30): move_ptz_absolute(pan)``
                   to rotate the camera 10 times.
         """
         return self._api.move_ptz_absolute(zoom=zoom)[2]
 
     def adjust_pan(self, pan):
         """Command a relative pan taking into account flips and mirroring.
+
         :param pan: The pan change. The value is automatically normalized to <-360,+360>. May be negative.
         :type pan: float
         :return: The pan change value that was really applied (e.g. the cropped and normalized input)
         :rtype: float
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -441,13 +450,14 @@ class AxisCameraController(object):
 
     def adjust_tilt(self, tilt):
         """Command a relative tilt taking into account flips and mirroring.
+
         :param tilt: The tilt change. The value is automatically normalized to <-360,+360>. May be negative.
         :type tilt: float
         :return: The tilt change value that was really applied (e.g. the cropped and normalized input)
         :rtype: float
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -457,13 +467,14 @@ class AxisCameraController(object):
 
     def adjust_zoom(self, zoom):
         """Command a relative zoom.
+
         :param zoom: The zoom change. In None or 0, zoom remains unchanged. May be negative.
         :type zoom: int
         :return: The zoom change value that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -472,13 +483,14 @@ class AxisCameraController(object):
 
     def set_pan_velocity(self, pan):
         """Command pan velocity.
+
         :param pan: Pan speed. Pan speed is aperiodic (can be higher than 360). May be negative.
         :type pan: int
         :return: The pan velocity that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -490,13 +502,14 @@ class AxisCameraController(object):
 
     def set_tilt_velocity(self, tilt):
         """Command tilt velocity.
+
         :param tilt: Tilt speed. Tilt speed is aperiodic (can be higher than 360). May be negative.
         :type tilt: int
         :return: The tilt velocity that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -508,13 +521,14 @@ class AxisCameraController(object):
 
     def set_zoom_velocity(self, zoom):
         """Command zoom velocity.
+
         :param zoom: Zoom speed. May be negative.
         :type zoom: int
         :return: The zoom velocity that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -525,6 +539,7 @@ class AxisCameraController(object):
 
     def look_at(self, x, y, image_width, image_height):
         """Point the camera center to a point with the given coordinates in the camera image.
+
         :param x: X coordinate of the look-at point.
         :type x: int
         :param y: X coordinate of the look-at point.
@@ -534,20 +549,21 @@ class AxisCameraController(object):
         :param image_height: Height of the image in pixels.
         :type image_height: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         self._api.look_at(x, y, image_width, image_height)
 
     def set_autofocus(self, use):
         """Command the camera to use/stop using autofocus.
+
         :param use: True: use autofocus; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         self._api.use_autofocus(use)
         self._autofocus = use
@@ -556,6 +572,7 @@ class AxisCameraController(object):
 
     def set_focus(self, focus, set_also_autofocus=True):
         """Set focus to the desired value (implies turning off autofocus).
+
         :param focus: The desired focus value.
         :type focus: int
         :param set_also_autofocus: If True and autofocus is on, turn it off first.
@@ -563,8 +580,8 @@ class AxisCameraController(object):
         :return: The focus value that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         focus = self._api.set_focus(focus)
         self._focus = focus
@@ -576,6 +593,7 @@ class AxisCameraController(object):
 
     def adjust_focus(self, amount, set_also_autofocus=True):
         """Add the desired amount to the focus value (implies turning off autofocus).
+
         :param amount: The desired focus change amount.
         :type amount: int
         :param set_also_autofocus: If True and autofocus is on, turn it off first.
@@ -583,8 +601,8 @@ class AxisCameraController(object):
         :return: The focus change amount that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         amount = self._api.adjust_focus(amount)
         self._focus += amount
@@ -596,26 +614,28 @@ class AxisCameraController(object):
 
     def set_focus_velocity(self, velocity):
         """Set the focus "speed" (implies turning off autofocus).
+
         :param velocity: The desired focus velocity.
         :type velocity: int
         :return: The focus velocity that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         return self._api.set_focus_velocity(velocity)
         # TODO self.focus updating
 
     def set_autoiris(self, use):
         """Command the camera to use/stop using auto iris adjustment.
+
         :param use: True: use auto iris adjustment; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         self._api.use_autoiris(use)
         self._autoiris = use
@@ -624,6 +644,7 @@ class AxisCameraController(object):
 
     def set_iris(self, iris, set_also_autoiris=True):
         """Set iris to the desired value (implies turning off autoiris).
+
         :param iris: The desired iris value.
         :type iris: int
         :param set_also_autoiris: If True and autoiris is on, turn it off first.
@@ -631,8 +652,8 @@ class AxisCameraController(object):
         :return: The iris value that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         iris = self._api.set_iris(iris)
         self._iris = iris
@@ -644,6 +665,7 @@ class AxisCameraController(object):
 
     def adjust_iris(self, amount, set_also_autoiris=True):
         """Add the desired amount to the iris value (implies turning off autoiris).
+
         :param amount: The desired iris change amount.
         :type amount: int
         :param set_also_autoiris: If True and autoiris is on, turn it off first.
@@ -651,8 +673,8 @@ class AxisCameraController(object):
         :return: The iris change amount that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         amount = self._api.adjust_iris(amount)
         self._iris += amount
@@ -664,26 +686,28 @@ class AxisCameraController(object):
 
     def set_iris_velocity(self, velocity):
         """Set the iris "speed" (implies turning off autoiris).
+
         :param velocity: The desired iris velocity.
         :type velocity: int
         :return: The iris velocity that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         return self._api.set_iris_velocity(velocity)
         # TODO self.iris updating
 
     def set_brightness(self, brightness):
         """Set brightness to the desired value.
+
         :param brightness: The desired brightness value.
         :type brightness: int
         :return: The brightness value that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -694,13 +718,14 @@ class AxisCameraController(object):
 
     def adjust_brightness(self, amount):
         """Add the desired amount to the brightness value.
+
         :param amount: The desired brightness change amount.
         :type amount: int
         :return: The brightness change amount that was really applied (e.g. the cropped and normalized input)
         :rtype: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -711,13 +736,14 @@ class AxisCameraController(object):
 
     def set_brightness_velocity(self, velocity):
         """Set the brightness "speed".
+
         :param velocity: The desired brightness velocity.
         :type velocity: int
         :return: The brightness velocity that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -726,13 +752,14 @@ class AxisCameraController(object):
 
     def use_backlight_compensation(self, use):
         """Command the camera to use/stop using backlight compensation (requires autoiris=on set before).
+
         :param use: True: use backlight compensation; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         if self._autoiris:  # the compensation needs autoiris to be active
             self._api.use_backlight_compensation(use)
@@ -746,14 +773,15 @@ class AxisCameraController(object):
 
     def set_ir_cut_filter_auto(self, use):
         """Command the camera to use auto infrared filter.
+
         :param use: True: use automatic infrared filter;
                     False: use always.
         :type use: bool
         :return: True if the filter is always used, None if it is set to auto.
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         use = (None if use else True)
         # auto IR filter requires autoiris to be active
@@ -769,13 +797,14 @@ class AxisCameraController(object):
 
     def set_ir_cut_filter_use(self, use):
         """Command the camera to use/stop using infrared filter.
+
         :param use: Whether to use the filter.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:class:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:class:`IOError`, :py:class:`urllib2.URLError` on network communication error
         """
         self._api.use_ir_cut_filter(use)
         self._ir_cut_filter = use
@@ -785,8 +814,8 @@ class AxisCameraController(object):
         return use
 
     def _reconfigure(self, config, level, subname):
-        """
-        Dynamic reconfigure callback.
+        """Dynamic reconfigure callback.
+
         :param config: The config to be used.
         :type config: dict
         :return: The config with really used values.
@@ -859,8 +888,8 @@ class AxisCameraController(object):
     # Helper functions
 
     def _send_parameter_update(self, parameter, value):
-        """
-        Notify the parameter change via dynamic reconfigure.
+        """Notify the parameter change via dynamic reconfigure.
+
         :param parameter: The parameter that has changed.
         :type parameter: basestring
         :param value: New value of the parameter.
@@ -887,8 +916,8 @@ class AxisCameraController(object):
             self._executing_parameter_update = False
 
     def _apply_flip_and_mirror_absolute(self, pan, tilt):
-        """
-        Apply flipping and mirroring to absolute pan and tilt command.
+        """Apply flipping and mirroring to absolute pan and tilt command.
+
         :param pan: The input pan.
         :type pan: float
         :param tilt: The input tilt.
@@ -906,8 +935,8 @@ class AxisCameraController(object):
         return pan, tilt
 
     def _apply_flip_and_mirror_relative(self, pan, tilt):
-        """
-        Apply flipping and mirroring to relative pan and tilt command.
+        """Apply flipping and mirroring to relative pan and tilt command.
+
         :param pan: The input pan.
         :type pan: float
         :param tilt: The input tilt.
@@ -925,8 +954,8 @@ class AxisCameraController(object):
         return pan, tilt
 
     def _apply_flip_and_mirror_velocity(self, pan, tilt):
-        """
-        Apply flipping and mirroring to velocity pan and tilt command.
+        """Apply flipping and mirroring to velocity pan and tilt command.
+
         :param pan: The input pan.
         :type pan: float
         :param tilt: The input tilt.
@@ -945,8 +974,8 @@ class AxisCameraController(object):
 
     @staticmethod
     def _call_with_simple_message_data(func):
-        """
-        Create a one-arg lambda that extracts the "data" field from its argument and passes it to the given function.
+        """Create a one-arg lambda that extracts the "data" field from its argument and passes it to the given function.
+
         :param func: The function to call.
         :type func: function
         :return: The lambda function.
@@ -959,6 +988,7 @@ class AxisCameraController(object):
         """
         Create a one-arg lambda that extracts the "pan", "tilt" and "zoom" fields from its argument and passes them to
         the given function.
+
         :param func: The function to call.
         :type func: function
         :return: The lambda function.
@@ -971,6 +1001,7 @@ class AxisCameraController(object):
         """
         Create a one-arg lambda that extracts the "pan" and "tilt" fields from its argument and passes them to the given
         function.
+
         :param func: The function to call.
         :type func: function
         :return: The lambda function.
@@ -983,6 +1014,7 @@ class AxisCameraController(object):
         """
         Create a one-arg lambda that extracts the "x", "y", "width" and "height" fields from its argument and passes
         them to the given function.
+
         :param func: The function to call.
         :type func: function
         :return: The lambda function.

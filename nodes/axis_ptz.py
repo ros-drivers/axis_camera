@@ -19,12 +19,15 @@ StateThread = PositionStreamingThread  # deprecated
 
 
 class AxisPTZ:
-    """This class is a node to manage the PTZ functions of an Axis PTZ camera."""
+    """This class is a node to manage the PTZ functions of an Axis PTZ camera. The most of its work is done by
+     :py:class:`AxisCameraController <axis_camera.camera_control.AxisCameraController>` and this is just a ROS node
+     envelope.
+    """
 
     def __init__(self, hostname, username, password, flip, speed_control, frame_id="axis_camera",
                  use_encrypted_password=False, state_publishing_frequency=50, camera_id=1):
-        """
-        Initialize the PTZ driver and start publishing positional data.
+        """Initialize the PTZ driver and start publishing positional data.
+
         :param hostname: Hostname of the camera (without http://, can be an IP address).
         :type hostname: basestring
         :param username: If login is needed, provide a username here.
@@ -97,7 +100,7 @@ class AxisPTZ:
     # BACKWARDS COMPATIBILITY LAYER
 
     def cmd(self, message):
-        """Command the camera with speed control or position control commands"""
+        """Deprecated."""
         self.msg = message
 
         self.sanitisePTZCommands()
@@ -112,8 +115,7 @@ class AxisPTZ:
         self._camera_controller.set_brightness(message.brightness)
 
     def adjustForFlippedOrientation(self):
-        '''If camera is mounted backwards and upside down (ie. self.flip==True
-        then apply appropriate transforms to pan and tilt'''
+        """Deprecated."""
         self.msg.tilt = -self.msg.tilt
         if self.speedControl:
             self.msg.pan = -self.msg.pan
@@ -121,8 +123,7 @@ class AxisPTZ:
             self.msg.pan = 180.0 - self.msg.pan
     
     def sanitisePTZCommands(self):
-        """Applies limits to message and corrects for flipped camera if
-        necessary"""
+        """Deprecated."""
         if not self.speedControl:
             self.msg.pan = self._api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
             self.msg.tilt = self._api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
@@ -139,40 +140,47 @@ class AxisPTZ:
             self.msg.iris = self._api.ptz_limits['Iris'].velocity.crop_value(self.msg.iris)
 
     def sanitisePan(self):
+        """Deprecated."""
         if self.speedControl:
             self.msg.pan = self._api.ptz_limits['Pan'].velocity.crop_value(self.msg.pan)
         else:
             self.msg.pan = self._api.ptz_limits['Pan'].absolute.crop_value(self.msg.pan)
 
     def sanitiseTilt(self):
+        """Deprecated."""
         if self.speedControl:
             self.msg.tilt = self._api.ptz_limits['Tilt'].velocity.crop_value(self.msg.tilt)
         else:
             self.msg.tilt = self._api.ptz_limits['Tilt'].absolute.crop_value(self.msg.tilt)
 
     def sanitiseZoom(self):
+        """Deprecated."""
         if self.speedControl:
             self.msg.zoom = self._api.ptz_limits['Zoom'].velocity.crop_value(self.msg.zoom)
         else:
             self.msg.zoom = self._api.ptz_limits['Zoom'].absolute.crop_value(self.msg.zoom)
         
     def sanitiseFocus(self):
+        """Deprecated."""
         if self.speedControl:
             self.msg.focus = self._api.ptz_limits['Focus'].velocity.crop_value(self.msg.focus)
         else:
             self.msg.focus = self._api.ptz_limits['Focus'].absolute.crop_value(self.msg.focus)
             
     def sanitiseBrightness(self):
+        """Deprecated."""
         if self.speedControl:
             self.msg.brightness = self._api.ptz_limits['Brightness'].velocity.crop_value(self.msg.brightness)
         else:
             self.msg.brightness = self._api.ptz_limits['Brightness'].absolute.crop_value(self.msg.brightness)
 
     def sanitiseIris(self):
+        """Deprecated."""
         if self.msg.iris > 0.000001:
             rospy.logwarn("Iris value is read-only.")
 
     def applySetpoints(self):
+        """Deprecated."""
         """Apply the command to the camera using the HTTP API"""
         self._camera_controller.set_ptz(self.msg.pan, self.msg.tilt, self.msg.zoom)
         self._camera_controller.set_autofocus(self.msg.autofocus)
@@ -182,6 +190,7 @@ class AxisPTZ:
         self._camera_controller.set_brightness(self.msg.brightness)
 
     def createCmdString(self):
+        """Deprecated."""
         """Created tje HTTP API string to command PTZ camera"""
         self.cmdString = '/axis-cgi/com/ptz.cgi?'
         if self.speedControl:
@@ -205,11 +214,13 @@ class AxisPTZ:
             self.cmdString += 'autoiris=on'
 
     def mirrorCallback(self, msg):
+        """Deprecated."""
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
         self._camera_controller.mirror_horizontally = self.mirror
         
     def callback(self, config, level):
+        """Deprecated."""
         #self.speedControl = config.speed_control
 
         if self._executing_reconfigure or (hasattr(self, '_camera_controller') and (self._camera_controller._executing_parameter_update or self._camera_controller._executing_reconfigure)):

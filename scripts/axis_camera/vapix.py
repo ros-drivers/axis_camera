@@ -1,30 +1,35 @@
-"""Python2 implementation of the VAPIX HTTP API for communicating with Axis network cameras.
+"""Python 2 implementation of the VAPIX HTTP API for communicating with Axis network cameras.
 
 This class supports both VAPIX v2 and VAPIX v3, including autodetection of the supported API.
 The VAPIX APIs are implemented based on these specifications:
+
 - VAPIX v2: http://www.axis.com/files/manuals/HTTP_API_VAPIX_2.pdf
 - VAPIX v3:
+
     - streaming: http://www.axis.com/files/manuals/vapix_video_streaming_52937_en_1307.pdf
     - PTZ control: http://www.axis.com/files/manuals/vapix_ptz_52933_en_1307.pdf
 
 When an instance of the API is obtained, the capabilities and limits of the connected camera are read automatically
-and they can be queried afterwards. A :class:RuntimeError will be thrown when calling an API method for which the camera
+and they can be queried afterwards. A :py:exc:`exceptions.RuntimeError` will be thrown when calling an API method for which the camera
 doesn't have capabilities.
 
 :Example:
 
 To get an autodetected API instance allowing you to access a connected camera, use the following code:
 
+.. code-block:: python
+
     api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
 
-This call throws IOError or ValueError if connection to the camera did not succeed, so keep trying in
+This call throws :py:exc:`IOError` or :py:exc:`ValueError` if connection to the camera did not succeed, so keep trying in
 a loop until the camera becomes reachable.
 
 .. note:: Tested with the following products. Tests of other products are welcome!
+
 - Axis 214 PTZ (firmware 4.49) with VAPIX v2
 
 .. note:: Always update your camera to the newest available firmware from
-http://origin-www.axis.com/ftp/pub_soft/cam_srv/ before issuing a bug.
+          http://origin-www.axis.com/ftp/pub_soft/cam_srv/ before issuing a bug.
 
 """
 
@@ -44,10 +49,14 @@ class Range(object):
 
     def __init__(self, min=float('-inf'), max=float('inf'), period=None):
         """Create a parameter range.
+
         :param min: The minimum allowed value. Minus infinity means no lower limit.
+        :type min: float, int
         :param max: The maximum allowed value. Plus infinity means no upper limit.
+        :type max: float, int
         :param period: If the value is periodic (e.g. angles), specify the size of the period and all values
                        passed to this range will first be "normalized" to the range -period/2 to period/2.
+        :type period: float, int
         """
         self.min = min
         self.max = max
@@ -55,10 +64,11 @@ class Range(object):
 
     def _normalize(self, value):
         """Adjust the value to fit inside the period if this is a periodic range. Has no effect on a-periodic ranges.
+
         :param value: The value to normalize.
         :type value: float, int
         :return: The normalized value.
-        :rtype: float, int
+        :rtype: :py:class:`float`, :py:class:`int`
         """
         if self.period is None:
             return value
@@ -72,19 +82,21 @@ class Range(object):
 
     def is_in_range(self, value):
         """Check if the given value satisfies this range's constraints (after being normalized).
+
         :param value: The value to check.
         :type value: float, int
         :return: If the value fits this range.
-        :rtype: bool
+        :rtype: :py:class:`bool`
         """
         return self.min <= self._normalize(value) <= self.max
 
     def crop_value(self, value):
         """If the value is outside this range, return the corresponding limit, otherwise just return the value.
+
         :param value: The value to crop.
         :type value: float, int
         :return: The cropped and normalized value.
-        :rtype: float, int
+        :rtype: :py:class:`float`, :py:class:`int`
         """
         value = self._normalize(value)
 
@@ -97,15 +109,15 @@ class Range(object):
 
     def merge(self, range):
         """Merge this range with another one (using logical AND to join the conditions).
-
         If both ranges share the same period, it is retained. If only one of the ranges is periodic, its
         period is used for the resulting range. If both ranges are periodic with different period, a :class:ValueError
         is thrown.
+
         :param range: The range to merge with.
-        :type range: Range
+        :type range: :py:class:`Range`
         :return: A new range satisfying the limits of both this and the given range.
-        :rtype: Range
-        :raises: ValueError if both ranges are periodic, and their periods differ
+        :rtype: :py:class:`Range`
+        :raises: :py:exc:`ValueError` if both ranges are periodic, and their periods differ
         """
         assert isinstance(range, Range)
 
@@ -140,12 +152,13 @@ class PTZLimit(object):
 
     def __init__(self, absolute=None, relative=None, velocity=None):
         """Create a limit for absolute, relative and velocity parameters.
+
         :param absolute: The allowed range for absolute movement.
-        :type absolute: Range
+        :type absolute: :py:class:`Range`
         :param relative: The allowed range for relative movement.
-        :type relative: Range
+        :type relative: :py:class:`Range`
         :param velocity: The allowed range for velocity.
-        :type velocity: Range
+        :type velocity: :py:class:`Range`
         """
         self.absolute = absolute if absolute is not None else Range()
         self.relative = relative if relative is not None else Range()
@@ -153,10 +166,11 @@ class PTZLimit(object):
 
     def merge(self, limit):
         """Merge this limit with another one.
+
         :param limit: The limit to merge with.
-        :type limit: PTZLimit
+        :type limit: :py:class:`PTZLimit`
         :return: A new limit satisfying the conditions of this and the given one.
-        :rtype: PTZLimit
+        :rtype: :py:class:`PTZLimit`
         """
         assert isinstance(limit, PTZLimit)
 
@@ -182,15 +196,15 @@ class VAPIX(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, hostname, camera_id=1, connection_timeout=5):
-        """
-        An instance of the VAPIX API.
+        """An instance of the VAPIX API.
+
         :param hostname: Hostname or IP address string of the connected camera.
         :type hostname: basestring
         :param camera_id: Id of the camera to connect to (if more video sources are available). Usually a number 1-4.
         :type camera_id: int
         :param connection_timeout: Timeout of API requests (in seconds).
         :type connection_timeout: int
-        :raises: IOError, urllib2.URLError on connection error
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on connection error
         """
         self.hostname = hostname
         self.camera_id = camera_id
@@ -204,10 +218,11 @@ class VAPIX(object):
     @abstractmethod
     def _form_parameter_url(self, group):
         """Construct a URL for querying the specified parameter group.
+
         :param group: The parameter group to get using the generated URL. Can be both a group and a single parameter.
         :type group: basestring
         :return: The full API URL to query.
-        :rtype: basestring
+        :rtype: :py:obj:`basestring`
         """
         pass
 
@@ -225,8 +240,8 @@ class VAPIX(object):
         :param use_square_pixels: If True, the resolution will be stretched to match 1:1 pixels.
                                   By default, the pixels have a ratio of 11:12.
         :return: A handle to the open stream.
-        :rtype: urllib.addinfourl (a file-like object)
-        :raises: IOError, urllib2.URLError
+        :rtype: :py:class:`urllib.addinfourl` (a :py:obj:`file`-like object)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
 
         .. note:: The data on the stream are not directly an MJPEG stream. They need to be parsed according to VAPIX.
         """
@@ -239,9 +254,11 @@ class VAPIX(object):
 
     def is_video_ok(self):
         """Check using API whether the video source is ready and streaming.
+
         :return: If the video source is OK.
-        :rtype: bool
-        :raises: IOError, urllib2.URLError
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
+
         .. note:: Unfortunately, not all video errors are recognized (e.g. the black-image stream).
         """
         url = self._form_api_url("axis-cgi/view/videostatus.cgi?status=%d" % self.camera_id)
@@ -252,16 +269,16 @@ class VAPIX(object):
 
     @staticmethod
     def read_next_image_from_video_stream(stream):
-        """
-        Read the next image header and image from the stream, skipping any irrelevant data in the stream.
+        """Read the next image header and image from the stream, skipping any irrelevant data in the stream.
 
         The stream is supposed to be in a state such that an image and the empty line after it have just been read (or
         at the very start of the stream).
+
         :param stream: The video stream.
-        :type stream: urllib.addinfourl
+        :type stream: :py:class:`urllib.addinfourl`
         :return: Video frame header and the frame. Return (None, None) if reading the image fails. The frame is in JPG.
-        :rtype: tuple (dict, string)
-        :raises: IOError, urllib.URLError If reading from the stream fails.
+        :rtype: tuple (dict, :py:obj:`basestring`)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib.URLError` If reading from the stream fails.
         """
         found_boundary = VAPIX._find_boundary_in_stream(stream)
         if not found_boundary:
@@ -271,14 +288,13 @@ class VAPIX(object):
 
     @staticmethod
     def _find_boundary_in_stream(stream):
-        """
-        The string "--myboundary" is used to denote the start of an image in Axis cameras.
+        """The string "--myboundary" is used to denote the start of an image in Axis cameras.
 
         :param stream: The video stream.
         :type stream: urllib.addinfourl
         :return: Returns False if end of stream was reached.
-        :rtype: bool
-        :raises: IOError, urllib.URLError If reading from the stream fails.
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib.URLError` If reading from the stream fails.
         """
         while not rospy.is_shutdown():
             line = stream.readline()
@@ -291,15 +307,15 @@ class VAPIX(object):
 
     @staticmethod
     def _read_image_from_stream(stream):
-        """
-        Get the image header and image itself.
+        """Get the image header and image itself.
 
         The stream is supposed to be in a state such that the boundary is the last line read from the stream.
+
         :param stream: The video stream.
         :type stream: urllib.addinfourl
         :return: Video header and the frame. Return (None, None) if reading the image fails. The frame is in JPG.
-        :rtype: tuple (dict, string)
-        :raises: IOError, urllib.URLError If reading from the stream fails.
+        :rtype: tuple (dict, :py:obj:`basestring`)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib.URLError` If reading from the stream fails.
         """
         header = VAPIX._get_image_header_from_stream(stream)
 
@@ -314,21 +330,21 @@ class VAPIX(object):
 
     @staticmethod
     def _get_image_header_from_stream(stream):
-        """
-        Read an HTTP-like header of the next video stream.
+        """Read an HTTP-like header of the next video stream.
 
         The stream is supposed to be in a state such that the boundary is the last line read from the stream.
+
         :param stream: The video stream.
         :type stream: urllib.addinfourl
         :return: A dcitionary of HTTP-like headers. Most notably, the 'Content-Length' denotes the byte-size of the next
                  video frame, which follows right after this header in the stream.
         :rtype: dict
-        :raises: IOError, urllib.URLError If reading from the stream fails.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib.URLError` If reading from the stream fails.
         """
         header = {}
         while not rospy.is_shutdown():
             line = stream.readline()
-            if line == "\r\n": # the header is finished with an empty line
+            if line == "\r\n":  # the header is finished with an empty line
                 break
             line = line.strip()
             parts = line.split(": ", 1)
@@ -348,18 +364,18 @@ class VAPIX(object):
 
     @staticmethod
     def _get_image_data_from_stream(stream, num_bytes):
-        """
-        Get the binary image data itself (ie. without header)
+        """Get the binary image data itself (ie. without header)
 
         The stream is supposed to be in a state such that the empty line after header is the last line read from the
         stream.
+
         :param stream: The video stream.
         :type stream: urllib.addinfourl
         :param num_bytes: The byte-size of the video frame.
         :type num_bytes: int
         :return: The byte data of the video frame (encoded as JPG).
-        :rtype: str
-        :raises: IOError, urllib.URLError If reading from the stream fails.
+        :rtype: :py:class:`str`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib.URLError` If reading from the stream fails.
         """
         image = stream.read(num_bytes)
         stream.readline()  # Read terminating \r\n and do nothing with it
@@ -367,15 +383,18 @@ class VAPIX(object):
 
     def get_camera_position(self, get_zoom=True, get_focus=True, get_iris=True):
         """Get current camera PTZ position.
+
         :param get_zoom: If true, also try to get zoom. Set to false if using with no-zoom cameras.
         :type get_zoom: bool
-        :param get_focus: If true, also try to get autofocus and focus. Set to false if using with no-focus cameras. Value True is deprecated.
+        :param get_focus: If true, also try to get autofocus and focus. Set to false if using with no-focus cameras.
+                          Value True is deprecated.
         :type get_focus: bool
-        :param get_iris: If true, also try to get autoiris and iris. Set to false if using with no-iris cameras. Value True is deprecated.
+        :param get_iris: If true, also try to get autoiris and iris. Set to false if using with no-iris cameras.
+                         Value True is deprecated.
         :type get_iris: bool
         :return: The current camera position.
         :rtype: dict {'pan': ..., 'tilt': ..., ['zoom': ...]}
-        :raises: IOError, urllib2.URLError
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
 
         .. note:: The get_focus and get_iris parameters are only supported for backwards compatibility.
         """
@@ -410,9 +429,10 @@ class VAPIX(object):
 
     def take_snapshot(self):
         """Take a snapshot at the current camera's position.
+
         :return: The binary data of the image.
-        :rtype: bytes
-        :raises: IOError, urllib2.URLError
+        :rtype: :py:obj:`bytes`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
 
         .. todo:: Implement more snapshotting functionality.
         """
@@ -446,6 +466,7 @@ class VAPIX(object):
 
     def move_ptz_absolute(self, pan=None, tilt=None, zoom=None):
         """Command the PTZ unit with an absolute pose.
+
         :param pan: The desired pan. In None, pan is not commanded at all.
                     The value is automatically normalized to <-180,+180>
         :type pan: float
@@ -457,8 +478,8 @@ class VAPIX(object):
         :return: The pan, tilt and zoom values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   from -170 to +170 pan is requested).
@@ -491,6 +512,7 @@ class VAPIX(object):
 
     def move_ptz_relative(self, pan=None, tilt=None, zoom=None):
         """Command the PTZ unit with a relative pose shift.
+
         :param pan: The pan change. In None or 0, pan remains unchanged.
                     The value is automatically normalized to <-360,+360>. May be negative.
         :type pan: float
@@ -502,8 +524,8 @@ class VAPIX(object):
         :return: The pan, tilt and zoom change values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution (which might take a while if e.g. a move
                   by 300 deg pan is requested).
@@ -533,6 +555,7 @@ class VAPIX(object):
 
     def set_ptz_velocity(self, pan=None, tilt=None, zoom=None):
         """Command the PTZ unit velocity in terms of pan, tilt and zoom.
+
         :param pan: Pan speed. In None or 0, pan remains unchanged. Pan speed is aperiodic (can be higher than 360).
                     May be negative.
         :type pan: int
@@ -544,8 +567,8 @@ class VAPIX(object):
         :return: The pan, tilt and zoom velocity values that were really applied (e.g. the cropped and normalized input)
         :rtype: tuple
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: This call doesn't wait for the command to finish execution.
 
@@ -582,6 +605,7 @@ class VAPIX(object):
 
     def look_at(self, x, y, image_width, image_height):
         """Point the camera center to a point with the given coordinates in the camera image.
+
         :param x: X coordinate of the look-at point.
         :type x: int
         :param y: X coordinate of the look-at point.
@@ -591,8 +615,8 @@ class VAPIX(object):
         :param image_height: Height of the image in pixels.
         :type image_height: int
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. todo:: A workaround for cameras without this functionality but with relative zoom support.
         """
@@ -607,13 +631,14 @@ class VAPIX(object):
 
     def use_autofocus(self, use):
         """Command the camera to use/stop using autofocus.
+
         :param use: True: use autofocus; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('AutoFocus')
         self._call_ptz_command("autofocus=%s" % "on" if use else "off")
@@ -621,13 +646,14 @@ class VAPIX(object):
 
     def set_focus(self, focus):
         """Set focus to the desired value (implies turning off autofocus).
+
         :param focus: The desired focus value.
         :type focus: int
         :return: The focus value that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('AbsoluteFocus')
         focus = self.ptz_limits['Focus'].absolute.crop_value(focus)
@@ -636,13 +662,14 @@ class VAPIX(object):
 
     def adjust_focus(self, amount):
         """Add the desired amount to the focus value (implies turning off autofocus).
+
         :param amount: The desired focus change amount.
         :type amount: int
         :return: The focus change amount that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('RelativeFocus')
         amount = self.ptz_limits['Focus'].relative.crop_value(amount)
@@ -651,13 +678,14 @@ class VAPIX(object):
 
     def set_focus_velocity(self, velocity):
         """Set the focus "speed" (implies turning off autofocus).
+
         :param velocity: The desired focus velocity.
         :type velocity: int
         :return: The focus velocity that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('ContinuousFocus')
         velocity = self.ptz_limits['Focus'].velocity.crop_value(velocity)
@@ -667,13 +695,14 @@ class VAPIX(object):
     # Iris
     def use_autoiris(self, use):
         """Command the camera to use/stop using auto iris adjustment.
+
         :param use: True: use auto iris adjustment; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('AutoIris')
         self._call_ptz_command("autoiris=%s" % "on" if use else "off")
@@ -681,13 +710,14 @@ class VAPIX(object):
 
     def set_iris(self, iris):
         """Set iris to the desired value (implies turning off autoiris).
+
         :param iris: The desired iris value.
         :type iris: int
         :return: The iris value that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('AbsoluteIris')
         iris = self.ptz_limits['Iris'].absolute.crop_value(iris)
@@ -696,13 +726,14 @@ class VAPIX(object):
 
     def adjust_iris(self, amount):
         """Add the desired amount to the iris value (implies turning off autoiris).
+
         :param amount: The desired iris change amount.
         :type amount: int
         :return: The iris change amount that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('RelativeIris')
         amount = self.ptz_limits['Iris'].relative.crop_value(amount)
@@ -711,13 +742,14 @@ class VAPIX(object):
 
     def set_iris_velocity(self, velocity):
         """Set the iris "speed" (implies turning off autoiris).
+
         :param velocity: The desired iris velocity.
         :type velocity: int
         :return: The iris velocity that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('ContinuousIris')
         velocity = self.ptz_limits['Iris'].velocity.crop_value(velocity)
@@ -727,13 +759,14 @@ class VAPIX(object):
     # Brightness
     def set_brightness(self, brightness):
         """Set brightness to the desired value.
+
         :param brightness: The desired brightness value.
         :type brightness: int
         :return: The brightness value that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -744,13 +777,14 @@ class VAPIX(object):
 
     def adjust_brightness(self, amount):
         """Add the desired amount to the brightness value.
+
         :param amount: The desired brightness change amount.
         :type amount: int
         :return: The brightness change amount that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -761,13 +795,14 @@ class VAPIX(object):
 
     def set_brightness_velocity(self, velocity):
         """Set the brightness "speed".
+
         :param velocity: The desired brightness velocity.
         :type velocity: int
         :return: The brightness velocity that was really applied (e.g. the cropped and normalized input)
-        :rtype: int
+        :rtype: :py:class:`int`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
 
         .. note:: The brightness setting has no effect on Axis 214 PTZ.
         """
@@ -782,13 +817,14 @@ class VAPIX(object):
 
     def use_backlight_compensation(self, use):
         """Command the camera to use/stop using backlight compensation (requires autoiris=on set before).
+
         :param use: True: use backlight compensation; False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('BackLight')
         self._call_ptz_command("backlight=%s" % ("on" if use else "off"))
@@ -800,15 +836,16 @@ class VAPIX(object):
 
     def use_ir_cut_filter(self, use):
         """Command the camera to use/stop using infrared filter.
+
         :param use: None: Automatic mode (requires autoiris=on set before);
                     True: use infrared filter;
                     False: do not use it.
         :type use: bool
         :return: use
-        :rtype: bool
+        :rtype: :py:class:`bool`
 
-        :raises: RuntimeError if the camera doesn't have capabilities to execute the given command.
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`RuntimeError` if the camera doesn't have capabilities to execute the given command.
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         self.require_capabilities('IrCutFilter')
         self._call_ptz_command("ircutfilter=%s" % ("auto" if use is None else ("on" if use else "off")))
@@ -820,17 +857,19 @@ class VAPIX(object):
 
     def has_ptz(self):
         """Returns True if a PTZ unit is available for the connected camera (according to the API).
+
         :return: Whether PTZ is available.
-        :rtype: bool
-        :raises: IOError, urllib2.URLError on network communication error
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         return self.get_parameter("root.Properties.PTZ.PTZ") == "yes"
 
     def is_digital_ptz(self):
         """Returns True if a the PTZ unit is digital (i.e. has no mechanical parts).
+
         :return: Whether PTZ is digital or not.
-        :rtype: bool
-        :raises: IOError, urllib2.URLError on network communication error
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         return self.get_parameter("root.Properties.PTZ.DigitalPTZ") == "yes"
 
@@ -843,11 +882,12 @@ class VAPIX(object):
 
         The list of capabilities is only queried once when connecting to the API, and calls to this method use the
         cached list of detected capabilities.
+
         :param capability: Name of the capability to test. E.g. 'AbsolutePan', 'ContinuousZoom' and so on (as defined
                            in VAPIX parameter group root.PTZ.Support)
         :type capability: basestring
         :return: Whether the camera has the given capability or not.
-        :rtype: bool
+        :rtype: :py:class:`bool`
         """
         if not self._has_ptz:
             return False
@@ -858,11 +898,12 @@ class VAPIX(object):
 
         The list of capabilities is only queried once when connecting to the API, and calls to this method use the
         cached list of detected capabilities.
+
         :param capabilities: Names of the capabilities to test. E.g. 'AbsolutePan', 'ContinuousZoom' and so on
                             (as defined in VAPIX parameter group root.PTZ.Support)
-        :type capabilities: list of basestring
+        :type capabilities: list of :py:obj:`basestring`
         :return: Whether the camera has all the given capabilities or not.
-        :rtype: bool
+        :rtype: :py:class:`bool`
         """
         if not self._has_ptz:
             return False
@@ -874,14 +915,15 @@ class VAPIX(object):
         return True
 
     def require_capabilities(self, *capabilities):
-        """Raise a RuntimeError if the camera doesn't have all of the given capabilities.
+        """Raise a :py:exc:`RuntimeError` if the camera doesn't have all of the given capabilities.
 
         The list of capabilities is only queried once when connecting to the API, and calls to this method use the
         cached list of detected capabilities.
+
         :param capabilities: Names of the capabilities to require. E.g. 'AbsolutePan', 'ContinuousZoom' and so on
                             (as defined in VAPIX parameter group root.PTZ.Support)
-        :type capabilities: list of basestring
-        :raises: RuntimeError if the camery doesn't have one of the required capabilities.
+        :type capabilities: list of :py:obj:`basestring`
+        :raises: :py:exc:`RuntimeError` if the camery doesn't have one of the required capabilities.
         """
         for capability in capabilities:
             if not self.has_capability(capability):
@@ -890,9 +932,10 @@ class VAPIX(object):
 
     def _get_ptz_capabilities(self):
         """Read the list of capabilities from the camera.
+
         :return: The list of capabilities.
         :rtype: list
-        :raises: IOError, urllib2.URLError on network communication error
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         prefix = "root.PTZ.Support.S%d" % self.camera_id
         parameters = self.get_parameter_list(prefix)
@@ -913,9 +956,10 @@ class VAPIX(object):
         """Return the list of effective limits of the PTZ control parameters.
 
         Effective means it is a combination of the VAPIX specifications and real limits read from the camera.
+
         :return: The limits of the PTZ control of the connected camera. Keys are 'Pan', 'Tilt' and so on.
-        :rtype: dict (basestring => PTZLimit)
-        :raises: IOError, urllib2.URLError on network communication error
+        :rtype: dict (:py:obj:`basestring` => :py:class:`PTZLimit`)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         real_limits = self._get_real_ptz_limits()
         api_limits = self._get_api_ptz_limits()
@@ -940,9 +984,10 @@ class VAPIX(object):
 
     def _get_real_ptz_limits(self):
         """Get the list of actual PTZ limits read from the camera.
+
         :return: The limits of the PTZ control of the connected camera. Keys are 'Pan', 'Tilt' and so on.
-        :rtype: dict (basestring => PTZLimit)
-        :raises: IOError, urllib2.URLError on network communication error
+        :rtype: dict (:py:obj:`basestring` => :py:class:`PTZLimit`)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
         """
         prefix = "root.PTZ.Limit.L%d" % self.camera_id
         parameters = self.get_parameter_list(prefix)
@@ -970,8 +1015,9 @@ class VAPIX(object):
     @staticmethod
     def _get_api_ptz_limits():
         """Get the list of PTZ limits specified by VAPIX.
+
         :return: The PTZ control limits. Keys are 'Pan', 'Tilt' and so on.
-        :rtype: dict (basestring => PTZLimit)
+        :rtype: dict (:py:obj:`basestring` => :py:class:`PTZLimit`)
         """
         return {
             'Pan': PTZLimit(absolute=Range(-180, 180, 360), relative=Range(-360, 360, 720), velocity=Range(-100, 100)),
@@ -988,12 +1034,13 @@ class VAPIX(object):
 
     def get_parameter(self, name):
         """Get the value of the specified parameter through VAPIX.
+
         :param name: Full name of the parameter (e.g. 'root.Properties.PTZ.PTZ').
         :type name: basestring
         :return: The value of the parameter.
-        :rtype: basestring
-        :raises: IOError, urllib2.URLError on network communication error
-        :raises: ValueError if response to the parameter request cannot be parsed
+        :rtype: :py:obj:`basestring`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
+        :raises: :py:exc:`ValueError` if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(name)
         response_line = self._read_oneline_response(url)
@@ -1002,12 +1049,13 @@ class VAPIX(object):
 
     def get_parameter_list(self, group):
         """Get the values of all parameters under the specified parameter group through VAPIX.
+
         :param group: Full name of the group (e.g. 'root.Properties').
         :type group: basestring
         :return: The values of the parameters.
-        :rtype: dict(basestring => basestring)
-        :raises: IOError, urllib2.URLError on network communication error
-        :raises: ValueError if response to the parameter request cannot be parsed
+        :rtype: dict(:py:obj:`basestring` => :py:obj:`basestring`)
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network communication error
+        :raises: :py:exc:`ValueError` if response to the parameter request cannot be parsed
         """
         url = self._form_parameter_url(group)
         response_lines = self._read_multiline_response(url)
@@ -1025,18 +1073,21 @@ class VAPIX(object):
 
     def _form_api_url(self, api_call):
         """Return the URL to be called to execute the given API call.
+
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
         :return: The URL.
-        :rtype: basestring
+        :rtype: :py:obj:`basestring`
         """
         return "http://%s/%s" % (self.hostname, api_call)
 
     def _call_api_no_response(self, api_call):
         """Call the given API command expecting no content in response.
+
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         with closing(
                 self._open_url(self._form_api_url(api_call), valid_statuses=[204], timeout=self.connection_timeout)):
@@ -1044,39 +1095,44 @@ class VAPIX(object):
 
     def _call_api_oneline_response(self, api_call):
         """Call the given API command expecting a one-line result.
+
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
         :return: The response text line (without newline at the end).
-        :rtype: basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: :py:obj:`basestring`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         return self._read_oneline_response(self._form_api_url(api_call), self.connection_timeout)
 
     def _call_api_multiline_response(self, api_call):
         """Call the given API command expecting a multiline result.
+
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
         :return: The response text lines (without newlines at the end).
-        :rtype: list of basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: list of :py:obj:`basestring`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the API response
         """
         return self._read_multiline_response(self._form_api_url(api_call), self.connection_timeout)
 
     def _call_api_binary_response(self, api_call):
         """Call the given API command expecting a binary result (e.g. an image).
+
         :param api_call: The API call without hostname and slash, e.g. "axis-cgi/param.cgi?camera=1".
         :type api_call: basestring
         :return: The response data.
-        :rtype: bytes
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: :py:obj:`bytes`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the API response
         """
         return self._read_binary_response(self._form_api_url(api_call), self.connection_timeout)
 
     def _call_ptz_command(self, command):
         """Call the given PTZ command.
+
         :param command: The command to execute. It is an ampersand-delimited string of type 'pan=1&tilt=5'.
         :type command: basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the API response
         """
 
         rospy.logdebug("Calling PTZ command %s on host %s, camera %d" % (command, self.hostname, self.camera_id))
@@ -1089,6 +1145,7 @@ class VAPIX(object):
     @staticmethod
     def _open_url(url, valid_statuses=None, timeout=2):
         """Open connection to Axis camera using HTTP
+
         :param url: The full URL to query.
         :type url: basestring
         :param valid_statuses: Status codes denoting valid responses. Other codes will raise an IOException. If None,
@@ -1097,8 +1154,9 @@ class VAPIX(object):
         :param timeout: Timeout for the request.
         :type timeout: int
         :return: The stream with the response. The stream is never None (IOException would be thrown in such case).
-        :rtype urllib.addinfourl:
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: :py:class:`urllib.addinfourl`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         rospy.logdebug('Opening VAPIX URL %s .' % url)
         try:
@@ -1132,13 +1190,15 @@ class VAPIX(object):
     @staticmethod
     def _read_oneline_response(url, timeout=2):
         """Call the given full URL expecting a one-line response and return it.
+
         :param url: The full URL to query.
         :type url: basestring
         :param timeout: Timeout for the request.
         :type timeout: int
         :return: The response text line (without newline at the end).
-        :rtype: basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: :py:obj:`basestring`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             line = response_stream.readline()
@@ -1155,13 +1215,15 @@ class VAPIX(object):
     @staticmethod
     def _read_multiline_response(url, timeout=2):
         """Call the given full URL expecting a multiline result.
+
         :param url: The full URL to query.
         :type url: basestring
         :param timeout: Timeout for the request.
         :type timeout: int
         :return: The response text lines (without newlines at the end).
-        :rtype: list of basestring
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :rtype: list of :py:obj:`basestring`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             lines = []
@@ -1183,13 +1245,14 @@ class VAPIX(object):
     @staticmethod
     def _read_binary_response(url, timeout=2):
         """Read a binary result for a given full URL (e.g. an image).
+
         :param url: The full URL to query.
         :type url: basestring
         :param timeout: Timeout for the API request.
         :type timeout: int
         :return: The response data.
-        :rtype: bytes
-        :raises: IOError, urllib2.URLError
+        :rtype: :py:obj:`bytes`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
         """
         with closing(VAPIX._open_url(url, valid_statuses=[200], timeout=timeout)) as response_stream:
             return response_stream.read()
@@ -1197,11 +1260,12 @@ class VAPIX(object):
     @staticmethod
     def parse_parameter_and_value_from_response_line(line):
         """Parse an API response line of the form key=value.
+
         :param line: The response line to parse.
-        :type line: str|unicode
+        :type line: :py:obj:`str` | :py:obj:`unicode`
         :return: The parsed tuple (key, value).
         :rtype: tuple
-        :raises: ValueError When the line cannot be parsed.
+        :raises: :py:exc:`ValueError` When the line cannot be parsed.
         """
         parts = line.split("=", 2)
         if len(parts) == 2:
@@ -1212,21 +1276,24 @@ class VAPIX(object):
     @staticmethod
     def parse_list_parameter_value(list_value):
         """Parse an API response value that is a list and return the list.
+
         :param list_value: The value to be parsed as a (comma separated) list.
-        :type list_value: str|unicode
+        :type list_value: :py:obj:`str` | :py:obj:`unicode`
         :return: The list of parsed values.
-        :rtype: list of basestring
+        :rtype: list of :py:obj:`basestring`
         """
         return list_value.split(",")
 
     @staticmethod
     def wakeup_camera(hostname, camera_id):
         """Try to wake up a camera in standby mode.
+
         :param hostname: Hostname of the camera.
         :type hostname: basestring
         :param camera_id: Id of the camera. Usually 1-4.
         :type camera_id: int
-        :raises: IOError, urllib2.URLError on network error or invalid HTTP status of the API response
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError` on network error or invalid HTTP status of the
+                 API response
         """
         # TODO what to do if there is no PTZ support?
         url = 'http://%s/axis-cgi/com/ptz.cgi?camera=%d&autofocus=on' % (hostname, camera_id)
@@ -1236,6 +1303,7 @@ class VAPIX(object):
     @staticmethod
     def setup_authentication(hostname, username, password, use_encrypted_password=False):
         """Set user credentials to the HTTP handler, so that if authentication is required, they will be used.
+
         :param hostname: Hostname of the camera.
         :type hostname: basestring
         :param username: Username.
@@ -1266,20 +1334,21 @@ class VAPIX(object):
     @staticmethod
     def get_api_for_camera(hostname, username=None, password=None, camera_id=1, use_encrypted_password=False):
         """Return the VAPIX API instance corresponding to the autodetected API version (both v2 and v3 are supported).
+
         :param hostname: Hostname of the camera (without http://, may be an IP address).
         :type hostname: basestring
         :param username: If login is needed, provide a username here.
-        :type username: basestring|None
+        :type username: :py:obj:`basestring` | None
         :param password: If login is needed, provide a password here.
-        :type password: basestring|None
+        :type password: :py:obj:`basestring` | None
         :param camera_id: ID (number) of the camera. Can be 1 to 4.
         :type camera_id: int
         :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
         :type use_encrypted_password: bool
         :return: Autodetected API instance.
-        :rtype: VAPIX
-        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
-        :raises: RuntimeError If unexpected values are returned by the API.
+        :rtype: :py:class:`VAPIX`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.ULRError`, :py:exc:`ValueError` If connecting to the API failed.
+        :raises: :py:exc:`RuntimeError` If unexpected values are returned by the API.
         """
         # Enable HTTP login if a username and password are provided.
         if username is not None and len(username) > 0 and password is not None:
@@ -1315,14 +1384,15 @@ class VAPIX(object):
     @staticmethod
     def _get_v3_api(hostname, camera_id=1):
         """Check if the camera supports VAPIX v3, and if it does, return a corresponding VAPIXv3 instance.
+
         :param hostname: Hostname of the camera (without http://, may be an IP address)
         :type hostname: basestring
         :param camera_id: ID (number) of the camera. Can be 1 to 4.
         :type camera_id: int
         :return: The VAPIXv3 instance.
-        :rtype: VAPIXv3
-        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
-        :raises: RuntimeError If unexpected values are returned by the API.
+        :rtype: :py:class:`VAPIXv3`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.ULRError`, :py:exc:`ValueError` If connecting to the API failed.
+        :raises: :py:exc:`RuntimeError` If unexpected values are returned by the API.
         """
         response = VAPIX._read_oneline_response(
             "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
@@ -1339,14 +1409,15 @@ class VAPIX(object):
     @staticmethod
     def _get_v2_api(hostname, camera_id=1):
         """Check if the camera supports VAPIX v2, and if it does, return a corresponding VAPIXv2 instance.
+
         :param hostname: Hostname of the camera (without http://, may be an IP address)
         :type hostname: basestring
         :param camera_id: ID (number) of the camera. Can be 1 to 4.
         :type camera_id: int
         :return: The VAPIXv2 instance.
-        :rtype: VAPIXv2
-        :raises: IOError, urllib2.ULRError, ValueError If connecting to the API failed.
-        :raises: RuntimeError If unexpected values are returned by the API.
+        :rtype: :py:class:`VAPIXv2`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.ULRError`, :py:exc:`ValueError` If connecting to the API failed.
+        :raises: :py:exc:`RuntimeError` If unexpected values are returned by the API.
         """
         response = VAPIX._read_oneline_response(
             "http://%s/axis-cgi/view/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %

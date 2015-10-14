@@ -62,6 +62,16 @@ from dynamic_reconfigure.encoding import *
 
 class Server(object):
     def __init__(self, type, callback, subname=None):
+        """Create the dynamic reconfigure server.
+
+        :param type: Type of the server.
+        :type type: any
+        :param callback: Reconfigure callback.
+        :type callback: func
+        :param subname: The "subname" of the server. It will be appended to the name an unmodified dynamic reconfigure
+                        server would have.
+        :type subname: :py:obj:`basestring`
+        """
         self.mutex = threading.Lock()
         self.type = type
         self.config = type.defaults.copy()

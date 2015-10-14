@@ -17,12 +17,12 @@ class PositionStreamingThread(threading.Thread):
     """
 
     def __init__(self, axis, api):
-        """
-        Create the thread.
+        """Create the thread.
+
         :param axis: The parameter source.
-        :type axis: AxisPTZ
+        :type axis: :py:class:`AxisPTZ`
         :param api: The VAPIX API instance that allows the thread to access positional data.
-        :type api: VAPIX
+        :type api: :py:class:`VAPIX`
         """
         threading.Thread.__init__(self)
 
@@ -79,14 +79,14 @@ class PositionStreamingThread(threading.Thread):
             rate.sleep()
 
     def _create_camera_position_message(self, camera_position, timestamp):
-        """
-        Convert the camera_position dictionary to a PTZ message.
+        """Convert the camera_position dictionary to a PTZ message.
+
         :param camera_position: The camera position. Should contain keys 'pan', 'tilt', and probably also 'zoom'.
         :type camera_position: dict
         :param timestamp: The time we relate the camera position to.
-        :type timestamp: rospy.Time
+        :type timestamp: :py:class:`rospy.Time`
         :return: The PTZ message.
-        :rtype: PTZ
+        :rtype: :py:class:`axis_camera.msg.PTZ`
         """
         message = PTZ()
 
@@ -109,9 +109,9 @@ class PositionStreamingThread(threading.Thread):
         :param camera_position: The camera position. Should contain keys 'pan', 'tilt', and probably also 'zoom'.
         :type camera_position: dict
         :param timestamp: The time we relate the camera position to.
-        :type timestamp: rospy.Time
+        :type timestamp: :py:class:`rospy.Time`
         :return: The JointState message.
-        :rtype: JointState
+        :rtype: :py:class:`sensor_msgs.msg.JointState`
         """
         message = JointState()
 
@@ -132,7 +132,7 @@ class PositionStreamingThread(threading.Thread):
         :param camera_position: The camera position. Should contain keys 'pan', 'tilt', and probably also 'zoom'.
         :type camera_position: dict
         :return: The Config message.
-        :rtype: Config
+        :rtype: :py:class:`axis_camera.cfg.Config`
         """
         message = Config()
 
@@ -147,7 +147,7 @@ class PositionStreamingThread(threading.Thread):
         """
         If flipping the image is required, do the flipping on a PTZ message fields.
         :param message: A PTZ or Axis message.
-        :type message: PTZ|Axis
+        :type message: :py:class:`axis_camera.msg.PTZ` | :py:class:`axis_camera.msg.Axis`
         """
         message.pan = 180 - message.pan
         if message.pan > 180:
@@ -159,9 +159,11 @@ class PositionStreamingThread(threading.Thread):
     # BACKWARDS COMPATIBILITY LAYER
 
     def queryCameraPosition(self):  # deprecated
+        """Deprecated."""
         pass  # is done in the run method
 
     def publishCameraState(self):  # deprecated
+        """Deprecated."""
         if self.cameraPosition is not None:
             self.msg.pan = float(self.cameraPosition['pan'])
             if self.axis.flip:
@@ -179,4 +181,5 @@ class PositionStreamingThread(threading.Thread):
             self.axis.pub.publish(self.msg)
 
     def adjustForFlippedOrientation(self):  # deprecated
+        """Deprecated."""
         self._correct_flipped_pan_tilt_in_message(self.msg)

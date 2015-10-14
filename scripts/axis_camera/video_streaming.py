@@ -15,10 +15,10 @@ class ImageStreamingThread(threading.Thread):
     """
 
     def __init__(self, axis):
-        """
-        Create the video streaming thread (in a paused state).
+        """Create the video streaming thread (in a paused state).
+
         :param axis: The parameter specifying class.
-        :type axis: axis.Axis
+        :type axis: :py:class:`axis.Axis`
         """
         threading.Thread.__init__(self)
         self.daemon = True  # allow exiting the main program even if this thread is still running
@@ -43,20 +43,15 @@ class ImageStreamingThread(threading.Thread):
             self._stream()
 
     def resume(self):
-        """
-        Start streaming if the video stream was paused.
-        """
+        """Start streaming if the video stream was paused."""
         self._is_paused = False
 
     def pause(self):
-        """
-        Pause streaming if the video stream was streaming.
-        """
+        """Pause streaming if the video stream was streaming."""
         self._is_paused = True
 
     def _stream(self):
-        """
-        Stream the video forever, taking into account the paused state.
+        """Stream the video forever, taking into account the paused state.
 
         Try to stream again after a streaming error.
         """
@@ -69,13 +64,13 @@ class ImageStreamingThread(threading.Thread):
                 rospy.sleep(2)
 
     def _wakeup_camera(self):
-        """
-        Wake up the camera from standby.
+        """Wake up the camera from standby.
 
         This call is blocking and waits for some time so that the initialization should be more or less finished when
         it finishes.
+
         :return: If the wakeup succeeded.
-        :rtype: bool
+        :rtype: :py:class:`bool`
         """
         rospy.logdebug("Trying to wake up the camera.")
 
@@ -91,8 +86,7 @@ class ImageStreamingThread(threading.Thread):
             return False
 
     def _publish_frames_until_error(self):
-        """
-        Continuous loop to publish images. Stops if an error occurs while reading the stream.
+        """Continuous loop to publish images. Stops if an error occurs while reading the stream.
 
         Should also account for pausing/resuming (stop/start reading the stream), and video parameters changes.
         These should not make this function exit, it should instead reconnect automatically.
@@ -164,10 +158,10 @@ class ImageStreamingThread(threading.Thread):
                 rospy.logdebug("Video parameters changed, reconnecting the video stream with the new ones.")
 
     def _is_video_ok(self):
-        """
-        Return True if the video stream is in good condition.
+        """Return True if the video stream is in good condition.
+
         :return: True if the video stream is in good condition.
-        :rtype: bool
+        :rtype: :py:class:`bool`
         """
         try:
             return self._axis._api.is_video_ok()
@@ -176,14 +170,14 @@ class ImageStreamingThread(threading.Thread):
             return False
 
     def _publish_image(self, header, image, timestamp):
-        """
-        Publish JPG image as a ROS message.
+        """Publish JPG image as a ROS message.
+
         :param header: The HTTP-like header read from the stream.
         :type header: dict
         :param image: The video frame in JPG.
-        :type image: str
+        :type image: :py:obj:`basestring`
         :param timestamp: The time when the frame was captured (or its best estimation).
-        :type timestamp: rospy.Time
+        :type timestamp: :py:class:`rospy.Time`
         """
         msg = CompressedImage()
         msg.header.stamp = timestamp
@@ -193,14 +187,14 @@ class ImageStreamingThread(threading.Thread):
         self._axis._video_publisher.publish(msg)
 
     def _publish_camera_info(self, header, image, timestamp):
-        """
-        Publish camera info corresponding to the given image.
+        """Publish camera info corresponding to the given image.
+
         :param header: The HTTP-like header read from the stream.
         :type header: dict
         :param image: The video frame in JPG.
-        :type image: str
+        :type image: :py:obj:`basestring`
         :param timestamp: The time when the frame was captured (or its best estimation).
-        :type timestamp: rospy.Time
+        :type timestamp: :py:class:`rospy.Time`
         """
         msg = self._axis._camera_info.getCameraInfo()
         msg.header.stamp = timestamp
@@ -211,28 +205,36 @@ class ImageStreamingThread(threading.Thread):
 
     # BACKWARDS COMPATIBILITY LAYER
     def authenticate(self):  # is already done when connecting to VAPIX
+        """Deprecated."""
         pass
 
     def publishFramesContinuously(self):
+        """Deprecated."""
         self._publish_frames_until_error()
 
     def findBoundary(self):
+        """Deprecated."""
         VAPIX._find_boundary_in_stream(self.fp)
 
     def getImage(self):
+        """Deprecated."""
         self.getHeader()
         self.getImageData()
 
     def getHeader(self):
+        """Deprecated."""
         self.header = VAPIX._get_image_header_from_stream(self.fp)
         self.content_length = int(self.header['Content-Length'])
 
     def getImageData(self):
+        """Deprecated."""
         if self.content_length > 0:
             self.img = VAPIX._get_image_data_from_stream(self.fp, self.content_length)
 
     def publishMsg(self):
+        """Deprecated."""
         self._publish_image(self.header, self.img, rospy.Time.now())
 
     def publishCameraInfoMsg(self):
+        """Deprecated."""
         self._publish_camera_info(self.header, self.img, rospy.Time.now())
