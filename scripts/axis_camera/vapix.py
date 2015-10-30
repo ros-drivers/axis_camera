@@ -577,19 +577,19 @@ class VAPIX(object):
         """
         commands = []
 
-        if pan is not None:
-            self.require_capabilities('ContinuousPan')
-            pan = self.ptz_limits['Pan'].velocity.crop_value(pan)
-        else:
-            pan = 0
+        if pan is not None or tilt is not None:
+            if pan is not None:
+                self.require_capabilities('ContinuousPan')
+                pan = self.ptz_limits['Pan'].velocity.crop_value(pan)
+            else:
+                pan = 0
 
-        if tilt is not None:
-            self.require_capabilities('ContinuousTilt')
-            tilt = self.ptz_limits['Tilt'].velocity.crop_value(tilt)
-        else:
-            tilt = 0
+            if tilt is not None:
+                self.require_capabilities('ContinuousTilt')
+                tilt = self.ptz_limits['Tilt'].velocity.crop_value(tilt)
+            else:
+                tilt = 0
 
-        if pan != 0 or tilt != 0:
             commands.append("continuouspantiltmove=%d,%d" % (pan, tilt))
 
         if zoom is not None:
