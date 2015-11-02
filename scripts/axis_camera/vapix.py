@@ -556,10 +556,10 @@ class VAPIX(object):
     def set_ptz_velocity(self, pan=None, tilt=None, zoom=None):
         """Command the PTZ unit velocity in terms of pan, tilt and zoom.
 
-        :param pan: Pan speed. In None or 0, pan remains unchanged. Pan speed is aperiodic (can be higher than 360).
+        :param pan: Pan speed. In None, pan remains unchanged. Pan speed is aperiodic (can be higher than 360).
                     May be negative.
         :type pan: int
-        :param tilt: Tilt speed. In None or 0, tilt remains unchanged. Tilt speed is aperiodic (can be higher than 360).
+        :param tilt: Tilt speed. In None, tilt remains unchanged. Tilt speed is aperiodic (can be higher than 360).
                     May be negative.
         :type tilt: int
         :param zoom: Zoom speed. In None or 0, zoom remains unchanged. May be negative.
