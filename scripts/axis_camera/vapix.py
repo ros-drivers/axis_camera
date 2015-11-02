@@ -1378,7 +1378,7 @@ class VAPIX(object):
                         return VAPIX._get_v2_api(hostname, camera_id)
         except Exception as e:
             rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
-                         "The camera stream will be unavailable. Cause: %s" % (hostname, camera_id, str(e.args)))
+                         "The camera stream will be unavailable. Cause: %r, %r" % (hostname, camera_id, e, e.args))
             raise e
 
     @staticmethod
