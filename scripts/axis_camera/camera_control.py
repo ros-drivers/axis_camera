@@ -772,7 +772,7 @@ class AxisCameraController(object):
         return use
 
     def set_ir_cut_filter_auto(self, use):
-        """Command the camera to use auto infrared filter.
+        """Command the camera to use auto infrared filter (requires autoiris=on set before).
 
         :param use: True: use automatic infrared filter;
                     False: use always.
