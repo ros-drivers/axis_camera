@@ -25,6 +25,7 @@ from axis_camera.cfg import VideoStreamConfig
 from axis_camera.srv import TakeSnapshot, TakeSnapshotResponse
 from axis_camera.vapix import VAPIX
 from axis_camera.video_streaming import ImageStreamingThread
+from axis_camera.dynamic_reconfigure_tools import change_enum_items
 
 # BACKWARDS COMPATIBILITY LAYER
 StreamThread = ImageStreamingThread  # deprecated
@@ -34,7 +35,7 @@ class Axis(rospy.SubscribeListener):
     """The ROS-VAPIX interface for video streaming."""
 
     def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
-                 camera_id=1, auto_wakeup_camera=True, resolution_name=None, compression=0, fps=24, use_color=True,
+                 camera_id=1, auto_wakeup_camera=True, resolution_value=None, compression=0, fps=24, use_color=True,
                  use_square_pixels=False):
         """Create the ROS-VAPIX interface.
 
@@ -60,8 +61,8 @@ class Axis(rospy.SubscribeListener):
         :type camera_id: int
         :param auto_wakeup_camera: If True, there will be a wakeup trial after first unsuccessful network command.
         :type auto_wakeup_camera: bool
-        :param resolution_name: CIF name of the requested video resolution (e.g. '4CIF').
-        :type resolution_name: basestring
+        :param resolution_value: The requested video resolution in the form `width`x`height`.
+        :type resolution_value: basestring
         :param compression: Compression of the image (0 - no compression, 100 - max compression).
         :type compression: int
         :param fps: The desired frames per second.
@@ -93,9 +94,10 @@ class Axis(rospy.SubscribeListener):
             return
 
         self._allowed_resolutions = self._get_allowed_resolutions()
-        rospy.loginfo("The following resolutions are available for camera %d: %s" %
-                      (camera_id, repr(self._allowed_resolutions)))
-        rospy.set_param("~allowed_resolutions", self._allowed_resolutions)
+
+        rospy.loginfo("The following resolutions are available for camera %d:\n%s" %
+                      (camera_id, "\n".join([str(res) for res in self._allowed_resolutions])))
+        rospy.set_param("~allowed_resolutions", [res.get_vapix_representation() for res in self._allowed_resolutions])
 
         # Sometimes the camera falls into power saving mode and stops streaming.
         # This setting allows the script to try to wake up the camera.
@@ -111,16 +113,28 @@ class Axis(rospy.SubscribeListener):
         self._use_square_pixels = None
 
         # dynamic-reconfigurable properties - defaults
-        if resolution_name is not None:
-            self.set_resolution(resolution_name)
+        if resolution_value is not None:
+            self.set_resolution(resolution_value)
         else:
             resolution = self.find_resolution_by_size(width, height)
-            self.set_resolution(resolution.name)
+            self.set_resolution(resolution.get_vapix_representation())
 
         self.set_compression(compression)
         self.set_fps(fps)
         self.set_use_color(use_color)
         self.set_use_square_pixels(use_square_pixels)
+
+        # only advertise the supported resolutions on dynamic reconfigure
+        change_enum_items(
+            VideoStreamConfig,
+            "resolution",
+            [{
+                'name': res.name if isinstance(res, CIFVideoResolution) else str(res),
+                'value': res.get_vapix_representation(),
+                'description': str(res)
+            } for res in self._allowed_resolutions],
+            resolution_value
+        )
 
         # dynamic reconfigure server
         self._video_stream_param_change_server = dynamic_reconfigure.server.Server(VideoStreamConfig,
@@ -238,37 +252,38 @@ class Axis(rospy.SubscribeListener):
     # DYNAMIC RECONFIGURE CALLBACKS #
     #################################
 
-    def set_resolution(self, resolution_name):
+    def set_resolution(self, resolution_value):
         """Request a new resolution for the video stream.
 
-        :param resolution_name: The CIF standard name of the resolution. E.g. '4CIF'.
-        :type resolution_name: basestring
+        :param resolution_value: The string of type `width`x`height`.
+        :type resolution_value: basestring
         :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
         """
-        if isinstance(resolution_name, basestring) and (
-                self._resolution is None or resolution_name != self._resolution.name):
-            self._resolution = self._get_resolution_for_name(resolution_name)
+        if isinstance(resolution_value, basestring) and (
+                self._resolution is None or resolution_value != self._resolution.get_vapix_representation()):
+            self._resolution = self._get_resolution_from_param_value(resolution_value)
             self.video_params_changed = True
             # deprecated values
             self._width = self._resolution.get_resolution(self._use_square_pixels)[0]
             self._height = self._resolution.get_resolution(self._use_square_pixels)[1]
 
-    def _get_resolution_for_name(self, resolution_name):
-        """Return a :py:class:`CIFVideoResolution` object corresponding to the given CIF resolution name.
+    def _get_resolution_from_param_value(self, value):
+        """Return a :py:class:`VideoResolution` object corresponding to the given video resolution param string.
 
-        :param resolution_name: The CIF standard name of the resolution. E.g. '4CIF'.
-        :type resolution_name: basestring
-        :return: The CIFVideoResolution corresponding to the given resolution name.
-        :rtype: :py:class:`CIFVideoResolution`
+        :param value: Value of the resolution parameter to parse (of form `width`x`height`).
+        :type value: basestring
+        :return: The :py:class:`VideoResolution` corresponding to the given resolution param string.
+        :rtype: :py:class:`VideoResolution`
         :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
         """
-        if resolution_name not in self._allowed_resolutions:
-            raise ValueError("%s is not a valid valid resolution." % resolution_name)
+        for resolution in self._allowed_resolutions:
+            if resolution.get_vapix_representation() == value:
+                return resolution
 
-        return self._allowed_resolutions[resolution_name]
+        raise ValueError("%s is not a valid valid resolution." % value)
 
     def find_resolution_by_size(self, width, height):
-        """Return a :py:class:`CIFVideoResolution` object with the given dimensions.
+        """Return a :py:class:`VideoResolution` object with the given dimensions.
 
         If there are more resolutions with the same size, any of them may be returned.
 
@@ -277,11 +292,11 @@ class Axis(rospy.SubscribeListener):
         :param height: Image height in pixels.
         :type height: int
         :return: The corresponding resolution object.
-        :rtype: :py:class:`CIFVideoResolution`
+        :rtype: :py:class:`VideoResolution`
         :raises: :py:exc:`ValueError` if no resolution with the given dimensions can be found.
         """
         size_to_find = (width, height)
-        for resolution in self._allowed_resolutions.values():
+        for resolution in self._allowed_resolutions:
             size = resolution.get_resolution(use_square_pixels=False)
             if size == size_to_find:
                 return resolution
@@ -293,69 +308,27 @@ class Axis(rospy.SubscribeListener):
         raise ValueError("Cannot find a supported resolution with dimensions %dx%d" % size_to_find)
 
     def _get_allowed_resolutions(self):
-        """Return a dict (resolution_name=>resolution) of resolutions supported both by this implementation and the
-        camera.
-
-        :return: The supported resolutions dictionary.
-        :rtype: dict(:py:obj:`basestring` => :py:obj:`basestring`)
-        """
-        config_resolutions = self._read_resolutions_from_config()
-        camera_resolutions = self._get_resolutions_supported_by_camera()
-
-        return dict((k, v) for k, v in config_resolutions.iteritems() if k in camera_resolutions)
-
-    @staticmethod
-    def _read_resolutions_from_config():
-        """Return a dict (resolution_name=>resolution) of resolutions supported by the VideoStream.cfg config.
-
-        :return: The supported resolutions dictionary.
-        :rtype: dict(:py:obj:`basestring` => :py:obj:`basestring`)
-        """
-        video_stream_parameters = VideoStreamConfig.config_description['parameters']
-        resolutions = dict()
-
-        resolution_size_parser = re.compile(r'\((?P<width>[0-9]+)x(?P<height>[0-9]+)\)')
-
-        # TODO: is there a better way than parsing and eval'ing the description?
-        for parameter in video_stream_parameters:
-            if parameter['name'] == "resolution":
-                resolution_descriptions = eval(parameter['edit_method'])['enum']
-                for resolution_description in resolution_descriptions:
-                    resolution_name = resolution_description['name']
-
-                    match_result = resolution_size_parser.search(resolution_description['description'])
-                    if match_result is not None:
-                        resolution_size = (match_result.group('width'), match_result.group('height'))
-                    else:
-                        rospy.logwarn("Invalid resolution found in VideoStream.cfg: %s" % resolution_description['description'])
-                        continue
-
-                    resolution = CIFVideoResolution(resolution_name, resolution_size[0], resolution_size[1])
-                    resolutions[resolution_name] = resolution
-
-                break
-
-        if len(resolutions) > 0:
-            return resolutions
-        else:
-            # return a default set of resolutions if we couldn't parse the cfg file for some reason
-            return {
-                '4CIF': CIFVideoResolution('4CIF', 704, 576),
-                'CIF': CIFVideoResolution('CIF', 352, 288),
-                'QCIF': CIFVideoResolution('QCIF', 176, 144),
-            }
-
-    def _get_resolutions_supported_by_camera(self):
-        """Return a list of names of resolutions supported the camera.
+        """Return a list of resolutions supported both by the camera.
 
         :return: The supported resolutions list.
-        :rtype: list
+        :rtype: list of :py:class:`VideoResolution`
+        """
+        camera_resolutions = self._get_resolutions_supported_by_camera()
+
+        return camera_resolutions
+
+    def _get_resolutions_supported_by_camera(self):
+        """Return a list of resolutions supported the camera.
+
+        :return: The supported resolutions list.
+        :rtype: list of :py:class:`VideoResolution`
         """
         try:
-            return self._api.parse_list_parameter_value(self._api.get_parameter("root.Properties.Image.Resolution"))
+            names = self._api.parse_list_parameter_value(self._api.get_parameter("Properties.Image.Resolution"))
+            return [VideoResolution.parse_from_vapix_param_value(name, self._api) for name in names]
         except (IOError, ValueError):
             rospy.logwarn("Could not determine resolutions supported by the camera. Asssuming only CIF.")
-            return ["CIF"]
+            return [CIFVideoResolution("CIF", 384, 288)]
 
     def set_compression(self, compression):
         """Request the given compression level for the video stream.
@@ -456,22 +429,19 @@ class Axis(rospy.SubscribeListener):
         return bool(value)
 
 
-class CIFVideoResolution(object):
-    """A class representing a CIF standard resolution."""
+class VideoResolution(object):
+    """A class representing a video resolution."""
 
-    def __init__(self, name, width, height):
-        """Create a representation of a CIF resolution.
+    def __init__(self, width, height):
+        """Create a representation of the resolution.
 
-        :param name: CIF standard name of the resolution.
-        :type name: basestring
         :param width: Width of the resolution in pixels.
         :type width: int
         :param height: Height of the resolution in pixels.
         :type height: int
         """
-        super(CIFVideoResolution, self).__init__()
+        super(VideoResolution, self).__init__()
 
-        self.name = name
         self.width = int(width)
         self.height = int(height)
 
@@ -479,10 +449,10 @@ class CIFVideoResolution(object):
         self.square_pixel_conversion_ratio_height = 1
 
     def __str__(self):
-        return "%s (%dx%d)" % (self.name, self.width, self.height)
+        return "%dx%d" % (self.width, self.height)
 
     def __repr__(self):
-        return "CIFVideoResolution(name=%r,width=%r,height=%r)" % (self.name, self.width, self.height)
+        return "VideoResolution(width=%r,height=%r)" % (self.width, self.height)
 
     def get_resolution(self, use_square_pixels=False):
         """Get the image dimensions corresponding to this resolution.
@@ -501,6 +471,48 @@ class CIFVideoResolution(object):
 
         return width, height
 
+    def get_vapix_representation(self):
+        return "%dx%d" % (self.width, self.height)
+
+    @staticmethod
+    def parse_from_vapix_param_value(value, api):
+        assert isinstance(value, basestring)
+        assert isinstance(api, VAPIX)
+
+        numeric_regexp = re.compile(r"(\d+)x(\d+)")
+        match = numeric_regexp.match(value)
+
+        if match is not None:
+            return VideoResolution(int(match.group(1)), int(match.group(2)))
+        else:  # resolution given by CIF name
+            name = value
+            width, height = api.resolve_video_resolution_name(name)
+            return CIFVideoResolution(name, width, height)
+
+
+class CIFVideoResolution(VideoResolution):
+    """A class representing a CIF standard resolution."""
+
+    def __init__(self, name, width, height):
+        """Create a representation of a CIF resolution.
+
+        :param name: CIF standard name of the resolution.
+        :type name: basestring
+        :param width: Width of the resolution in pixels.
+        :type width: int
+        :param height: Height of the resolution in pixels.
+        :type height: int
+        """
+        super(CIFVideoResolution, self).__init__(width, height)
+
+        self.name = name
+
+    def __str__(self):
+        return "%s (%dx%d)" % (self.name, self.width, self.height)
+
+    def __repr__(self):
+        return "CIFVideoResolution(name=%r,width=%r,height=%r)" % (self.name, self.width, self.height)
+
 
 def main():
     """Start the ROS driver and ROS node."""
@@ -517,7 +529,7 @@ def main():
         'use_encrypted_password': False,
         'camera_id': 1,
         'auto_wakeup_camera': True,
-        'resolution_name': 'CIF',
+        'resolution_value': '704x576',
         'compression': 0,
         'fps': 24,
         'use_color': True,

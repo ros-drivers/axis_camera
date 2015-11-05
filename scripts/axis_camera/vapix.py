@@ -226,6 +226,15 @@ class VAPIX(object):
         """
         pass
 
+    @abstractmethod
+    def _form_imagesize_url(self):
+        """Construct a URL for querying the imagesize.cgi script.
+
+        :return: The full API URL to query.
+        :rtype: :py:obj:`basestring`
+        """
+        pass
+
     def get_video_stream(self, fps=24, resolution_name='CIF', compression=0, use_color=True, use_square_pixels=False):
         """Return a stream connected to the camera's MJPG video source.
 
@@ -380,6 +389,32 @@ class VAPIX(object):
         image = stream.read(num_bytes)
         stream.readline()  # Read terminating \r\n and do nothing with it
         return image
+
+    def resolve_video_resolution_name(self, name):
+        """Return the width and height corresponding to the given resolution name.
+
+        :param basestring name: Name of the resolution. If None is given, the camera's default resolution is returned.
+                                May only be one of the string returned in Properties.Image.Resolution param (and only
+                                those not of a form `width`x`height`).
+        :return: The width and height corresponding to the resolution.
+        :rtype: tuple
+
+        :raises: :py:exc:`ValueError` if the resolution name is not known to the camera
+        """
+
+        api_url = self._form_imagesize_url() + "&squarepixel=0"
+        if name is not None:  # None name means we want to get the camera's default resolution
+            api_url += "&resolution=%s" % name
+
+        response_lines = self._read_multiline_response(api_url, self.connection_timeout)
+        if len(response_lines) != 2:
+            raise ValueError("Resolution with name '%s' could not be resolved. The API response is %r." %
+                             (name, response_lines))
+
+        width = int(self.parse_parameter_and_value_from_response_line(response_lines[0])[1])
+        height = int(self.parse_parameter_and_value_from_response_line(response_lines[1])[1])
+
+        return width, height
 
     def get_camera_position(self, get_zoom=True, get_focus=True, get_iris=True):
         """Get current camera PTZ position.
@@ -1376,9 +1411,20 @@ class VAPIX(object):
                         return VAPIX._get_v3_api(hostname, camera_id)
                     except (IOError, ValueError):
                         return VAPIX._get_v2_api(hostname, camera_id)
+        except urllib2.HTTPError as e:
+            if e.code == 401:  # Unauthorized
+                rospy.logerr("Could not connect to VAPIX on host %s. The camera requires authentication. "
+                             "Either enable anonymous viewing (and connect to the camera on local network), or "
+                             "provide username and password parameters to the launch file." % hostname)
+            else:
+                rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
+                             "The camera stream will be unavailable.\nHTTP Response: %s.\nResponse HTTP headers: %s" %
+                             (hostname, camera_id, str(e), str(e.hdrs)))
+            raise e
         except Exception as e:
             rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
-                         "The camera stream will be unavailable. Cause: %r, %r" % (hostname, camera_id, e, e.args))
+                         "The camera stream will be unavailable. Cause: %r, %s, %r" %
+                         (hostname, camera_id, e, str(e), e.args))
             raise e
 
     @staticmethod
@@ -1445,6 +1491,9 @@ class VAPIXv2(VAPIX):
     def _form_parameter_url(self, group):
         return self._form_api_url("axis-cgi/view/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))
 
+    def _form_imagesize_url(self):
+        return self._form_api_url("axis-cgi/view/imagesize.cgi?camera=%d" % self.camera_id)
+
 
 class VAPIXv3(VAPIX):
     """A class representing the VAPIX API version 3.
@@ -1458,3 +1507,6 @@ class VAPIXv3(VAPIX):
 
     def _form_parameter_url(self, group):
         return self._form_api_url("axis-cgi/param.cgi?camera=%d&action=list&group=%s" % (self.camera_id, group))
+
+    def _form_imagesize_url(self):
+        return self._form_api_url("axis-cgi/imagesize.cgi?camera=%d" % self.camera_id)
