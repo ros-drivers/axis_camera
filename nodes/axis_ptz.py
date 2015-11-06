@@ -105,13 +105,30 @@ class AxisPTZ:
 
         self.sanitisePTZCommands()
 
-        self._camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
-        self._camera_controller.set_focus(message.focus, set_also_autofocus=False)
-        if message.focus != self._camera_controller._focus:
-            self._camera_controller.set_autofocus(False)
+        if self._api.has_capabilities('AbsolutePan', 'AbsoluteTilt', 'AbsoluteZoom'):
+            self._camera_controller.set_ptz(message.pan, message.tilt, message.zoom)
         else:
-            self._camera_controller.set_autofocus(message.autofocus)
-        self._camera_controller.set_autoiris(True)
+            rospy.loginfo("Camera on host %s doesn't support PTZ control." % self._hostname)
+
+        if self._api.has_capability('AbsoluteFocus'):
+            self._camera_controller.set_focus(message.focus, set_also_autofocus=False)
+        else:
+            rospy.loginfo("Camera on host %s doesn't support absolute focus control." % self._hostname)
+
+        if self._api.has_capability('AutoFocus'):
+            if message.focus != self._camera_controller._focus:
+                self._camera_controller.set_autofocus(False)
+            else:
+                self._camera_controller.set_autofocus(message.autofocus)
+        else:
+            rospy.loginfo("Camera on host %s doesn't support autofocus." % self._hostname)
+
+        if self._api.has_capability('AutoIris'):
+            self._camera_controller.set_autoiris(True)
+        else:
+            rospy.loginfo("Camera on host %s doesn't support autoiris." % self._hostname)
+
+        # there is no capability for brightness
         self._camera_controller.set_brightness(message.brightness)
 
     def adjustForFlippedOrientation(self):

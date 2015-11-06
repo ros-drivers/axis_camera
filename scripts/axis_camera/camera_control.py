@@ -829,47 +829,71 @@ class AxisCameraController(object):
 
             try:
                 if config.autofocus != self._autofocus:
-                    self.set_autofocus(config.autofocus)
+                    if self._api.has_capability('AutoFocus'):
+                        self.set_autofocus(config.autofocus)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support autofocus." % self._api.hostname)
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for autofocus. Cause: %r" % e)
 
             try:
                 if config.focus != self._focus:
-                    self.set_focus(config.focus)
+                    if self._api.has_capability('AbsoluteFocus'):
+                        self.set_focus(config.focus)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support absolute focus control." % self._api.hostname)
+
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for focus. Cause: %r" % e)
 
             try:
                 if config.autoiris != self._autoiris:
-                    self.set_autoiris(config.autoiris)
+                    if self._api.has_capability('AutoIris'):
+                        self.set_autoiris(config.autoiris)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support autoiris." % self._api.hostname)
+
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for autoiris. Cause: %r" % e)
 
             try:
                 if config.iris != self._iris:
-                    self.set_iris(config.iris)
+                    if self._api.has_capability('AbsoluteIris'):
+                        self.set_iris(config.iris)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support absolute iris control." % self._api.hostname)
+
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for iris. Cause: %r" % e)
 
             try:
                 if config.brightness != self._brightness:
+                    # there is no capability for brightness
                     self.set_brightness(config.brightness)
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for brightness. Cause: %r" % e)
 
             try:
                 if config.backlight != self._backlight:
-                    self.use_backlight_compensation(config.backlight)
+                    if self._api.has_capability('BackLight'):
+                        self.use_backlight_compensation(config.backlight)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support backlight compensation." % self._api.hostname)
+
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for backlight compenstaion. Cause: %r" % e)
 
             try:
                 ir = None if config.ircutfilter == "auto" else (config.ircutfilter == "on")
                 if ir != self._ir_cut_filter:
-                    if ir is None or self._ir_cut_filter is None:
-                        self.set_ir_cut_filter_auto(ir is None)
-                    if ir is not None:
-                        self.set_ir_cut_filter_use(ir)
+                    if self._api.has_capability('IrCutFilter'):
+                        if ir is None or self._ir_cut_filter is None:
+                            self.set_ir_cut_filter_auto(ir is None)
+                        if ir is not None:
+                            self.set_ir_cut_filter_use(ir)
+                    else:
+                        rospy.loginfo("Camera on host %s doesn't support IR cut filter control." % self._api.hostname)
+
             except (IOError, ValueError, RuntimeError) as e:
                 rospy.logwarn("Could not apply dynamic reconfigure for IR cut filter. Cause: %r" % e)
 
