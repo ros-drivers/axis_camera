@@ -35,7 +35,7 @@ class Axis(rospy.SubscribeListener):
     """The ROS-VAPIX interface for video streaming."""
 
     def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
-                 camera_id=1, auto_wakeup_camera=True, resolution_value=None, compression=0, fps=24, use_color=True,
+                 camera_id=1, auto_wakeup_camera=True, compression=0, fps=24, use_color=True,
                  use_square_pixels=False):
         """Create the ROS-VAPIX interface.
 
@@ -46,11 +46,13 @@ class Axis(rospy.SubscribeListener):
         :param password: If login is needed, provide a password here.
         :type password: :py:obj:`basestring` | None
         :param width: Width of the requested video stream in pixels (can be changed later). Must be one of the supported
-                      resolutions.
-        :type width: int
+                      resolutions. If `None`, the resolution will be chosen by height only. If also `height` is `None`,
+                      then the default camera resolution will be used.
+        :type width: int|None
         :param height: Height of the requested video stream in pixels (can be changed later). Must be one of the
-                       supported resolutions.
-        :type height: int
+                       supported resolutions. If `None`, the resolution will be chosen by width only. If also `width` is
+                       `None`, then the default camera resolution will be used.
+        :type height: int|None
         :param frame_id: The ROS TF frame assigned to the camera.
         :type frame_id: basestring
         :param camera_info_url: The URL pointing to the camera calaibration, if available.
@@ -61,8 +63,6 @@ class Axis(rospy.SubscribeListener):
         :type camera_id: int
         :param auto_wakeup_camera: If True, there will be a wakeup trial after first unsuccessful network command.
         :type auto_wakeup_camera: bool
-        :param resolution_value: The requested video resolution in the form `width`x`height`.
-        :type resolution_value: basestring
         :param compression: Compression of the image (0 - no compression, 100 - max compression).
         :type compression: int
         :param fps: The desired frames per second.
@@ -77,6 +77,8 @@ class Axis(rospy.SubscribeListener):
         """
         # True every time the video parameters have changed and the URL has to be altered (set from other threads).
         self.video_params_changed = False
+
+        self.__initializing = True
 
         self._hostname = hostname
         self._camera_id = camera_id
@@ -112,9 +114,14 @@ class Axis(rospy.SubscribeListener):
         self._use_color = None
         self._use_square_pixels = None
 
+        # treat empty strings as None in width and height params
+        width = width if width != "" else None
+        height = height if height != "" else None
+
         # dynamic-reconfigurable properties - defaults
-        if resolution_value is not None:
-            self.set_resolution(resolution_value)
+        if width is None and height is None:
+            # TODO change to perform default resolution detection from VAPIX
+            self.set_resolution(self._allowed_resolutions[0])
         else:
             resolution = self.find_resolution_by_size(width, height)
             self.set_resolution(resolution.get_vapix_representation())
@@ -133,7 +140,7 @@ class Axis(rospy.SubscribeListener):
                 'value': res.get_vapix_representation(),
                 'description': str(res)
             } for res in self._allowed_resolutions],
-            resolution_value
+            self._resolution.get_vapix_representation()
         )
 
         # dynamic reconfigure server
@@ -166,6 +173,8 @@ class Axis(rospy.SubscribeListener):
         self.st = None  # deprecated
         self.pub = self._video_publisher  # deprecated
         self.caminfo_pub = self._camera_info_publisher  # deprecated
+
+        self.__initializing = False
 
     def __str__(self):
         (width, height) = self._resolution.get_resolution(self._use_square_pixels)
@@ -220,15 +229,23 @@ class Axis(rospy.SubscribeListener):
         :return: The config corresponding to what was really achieved.
         :rtype: dict
         """
-        self.__try_set_value_from_config(config, 'compression', self.set_compression)
-        self.__try_set_value_from_config(config, 'fps', self.set_fps)
-        self.__try_set_value_from_config(config, 'use_color', self.set_use_color)
-        self.__try_set_value_from_config(config, 'use_square_pixels', self.set_use_square_pixels)
+        if self.__initializing:
+            # in the initialization phase, we want to give precedence to the values given to the constructor
+            config.compression = self._compression
+            config.fps = self._fps
+            config.use_color = self._use_color
+            config.use_square_pixels = self._use_square_pixels
+            config.resolution = self._resolution.get_vapix_representation()
+        else:
+            self.__try_set_value_from_config(config, 'compression', self.set_compression)
+            self.__try_set_value_from_config(config, 'fps', self.set_fps)
+            self.__try_set_value_from_config(config, 'use_color', self.set_use_color)
+            self.__try_set_value_from_config(config, 'use_square_pixels', self.set_use_square_pixels)
 
-        try:
-            self.set_resolution(config.resolution)
-        except ValueError:
-            config.resolution = self._resolution.name
+            try:
+                self.set_resolution(config.resolution)
+            except ValueError:
+                config.resolution = self._resolution.get_vapix_representation()
 
         return config
 
@@ -255,17 +272,25 @@ class Axis(rospy.SubscribeListener):
     def set_resolution(self, resolution_value):
         """Request a new resolution for the video stream.
 
-        :param resolution_value: The string of type `width`x`height`.
-        :type resolution_value: basestring
+        :param resolution_value: The string of type `width`x`height` or a :py:class:`VideoResolution` object.
+        :type resolution_value: basestring|VideoResolution
         :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
         """
-        if isinstance(resolution_value, basestring) and (
-                self._resolution is None or resolution_value != self._resolution.get_vapix_representation()):
-            self._resolution = self._get_resolution_from_param_value(resolution_value)
+        resolution = None
+        if isinstance(resolution_value, VideoResolution):
+            resolution = resolution_value
+        elif isinstance(resolution_value, basestring):
+            resolution = self._get_resolution_from_param_value(resolution_value)
+
+        if resolution is None:
+            raise ValueError("Unsupported resolution type specified: %r" % resolution_value)
+
+        if self._resolution is None or resolution != self._resolution:
+            self._resolution = resolution
             self.video_params_changed = True
             # deprecated values
-            self._width = self._resolution.get_resolution(self._use_square_pixels)[0]
-            self._height = self._resolution.get_resolution(self._use_square_pixels)[1]
+            self._width = resolution.get_resolution(self._use_square_pixels)[0]
+            self._height = resolution.get_resolution(self._use_square_pixels)[1]
 
     def _get_resolution_from_param_value(self, value):
         """Return a :py:class:`VideoResolution` object corresponding to the given video resolution param string.
@@ -287,25 +312,28 @@ class Axis(rospy.SubscribeListener):
 
         If there are more resolutions with the same size, any of them may be returned.
 
-        :param width: Image width in pixels.
-        :type width: int
-        :param height: Image height in pixels.
-        :type height: int
+        :param width: Image width in pixels. If `None`, resolutions will be matched only by height.
+        :type width: int|None
+        :param height: Image height in pixels. If `None`, resolutions will be matched only by width.
+        :type height: int|None
         :return: The corresponding resolution object.
         :rtype: :py:class:`VideoResolution`
         :raises: :py:exc:`ValueError` if no resolution with the given dimensions can be found.
+        :raises: :py:exc:`ValueError` if both `width` and `height` are None.
         """
-        size_to_find = (width, height)
+        if width is None and height is None:
+            raise ValueError("Either width or height of the desired resolution must be specified.")
+
         for resolution in self._allowed_resolutions:
             size = resolution.get_resolution(use_square_pixels=False)
-            if size == size_to_find:
+            if (width is None or width == size[0]) and (height is None or height == size[1]):
                 return resolution
 
             size = resolution.get_resolution(use_square_pixels=True)
-            if size == size_to_find:
+            if (width is None or width == size[0]) and (height is None or height == size[1]):
                 return resolution
 
-        raise ValueError("Cannot find a supported resolution with dimensions %dx%d" % size_to_find)
+        raise ValueError("Cannot find a supported resolution with dimensions %sx%s" % (width, height))
 
     def _get_allowed_resolutions(self):
         """Return a list of resolutions supported both by the camera.
@@ -454,6 +482,14 @@ class VideoResolution(object):
     def __repr__(self):
         return "VideoResolution(width=%r,height=%r)" % (self.width, self.height)
 
+    def __eq__(self, other):
+        # compare by attribute values
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        # reuse the former __eq__ definition
+        return not self == other
+
     def get_resolution(self, use_square_pixels=False):
         """Get the image dimensions corresponding to this resolution.
 
@@ -529,7 +565,6 @@ def main():
         'use_encrypted_password': False,
         'camera_id': 1,
         'auto_wakeup_camera': True,
-        'resolution_value': '704x576',
         'compression': 0,
         'fps': 24,
         'use_color': True,

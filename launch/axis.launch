@@ -11,8 +11,11 @@
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
-    <param name="width" value="704" />
-    <param name="height" value="576" />
+    <!-- Leave both empty (do not delete them!) to use the camera's default resolution. -->
+    <!-- If one is set and the other is empty, use the first resolution matching the given dimension. -->
+    <!-- The list of supported resolutions is found in the parameter axis/allowed_resolutions. -->
+    <param name="width" value="" />
+    <param name="height" value="" />
 
     <node pkg="axis_camera" type="axis.py" name="axis" />
 
