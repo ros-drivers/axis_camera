@@ -25,7 +25,8 @@ The PTZ control node is also commanded by posting to any of its topics.
 
 ''There is also an experimental nodelet for video processing utilizing the [[gscam]] plugin.''
 
-''Before using this driver's PTZ capabilities, make sure you've allowed anonymous PTZ control in the camera settings (or provide a username and password parameters).''
+''Before using this driver's PTZ capabilities, make sure you've allowed anonymous PTZ control in the camera settings
+(or provide a username and password of a user with operator privileges).''
 
 == Simple Usage ==
 The `roscore` must already be running before any of these example commands.
@@ -33,12 +34,32 @@ The `roscore` must already be running before any of these example commands.
 While you can run the driver in the ROS root namespace, the image pipeline prefers running each camera in its own subordinate namespace. These examples use the `/axis` namespace. With multiple cameras, use something unique to the device, like the camera name.
 
 === Running the Driver ===
-Pass the network host name of the camera on the command line, without using a username/password. This example uses the [[http://en.wikipedia.org/wiki/Zero_configuration_networking|zeroconf]] local [[http://en.wikipedia.org/wiki/Multicast_DNS|mDNS]] address, alternatively one could provide the static IP address for which the camera is configured.
+Pass the network host name of the camera on the command line, and a username/password if needed. This example uses the [[http://en.wikipedia.org/wiki/Zero_configuration_networking|zeroconf]] local [[http://en.wikipedia.org/wiki/Multicast_DNS|mDNS]] address, alternatively one could provide the static IP address for which the camera is configured.
 
 {{{
  $ roslaunch axis_camera axis.launch hostname:=axis-00408c8ae301.local
 }}}
 This publishes two topics: `/axis/camera_info` and `/axis/image_raw/compressed`.
+
+==== axis.launch arguments ====
+
+- ''camera_name'': Name of the camera. Is used as a namespace for all published topics (default value: axis)
+
+- ''hostname'': Address of the camera (default value: 192.168.0.90)
+
+- ''enable_theora'': If set to 1, also the RAW and Theora versions of the image stream will be published (default value: 0)
+
+- ''enable_ptz'': If set to 1, start the PTZ node and allow PTZ control (default value: 0)
+
+- ''enable_ptz_teleop'': If set to 1, enable teleoperation of the camera using keyboard (default value: 0)
+
+- ''state_publishing_frequency'': The frequency at which the PTZ state will be published (default value: 50)
+
+- ''run_rviz'': If set to 1, run RViz displaying the camera model (default value: 0)
+
+- ''publish_tf'': If set to 1, publish TF for the camera (default value: 1)
+
+- ''use_standalone_model'': If set to 1, RViz will use a standalone model of the camera (default value: 1)
 
 === Video stream ===
 
@@ -111,10 +132,13 @@ In order to use the PTZ node you need to enable anonymous PTZ control login in
 {{{
 http://IP_ADDRESS_OF_YOUR_CAMERA -> Setup -> Basic Setup -> Users
 }}}
+
+or provide username/password of a user with operator privileges.
+
 After that run
 
 {{{
-roslaunch axis_camera axis.launch hostname:=axis-00408c8ae301.local enable_ptz:=1
+roslaunch axis_camera axis.launch hostname:=axis-00408c8ae301.local enable_ptz:=1 [_username:=user _password:=pass]
 }}}
 
 ==== Absolute positioning ====
@@ -147,8 +171,24 @@ rostopic pub -1 /axis/control/pan_tilt_zoom/velocity axis_camera/PTZ "{pan: -20,
 ==== Camera mechanics control ====
 
 Similarly to the PTZ commands above, you can control focus, iris, image brightness, backlight compensation and automatic IR cut filter.
-These can also be controlled by the ''dynamic_reconfigurable'' parameters.
-See below for details.
+
+==== Transforms ====
+
+The camera publishes 3 tf frames: ''axis_stand'', ''axis_pan_head'' and ''axis_tilt_head''. These correspond to the Axis 214 PTZ model. In a future release, there should be a more versatile way allowing to also use other camera models.
+
+== Dynamic reconfigure ==
+
+The following parameters can be changed via ''dynamic_recofigure'':
+
+- namespace ''axis''
+
+  - every parameter change from this namespace causes all possibly open video streams to reconnect to get a new video stream with the updated parameters.
+
+  - ''use_color'', ''compression'', ''fps'', ''resolution'', ''use_square_pixels''.
+
+- namespace ''axis_ptz_driver''
+
+  - ''autofocus'', ''focus'', ''brightness'', ''autoiris'', ''iris'', ''backlight'', ''ircutfilter''.
 
 == ROS API ==
 {{{#!clearsilver CS/NodeAPI
@@ -158,7 +198,7 @@ desc=Axis network camera video stream driver.
 pub{
 0.name=axis/image_raw/compressed
 0.type=sensor_msgs/CompressedImage
-0.desc=A stream of compressed images from the camera in motion JPEG format.
+0.desc=A stream of compressed images from the camera in motion JPEG format. The topic's name *image_raw* is confusing, because it serves compressed images, but to retain backwards compatibility with the old driver version, it hasn't been changed.
 1.name=axis/camera_info
 1.type=sensor_msgs/CameraInfo
 1.desc=Camera intrinsics for images published on `image_raw` with matching timestamps and frame IDs. If CameraInfo calibration is not available or is incompatible with the current `video_mode`, uncalibrated data will be provided instead.
@@ -209,10 +249,10 @@ param {
 9.type=bool
 9.default=True
 9.desc=The camera might fall asleep after some idle time. If True, the driver will try to wake the camera up.
-10.name=resolution_name
+10.name=resolution
 10.type=str
-10.default=CIF
-10.desc=CIF name of the requested resolution. Consult `VideoStream.cfg` for allowed values.
+10.default=704x576
+10.desc=Dimensions of the image in the form "WidthxHeight".
 11.name=compression
 11.type=int
 11.default=0
@@ -332,6 +372,51 @@ sub {
 31.type=std_msgs/Bool
 31.desc=Command the camera to use/stop using infrared filter. Turns off auto IR filter.
 }
+pub{
+0.name=camera/joint_states
+0.type=sensor_msgs/JointStates
+0.desc=Pose of the camera (joint names are ''axis_pan_j'' and ''axis_tilt_j'')
+1.name=camera/ptz
+1.type=axis_camera/PTZ
+1.desc=Pose of the camera.
+}
+prov_tf{
+0.from=axis_stand
+0.to=axis_pan_head
+0.desc=Transform between the camera stand and the panning head.
+1.from=axis_pan_head
+1.to=axis_tilt_head
+1.desc=Transform between the panning head and the tilt joint.
+}
+param{
+0.name=autofocus
+0.default=True
+0.type=bool
+0.desc=Whether to use autofocus.
+1.name=focus
+1.default=5000
+1.type=int
+1.desc=The desired value of focus (0-9999).
+2.name=brightness
+2.default=5000
+2.type=int
+2.desc=The desired value of brightness (0-9999). Has no effect on some models.
+3.name=autoiris
+3.default=True
+3.type=bool
+3.desc=Whether to use autoiris.
+4.name=iris
+4.default=5000
+4.type=int
+4.desc=The desired value of iris (0-9999).
+5.name=backlight
+5.default=True
+5.type=bool
+5.desc=Whether to use backlight compensation.
+6.name=ircutfilter
+6.default=auto
+6.type=str
+6.desc=Whether to use IR cut filter (values "auto", "on", "off").
 }
 }}}
 
