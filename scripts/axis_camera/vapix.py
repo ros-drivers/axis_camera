@@ -195,6 +195,9 @@ class VAPIX(object):
     """
     __metaclass__ = ABCMeta
 
+    _using_authentication = False
+    """Specifies whether the last get_get_api_for_camera call was using authentication credentials or they were empty"""
+
     def __init__(self, hostname, camera_id=1, connection_timeout=5):
         """An instance of the VAPIX API.
 
@@ -1367,7 +1370,8 @@ class VAPIX(object):
         urllib2.install_opener(opener)
 
     @staticmethod
-    def get_api_for_camera(hostname, username=None, password=None, camera_id=1, use_encrypted_password=False):
+    def get_api_for_camera(hostname, username=None, password=None, camera_id=1, use_encrypted_password=False,
+                           wakeup_on_fail=True):
         """Return the VAPIX API instance corresponding to the autodetected API version (both v2 and v3 are supported).
 
         :param hostname: Hostname of the camera (without http://, may be an IP address).
@@ -1376,56 +1380,66 @@ class VAPIX(object):
         :type username: :py:obj:`basestring` | None
         :param password: If login is needed, provide a password here.
         :type password: :py:obj:`basestring` | None
-        :param camera_id: ID (number) of the camera. Can be 1 to 4.
-        :type camera_id: int
-        :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
-        :type use_encrypted_password: bool
+        :param int camera_id: ID (number) of the camera. Can be 1 to 4.
+        :param bool use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
+        :param bool wakeup_on_fail: If connecting to the API fails, try to wake up the camera and retry connection.
         :return: Autodetected API instance.
         :rtype: :py:class:`VAPIX`
         :raises: :py:exc:`IOError`, :py:exc:`urllib2.ULRError`, :py:exc:`ValueError` If connecting to the API failed.
         :raises: :py:exc:`RuntimeError` If unexpected values are returned by the API.
         """
+        VAPIX._using_authentication = False
         # Enable HTTP login if a username and password are provided.
         if username is not None and len(username) > 0 and password is not None:
             rospy.logdebug("Using authentication credentials with user %s on host %s" % (username, hostname))
+            VAPIX._using_authentication = True
             VAPIX.setup_authentication(hostname, username, password, use_encrypted_password)
+
+        # What can happen?
+        # 1. Try to read the API version parameter using v3 syntax.
+        # 1. a. The read succeeds -> return v3 API.
+        # 1. b. Unauthenticated HTTP error -> this happens in FW 5.0 - 5.6 -> return v3 API.
+        # 1. c. Any other error -> read the API version using v2 syntax.
+        # 1. c. A. The read succeeds -> return v2 API.
+        # 1. c. B. Unauthenticated error -> fail and tell the user to provide credentials in the next trial.
+        # 1. c. C. Any other error ->
+        # 1. c. C. I. Auto wakeup is enabled -> try the whole thing once more after waking up the camera.
+        # 1. c. C. II. Otherwise, report error to the user and give up.
 
         rospy.logdebug("Starting VAPIX autodetection.")
         try:
             try:
-                # First, try the v3 API. This URL is only valid for v3, so we strictly check for the version number.
+                # First, try the v3 API.
                 return VAPIX._get_v3_api(hostname, camera_id)
             except (IOError, ValueError):
-                # Next, try the v2 API. This URL should only work in the version 2 API.
+                # Next, try the v2 API.
                 try:
                     return VAPIX._get_v2_api(hostname, camera_id)
                 except (IOError, ValueError):
-                    # Maybe the camera is in standby mode. Try to wake it up.
-                    rospy.logdebug("First try on VAPIX autodetection failed. The camera may be in standby mode. "
-                                   "Trying to wake it up.")
-                    VAPIX.wakeup_camera(hostname, camera_id)
+                    if wakeup_on_fail:
+                        # Maybe the camera is in standby mode. Try to wake it up.
+                        rospy.logdebug("First try on VAPIX autodetection failed. The camera may be in standby mode. "
+                                       "Trying to wake it up.")
+                        VAPIX.wakeup_camera(hostname, camera_id)
 
-                    # After waking up, try again both API v3 and v2
-                    rospy.logdebug("Starting VAPIX autodetection - second try.")
-                    try:
-                        return VAPIX._get_v3_api(hostname, camera_id)
-                    except (IOError, ValueError):
-                        return VAPIX._get_v2_api(hostname, camera_id)
-        except urllib2.HTTPError as e:
-            if e.code == 401:  # Unauthorized
+                        # After waking up, try again both API v3 and v2
+                        rospy.logdebug("Starting VAPIX autodetection - second try.")
+                        return VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password,
+                                                        # we don't try to wake up the camera in the second try
+                                                        False)
+                    else:
+                        # If we encountered an error and waking up is not desired, we have no more choices than give up
+                        raise
+        except Exception as e:
+            if isinstance(e, urllib2.HTTPError) and e.code == 401:  # Unauthorized
                 rospy.logerr("Could not connect to VAPIX on host %s. The camera requires authentication. "
                              "Either enable anonymous viewing (and connect to the camera on local network), or "
                              "provide username and password parameters to the launch file." % hostname)
             else:
                 rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
-                             "The camera stream will be unavailable.\nHTTP Response: %s.\nResponse HTTP headers: %s" %
-                             (hostname, camera_id, str(e), str(e.hdrs)))
-            raise e
-        except Exception as e:
-            rospy.logerr("Could not autodetect or connect to VAPIX on host %s, camera %d. "
-                         "The camera stream will be unavailable. Cause: %r, %s, %r" %
-                         (hostname, camera_id, e, str(e), e.args))
-            raise e
+                             "The camera stream will be unavailable. Cause: %r, %s, %r" %
+                             (hostname, camera_id, e, str(e), e.args))
+            raise
 
     @staticmethod
     def _get_v3_api(hostname, camera_id=1):
@@ -1440,17 +1454,30 @@ class VAPIX(object):
         :raises: :py:exc:`IOError`, :py:exc:`urllib2.ULRError`, :py:exc:`ValueError` If connecting to the API failed.
         :raises: :py:exc:`RuntimeError` If unexpected values are returned by the API.
         """
-        response = VAPIX._read_oneline_response(
-            "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
-            (hostname, camera_id)
-        )
-        version = VAPIX.parse_parameter_and_value_from_response_line(response)[1]
+        try:
+            response = VAPIX._read_oneline_response(
+                "http://%s/axis-cgi/param.cgi?camera=%d&action=list&group=root.Properties.API.HTTP.Version" %
+                (hostname, camera_id)
+            )
+            version = VAPIX.parse_parameter_and_value_from_response_line(response)[1]
 
-        if version != "3":
-            raise RuntimeError("Unexpected VAPIX version: %s" % version)
+            if version != "3":
+                raise RuntimeError("Unexpected VAPIX version: %s" % version)
 
-        rospy.loginfo("Autodetected VAPIX version 3 for communication with camera %d" % camera_id)
-        return VAPIXv3(hostname, camera_id)
+            rospy.loginfo("Autodetected VAPIX version 3 for communication with camera %d" % camera_id)
+            return VAPIXv3(hostname, camera_id)
+        except urllib2.HTTPError as e:
+            # This is a workaround for firmwares 5.0 - 5.6, which unfortunately always require login credentials
+            # to find out the API version, even if anonymous access is allowed.
+            if e.code == 401 and not VAPIX._using_authentication:  # Unauthorized and no credentials
+                rospy.loginfo("Optimistically autodetected VAPIX version 3 for communication with camera %d, "
+                              "based on the fact that querying the API version parameter requires authentication, "
+                              "which should be specific for VAPIX v3 with pre-5.7 firmwares. But it can also mean "
+                              "that the camera is not set up for anonymous access, and then you'd need to provide a "
+                              "username and password." % camera_id)
+                return VAPIXv3pre57Firmware(hostname, camera_id)
+            else:
+                raise
 
     @staticmethod
     def _get_v2_api(hostname, camera_id=1):
@@ -1501,6 +1528,7 @@ class VAPIXv3(VAPIX):
     Most of the functionalities should be implemented in the parent class VAPIX.
     Here, only version-specific implementations have their place.
     """
+
     def __repr__(self):
         return "VAPIXv3(hostname=%r, camera_id=%r, connection_timeout=%r)" % (
             self.hostname, self.camera_id, self.connection_timeout)
@@ -1510,3 +1538,12 @@ class VAPIXv3(VAPIX):
 
     def _form_imagesize_url(self):
         return self._form_api_url("axis-cgi/imagesize.cgi?camera=%d" % self.camera_id)
+
+
+class VAPIXv3pre57Firmware(VAPIXv3):
+    """
+    This is for the firmwares 5.0 - 5.6 which have a different webserver than post-5.6 cameras.
+
+    The main difference is that with the older FWs, you cannot query the API version parameter anonymousely.
+    """
+    pass
