@@ -50,6 +50,13 @@ class ImageStreamingThread(threading.Thread):
         """Pause streaming if the video stream was streaming."""
         self._is_paused = True
 
+    def is_paused(self):
+        """Return if the streaming thread is paused or not.
+
+        :return bool: The paused status.
+        """
+        return self._is_paused
+
     def _stream(self):
         """Stream the video forever, taking into account the paused state.
 

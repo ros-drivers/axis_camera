@@ -8,6 +8,9 @@ set(THIS_PACKAGE_MESSAGE_DEPS
 # packages which are both build and run dependencies
 set(THIS_PACKAGE_DEPS
   camera_info_manager_py
+  diagnostic_aggregator
+  diagnostic_msgs
+  diagnostic_updater
   dynamic_reconfigure
   rospy
   sensor_msgs
@@ -53,4 +56,4 @@ install(PROGRAMS
 
 install(DIRECTORY launch tests meshes urdf
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-
+install(FILES diag.yaml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

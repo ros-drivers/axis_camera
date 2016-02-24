@@ -2,6 +2,7 @@ import rospy
 import threading
 
 from std_msgs.msg import Bool, Float32, Int32
+from diagnostic_updater import Updater, DiagnosticStatusWrapper, FunctionDiagnosticTask
 
 from axis_camera.cfg import CameraConfig
 from axis_camera.msg import PTZ, PointInRectangle
@@ -84,6 +85,13 @@ class AxisCameraController(object):
         self._ir_cut_filter = True
 
         self._dynamic_reconfigure_server = Server(CameraConfig, self._reconfigure, "axis_ptz_driver")
+
+        self._diagnostic_updater = Updater()
+        self._diagnostic_updater.setHardwareID(api.hostname)
+        self._diagnostic_updater.add(FunctionDiagnosticTask("Last command status", self._diagnostic_last_command))
+        self._last_command_error = None
+
+        timer = rospy.Timer(rospy.Duration(1), lambda (event): self._diagnostic_updater.update())
 
         # set up the topics this node listens on
         # the callbacks are created as lambda wrappers around the Python API functions of this controller so that we
@@ -996,8 +1004,25 @@ class AxisCameraController(object):
 
         return pan, tilt
 
-    @staticmethod
-    def _call_with_simple_message_data(func):
+    def _record_diagnostics(self, func):
+        """Wrap a function call and record diagnostics about if it has thrown an exception or not.
+
+        :param func: The function to be wrapped.
+        :type func: function
+        :return: The wrapped function.
+        :rtype: function
+        """
+        def new_func(msg):
+            try:
+                func(msg)
+                self._last_command_error = None
+            except Exception, e:
+                self._last_command_error = e
+                raise e
+
+        return new_func
+
+    def _call_with_simple_message_data(self, func):
         """Create a one-arg lambda that extracts the "data" field from its argument and passes it to the given function.
 
         :param func: The function to call.
@@ -1005,10 +1030,9 @@ class AxisCameraController(object):
         :return: The lambda function.
         :rtype: function
         """
-        return lambda (msg): func(msg.data)
+        return self._record_diagnostics(lambda (msg): func(msg.data))
 
-    @staticmethod
-    def _call_with_ptz_message(func):
+    def _call_with_ptz_message(self, func):
         """
         Create a one-arg lambda that extracts the "pan", "tilt" and "zoom" fields from its argument and passes them to
         the given function.
@@ -1018,10 +1042,9 @@ class AxisCameraController(object):
         :return: The lambda function.
         :rtype: function
         """
-        return lambda (msg): func(msg.pan, msg.tilt, msg.zoom)
+        return self._record_diagnostics(lambda (msg): func(msg.pan, msg.tilt, msg.zoom))
 
-    @staticmethod
-    def _call_with_pt_message(func):
+    def _call_with_pt_message(self, func):
         """
         Create a one-arg lambda that extracts the "pan" and "tilt" fields from its argument and passes them to the given
         function.
@@ -1031,10 +1054,9 @@ class AxisCameraController(object):
         :return: The lambda function.
         :rtype: function
         """
-        return lambda (msg): func(msg.pan, msg.tilt)
+        return self._record_diagnostics(lambda (msg): func(msg.pan, msg.tilt))
 
-    @staticmethod
-    def _call_with_pir_message(func):
+    def _call_with_pir_message(self, func):
         """
         Create a one-arg lambda that extracts the "x", "y", "width" and "height" fields from its argument and passes
         them to the given function.
@@ -1044,4 +1066,18 @@ class AxisCameraController(object):
         :return: The lambda function.
         :rtype: function
         """
-        return lambda (msg): func(msg.x, msg.y, msg.image_width, msg.image_height)
+        return self._record_diagnostics(lambda (msg): func(msg.x, msg.y, msg.image_width, msg.image_height))
+
+    def _diagnostic_last_command(self, message):
+        """Fill in the diagnostics message about last command success.
+
+        :param message: The message to be filled.
+        :type message: DiagnosticStatusWrapper
+        :return: The altered message.
+        :rtype: DiagnosticStatusWrapper
+        """
+        assert isinstance(message, DiagnosticStatusWrapper)
+        if self._last_command_error is None:
+            message.summary(DiagnosticStatusWrapper.OK, "Last command succeeded")
+        else:
+            message.summary(DiagnosticStatusWrapper.ERROR, "Last command failed: %s" % str(self._last_command_error))

@@ -4,6 +4,7 @@ from math import radians
 import rospy
 from sensor_msgs.msg import JointState
 from dynamic_reconfigure.msg import Config, IntParameter, DoubleParameter
+from diagnostic_updater import Updater, DiagnosedPublisher, TimeStampStatusParam, FrequencyStatusParam
 
 from axis_camera.msg import Axis, PTZ
 
@@ -33,16 +34,26 @@ class PositionStreamingThread(threading.Thread):
         # thread as a daemon:
         self.daemon = True
 
+        self._diagnostic_updater = Updater()
+        self._diagnostic_updater.setHardwareID(api.hostname)
+
         # BACKWARDS COMPATIBILITY LAYER
         self.cameraPosition = None  # deprecated
         self.msg = Axis()  # deprecated
 
     def run(self):
         """Run the thread."""
-        rate = rospy.Rate(self.axis._state_publishing_frequency)
+        frequency = self.axis._state_publishing_frequency
+        rate = rospy.Rate(frequency)
 
-        state_publisher = rospy.Publisher("camera/ptz", PTZ, queue_size=100)
-        joint_states_publisher = rospy.Publisher("camera/joint_states", JointState, queue_size=100)
+        state_publisher = DiagnosedPublisher(
+            rospy.Publisher("camera/ptz", PTZ, queue_size=100),
+            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}), TimeStampStatusParam()
+        )
+        joint_states_publisher = DiagnosedPublisher(
+            rospy.Publisher("camera/joint_states", JointState, queue_size=100),
+            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}), TimeStampStatusParam()
+        )
         parameter_updates_publisher = rospy.Publisher("axis_ptz/parameter_updates", Config, queue_size=100)
 
         while not rospy.is_shutdown():
@@ -76,6 +87,7 @@ class PositionStreamingThread(threading.Thread):
                 rospy.logwarn("Could not determine current camera position. Waiting 1 s. Cause: %s" % repr(e.args))
                 rospy.sleep(1)
 
+            self._diagnostic_updater.update()
             rate.sleep()
 
     def _create_camera_position_message(self, camera_position, timestamp):

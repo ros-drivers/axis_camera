@@ -20,6 +20,8 @@ import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
 import dynamic_reconfigure.server
+from diagnostic_updater import Updater, DiagnosedPublisher, TimeStampStatusParam, FrequencyStatusParam, \
+    FunctionDiagnosticTask, DiagnosticStatusWrapper
 
 from axis_camera.cfg import VideoStreamConfig
 from axis_camera.srv import TakeSnapshot, TakeSnapshotResponse
@@ -82,6 +84,9 @@ class Axis(rospy.SubscribeListener):
 
         self._hostname = hostname
         self._camera_id = camera_id
+
+        self.diagnostic_updater = Updater()
+        self.diagnostic_updater.setHardwareID(hostname)
 
         self._api = None
         # autodetect the VAPIX API and connect to it; try it forever
@@ -160,10 +165,21 @@ class Axis(rospy.SubscribeListener):
         self._streaming_thread = None
 
         # the publishers are started/stopped lazily in peer_subscribe/peer_unsubscribe
-        self._video_publisher = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100)
-        self._camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, self, queue_size=100)
+        self._video_publisher_frequency_diagnostic = FrequencyStatusParam({'min': self._fps, 'max': self._fps})
+        self._video_publisher = PausableDiagnosedPublisher(
+            self,
+            rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100),
+            self.diagnostic_updater, self._video_publisher_frequency_diagnostic, TimeStampStatusParam()
+        )
+        self._camera_info_publisher = PausableDiagnosedPublisher(
+            self,
+            rospy.Publisher("camera_info", CameraInfo, self, queue_size=100),
+            self.diagnostic_updater, self._video_publisher_frequency_diagnostic, TimeStampStatusParam()
+        )
 
         self._snapshot_server = rospy.Service("take_snapshot", TakeSnapshot, self.take_snapshot)
+
+        self.diagnostic_updater.add(FunctionDiagnosticTask("Camera parameters", self._camera_diagnostic_callback))
 
         # BACKWARDS COMPATIBILITY LAYER
 
@@ -395,6 +411,9 @@ class Axis(rospy.SubscribeListener):
         if fps != self._fps:
             self._fps = self.sanitize_fps(fps)
             self.video_params_changed = True
+            if hasattr(self, "_video_publisher_frequency_diagnostic"):
+                self._video_publisher_frequency_diagnostic.freq_bound['min'] = self._fps
+                self._video_publisher_frequency_diagnostic.freq_bound['max'] = self._fps
 
     @staticmethod
     def sanitize_fps(fps):
@@ -455,6 +474,16 @@ class Axis(rospy.SubscribeListener):
             return False
 
         return bool(value)
+
+    def _camera_diagnostic_callback(self, diag_message):
+        assert isinstance(diag_message, DiagnosticStatusWrapper)
+
+        diag_message.summary(DiagnosticStatusWrapper.OK, "Video parameters")
+        diag_message.add("FPS", self._fps)
+        diag_message.add("Resolution", self._resolution)
+        diag_message.add("Compression", self._compression)
+        diag_message.add("Color image", self._use_color)
+        diag_message.add("Square pixels used", self._use_square_pixels)
 
 
 class VideoResolution(object):
@@ -571,8 +600,26 @@ def main():
         'use_square_pixels': False,
         }
     args = read_args_with_defaults(arg_defaults)
-    Axis(**args)
-    rospy.spin()
+    axis = Axis(**args)
+
+    rate = rospy.Rate(1)
+
+    while not rospy.is_shutdown():
+        axis.diagnostic_updater.update()
+        rate.sleep()
+
+
+class PausableDiagnosedPublisher(DiagnosedPublisher):
+    def __init__(self, axis, pub, diag, freq, stamp):
+        DiagnosedPublisher.__init__(self, pub, diag, freq, stamp)
+        self._axis = axis
+
+    def run(self, stat):
+        if self._axis._streaming_thread is None or  self._axis._streaming_thread.is_paused():
+            stat.summary(DiagnosticStatusWrapper.OK, "Video not subscribed")
+        else:
+            stat = DiagnosedPublisher.run(self, stat)
+        return stat
 
 
 def read_args_with_defaults(arg_defaults):

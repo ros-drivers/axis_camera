@@ -8,6 +8,7 @@
   <arg name="run_rviz" default="0" />
   <arg name="publish_tf" default="1" />
   <arg name="use_standalone_model" default="1" />
+  <arg name="run_diagnostic_aggregator" default="0" />
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
@@ -50,6 +51,10 @@
       <param name="scale_pan_deg" value="25" />
       <param name="scale_tilt_deg" value="25" />
       <remap from="joy" to="/joy" />
+    </node>
+
+    <node pkg="diagnostic_aggregator" type="aggregator_node" name="diagnostic_aggregator" if="$(arg run_diagnostic_aggregator)">
+      <rosparam command="load" file="$(find axis_camera)/diag.yaml"/>
     </node>
   </group>
 
