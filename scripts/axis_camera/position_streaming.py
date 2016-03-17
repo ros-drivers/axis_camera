@@ -48,11 +48,11 @@ class PositionStreamingThread(threading.Thread):
 
         state_publisher = DiagnosedPublisher(
             rospy.Publisher("camera/ptz", PTZ, queue_size=100),
-            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}), TimeStampStatusParam()
+            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}, tolerance=0.2), TimeStampStatusParam()
         )
         joint_states_publisher = DiagnosedPublisher(
             rospy.Publisher("camera/joint_states", JointState, queue_size=100),
-            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}), TimeStampStatusParam()
+            self._diagnostic_updater, FrequencyStatusParam({'min': frequency, 'max': frequency}, tolerance=0.2), TimeStampStatusParam()
         )
         parameter_updates_publisher = rospy.Publisher("axis_ptz/parameter_updates", Config, queue_size=100)
 
