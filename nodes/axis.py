@@ -606,7 +606,10 @@ def main():
 
     while not rospy.is_shutdown():
         axis.diagnostic_updater.update()
-        rate.sleep()
+        try:
+            rate.sleep()
+        except rospy.ROSTimeMovedBackwardsException:
+            rospy.logwarn("Detected jump back in time.")
 
 
 class PausableDiagnosedPublisher(DiagnosedPublisher):

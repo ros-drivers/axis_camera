@@ -88,7 +88,11 @@ class PositionStreamingThread(threading.Thread):
                 rospy.sleep(1)
 
             self._diagnostic_updater.update()
-            rate.sleep()
+
+            try:
+                rate.sleep()
+            except rospy.ROSTimeMovedBackwardsException:
+                rospy.logwarn("Detected jump back in time.")
 
     def _create_camera_position_message(self, camera_position, timestamp):
         """Convert the camera_position dictionary to a PTZ message.
