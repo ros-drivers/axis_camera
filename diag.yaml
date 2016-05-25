@@ -1,0 +1,13 @@
+analyzers:
+  axis_camera:
+    type: diagnostic_aggregator/AnalyzerGroup
+    path: Axis Camera
+    analyzers:
+      video:
+        type: diagnostic_aggregator/GenericAnalyzer
+        path: Video Stream
+        find_and_remove_prefix: 'axis/axis:'
+      ptz:
+        type: diagnostic_aggregator/GenericAnalyzer
+        path: PTZ Control and Position
+        find_and_remove_prefix: 'axis/axis_ptz:'

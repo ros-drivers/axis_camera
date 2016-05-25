@@ -1,0 +1,28 @@
+actions: []
+authors: Ryan Gariepy
+brief: ''
+bugtracker: https://github.com/ros-drivers/axis_camera/issues
+depends:
+- dynamic_reconfigure
+- xacro
+- std_msgs
+- message_runtime
+- sensor_msgs
+- camera_info_manager_py
+- python-catkin-pkg
+- rospy
+- tf
+- message_generation
+- catkin
+description: "Python ROS drivers for accessing an Axis camera's MJPG stream. Also provides control for PTZ cameras."
+license: BSD
+maintainers: Sammy Pfeiffer <sam.pfeiffer@pal-robotics.com>
+msgs:
+- Axis
+- PointInRectangle
+- PTZ
+package_type: package
+repo_url: https://github.com/ros-drivers/axis_camera
+srvs:
+- TakeSnapshot
+url: http://ros.org/wiki/axis_camera
