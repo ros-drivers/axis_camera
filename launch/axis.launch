@@ -1,16 +1,44 @@
 <launch>
   <arg name="camera_name" default="axis" />
-  <arg name="hostname" default="192.168.1.13" />
+  <arg name="hostname" default="192.168.0.90" />
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
   <arg name="enable_ptz_teleop" default="0" />
+  <arg name="state_publishing_frequency" default="50" />
+  <arg name="run_rviz" default="0" />
+  <arg name="publish_tf" default="1" />
+  <arg name="use_standalone_model" default="1" />
+  <arg name="run_diagnostic_aggregator" default="0" />
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
-    <param name="width" value="640" />
-    <param name="height" value="480" />
+    <!-- Leave both empty (do not delete them!) to use the camera's default resolution. -->
+    <!-- If one is set and the other is empty, use the first resolution matching the given dimension. -->
+    <!-- The list of supported resolutions is found in the parameter axis/allowed_resolutions. -->
+    <param name="width" value="" />
+    <param name="height" value="" />
+
     <node pkg="axis_camera" type="axis.py" name="axis" />
-    <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
+
+    <group if="$(arg enable_ptz)">
+      <param name="robot_description" textfile="$(find axis_camera)/urdf/axis_214_PTZ_standalone.urdf" if="$(arg use_standalone_model)"/>
+      <param name="robot_description" textfile="$(find axis_camera)/urdf/axis_214_PTZ.urdf" unless="$(arg use_standalone_model)"/>
+
+      <!-- To control the PTZ, issue commands like:
+      rostopic pub /axis/control/pan_tilt_zoom/absolute axis_camera/PTZ '{ pan: 100, tilt: 10, zoom: 0 }'
+      -->
+      <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz">
+        <param name="state_publishing_frequency" value="$(arg state_publishing_frequency)" />
+      </node>
+
+
+      <node pkg="robot_state_publisher" type="robot_state_publisher" name="axis_tf_publisher" if="$(arg publish_tf)">
+        <remap from="joint_states" to="camera/joint_states" />
+      </node>
+
+      <node pkg="rviz" type="rviz" name="axis_visualizer" args="-d $(find axis_camera)/launch/axis_standalone_view.rviz"
+              if="$(arg run_rviz)" />
+    </group>
     
     <node pkg="image_transport" type="republish" name="republish"
           args="compressed" if="$(arg enable_theora)">
@@ -24,11 +52,10 @@
       <param name="scale_tilt_deg" value="25" />
       <remap from="joy" to="/joy" />
     </node>
+
+    <node pkg="diagnostic_aggregator" type="aggregator_node" name="diagnostic_aggregator" if="$(arg run_diagnostic_aggregator)">
+      <rosparam command="load" file="$(find axis_camera)/diag.yaml"/>
+    </node>
   </group>
 
-  <!-- To control the PTZ, issue commands like so:
-  rostopic pub /axis/cmd axis_camera/Axis '{ brightness: 5000, pan: 100, tilt: 10, zoom: 0, autofocus: True }'
-  NOTE: Don't forget to populate the brightness field, or
-        you'll get very dark images.
-  -->
 </launch>

@@ -1,0 +1,88 @@
+<?xml version="1.0" ?>
+<!-- Axis 214 PTZ camera model. Contains both a simple visual model and a primitive-shape-only collision model. -->
+<robot name="axis">
+  <link name="axis_stand">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://axis_camera/meshes/stand.dae" scale="1.0 1.0 1.0"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.0295"/>
+      <geometry>
+        <cylinder radius="0.077" length="0.059"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 -0.063 0.0295"/>
+      <geometry>
+        <box size="0.098 0.035 0.059"/>
+      </geometry>
+    </collision>
+  </link>
+  
+  <link name="axis_pan_head">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://axis_camera/meshes/pan_head.dae" scale="1.0 1.0 1.0"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.0055"/>
+      <geometry>
+        <cylinder radius="0.069" length="0.011"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 1.5708 0" xyz="0 0 0.073"/>
+      <geometry>
+        <cylinder radius="0.033" length="0.14"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 0 0" xyz="0.05 0.008 0.03"/>
+      <geometry>
+        <box size="0.045 0.075 0.06"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.05 0.008 0.03"/>
+      <geometry>
+        <box size="0.045 0.075 0.06"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="axis_pan_j" type="revolute">
+    <parent link="axis_stand"/>
+    <child link="axis_pan_head"/>
+    <origin rpy="0 0 0" xyz="0 0 0.059"/>
+    <axis xyz="0 0 1"/>
+    <dynamics damping="10000000"/>
+    <limit effort="0" lower="-2.9671" upper="2.9671" velocity="4"/>
+  </joint>
+  
+  <link name="axis_tilt_head">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://axis_camera/meshes/tilt_head.dae" scale="1.0 1.0 1.0"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 -0.003 0"/>
+      <geometry>
+        <box size="0.062 0.095 0.062"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="axis_tilt_j" type="revolute">
+    <parent link="axis_pan_head"/>
+    <child link="axis_tilt_head"/>
+    <origin rpy="0 0 0" xyz="0 0 0.0687"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="10000000"/>
+    <limit effort="0" lower="-0.5236" upper="1.5708" velocity="4"/>
+  </joint>
+</robot>
