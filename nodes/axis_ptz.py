@@ -109,7 +109,7 @@ class AxisPTZ:
         self.mirror = False
 
         self.st = None
-        self.pub = rospy.Publisher("state", Axis, self)
+        self.pub = rospy.Publisher("state", Axis, self, queue_size=1)
         self.sub = rospy.Subscriber("cmd", Axis, self.cmd, queue_size=1)
         self.sub_mirror = rospy.Subscriber("mirror", Bool, self.mirrorCallback,
                                                                 queue_size=1)

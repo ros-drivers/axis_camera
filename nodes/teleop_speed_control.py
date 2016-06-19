@@ -9,9 +9,9 @@ class Teleop:
     def __init__(self):
         rospy.init_node('axis_ptz_speed_controller')
         self.initialiseVariables()
-        self.pub = rospy.Publisher('cmd', Axis)
+        self.pub = rospy.Publisher('cmd', Axis, queue_size=1)
         rospy.Subscriber("joy", Joy, self.joy_callback, queue_size=1)
-        self.pub_mirror = rospy.Publisher('mirror', Bool)
+        self.pub_mirror = rospy.Publisher('mirror', Bool, queue_size=1)
         
     def initialiseVariables(self):
         self.joy = None
