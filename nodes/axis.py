@@ -153,8 +153,8 @@ class Axis:
                                                    url = self.camera_info_url)
         self.cinfo.loadCameraInfo()         # required before getCameraInfo()
         self.st = None
-        self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
-        self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
+        self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=1)
+        self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=1)
 
     def __str__(self):
         """Return string representation."""
