@@ -56,6 +56,10 @@
     <node pkg="diagnostic_aggregator" type="aggregator_node" name="diagnostic_aggregator" if="$(arg run_diagnostic_aggregator)">
       <rosparam command="load" file="$(find axis_camera)/diag.yaml"/>
     </node>
+
+    <node pkg="diagnostic_aggregator" type="add_analyzers" name="$(anon add_analyzers)" unless="$(arg run_diagnostic_aggregator)">
+		<rosparam command="load" file="$(find axis_camera)/diag.yaml" />
+	</node>
   </group>
 
 </launch>

@@ -42,7 +42,6 @@
 
   <export>
     <rosdoc config="rosdoc.yaml" />
-    <diagnostics yaml="${prefix}/diag.yaml" />
   </export>
 
 </package>
