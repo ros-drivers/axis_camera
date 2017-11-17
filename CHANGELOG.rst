@@ -1,6 +1,16 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* add ros-orphaned-maintaner to package.xml (`#50 <https://github.com/ros-drivers/axis_camera/issues/50>`_)
+* Set queue_size to Publishers in axis_camera (`#47 <https://github.com/ros-drivers/axis_camera/issues/47>`_)
+* Point package.xml URLs at ros-drivers org. (`#39 <https://github.com/ros-drivers/axis_camera/issues/39>`_)
+* sending camera_info (`#38 <https://github.com/ros-drivers/axis_camera/issues/38>`_)
+  * copying stamp so rectification happens
+  * sending camera_info
+* Contributors: Kei Okada, Kentaro Wada, Mike Purvis, Sam Pfeiffer, Micah Corah
+
 0.2.0 (2015-05-06)
 ------------------
 * Merge pull request `#35 <https://github.com/ros-drivers/axis_camera/issues/35>`_ from pal-robotics-forks/support_axis212ptz
