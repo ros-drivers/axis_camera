@@ -51,7 +51,10 @@ else()
     find_package(OpenCV REQUIRED)
     catkin_python_setup()
 
+    include_directories(${catkin_INCLUDE_DIRS})
+
     # ROS message generation
+    add_service_files(DIRECTORY srv FILES SetParameters.srv)
     add_message_files(DIRECTORY msg FILES Axis.msg)
     generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 
@@ -66,7 +69,7 @@ else()
     add_executable(republish src/republish.cpp)
     target_link_libraries(republish
         ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
-    )
+        )
 
     install(PROGRAMS
       nodes/axis.py
