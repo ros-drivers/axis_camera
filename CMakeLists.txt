@@ -63,7 +63,7 @@ else()
     )
 
     catkin_package(
-        INCLUDE_DIRS include
+        # INCLUDE_DIRS include
       CATKIN_DEPENDS camera_info_manager_py geometry_msgs message_runtime sensor_msgs tf
     )
     add_executable(republish src/republish.cpp)
