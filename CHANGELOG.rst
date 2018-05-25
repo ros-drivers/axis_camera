@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.3.0 (2018-05-25)
+------------------
 * Merge pull request `#49 <https://github.com/ros-drivers/axis_camera/issues/49>`_ from rossctaylor/feature/support_for_f34
   Add: support for Axis F34 multicamera switch
 * Merge pull request `#48 <https://github.com/ros-drivers/axis_camera/issues/48>`_ from tonybaltovski/pan-tilt-parms
