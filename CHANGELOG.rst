@@ -1,6 +1,14 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Merge pull request `#49 <https://github.com/ros-drivers/axis_camera/issues/49>`_ from rossctaylor/feature/support_for_f34
+  Add: support for Axis F34 multicamera switch
+* Merge pull request `#48 <https://github.com/ros-drivers/axis_camera/issues/48>`_ from tonybaltovski/pan-tilt-parms
+  Added ROS params for the pan and tilt axis.
+* Contributors: Ross Taylor, Tony Baltovski
+
 0.2.1 (2017-11-17)
 ------------------
 * add ros-orphaned-maintaner to package.xml (`#50 <https://github.com/ros-drivers/axis_camera/issues/50>`_)
