@@ -35,6 +35,11 @@ class StreamThread(threading.Thread):
         self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
         self.url += "?fps=0&resolution=%dx%d" % (self.axis.width, 
                                                             self.axis.height)
+
+        # support for Axis F34 multicamera switch
+        if (self.axis.camera != 0):
+            self.url += "&camera=%d" % self.axis.camera
+
         rospy.logdebug('opening ' + str(self.axis))
 
     def authenticate(self):
@@ -137,7 +142,7 @@ class StreamThread(threading.Thread):
 
 class Axis:
     def __init__(self, hostname, username, password, width, height, frame_id, 
-                 camera_info_url, use_encrypted_password):
+                 camera_info_url, use_encrypted_password, camera):
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -146,6 +151,7 @@ class Axis:
         self.frame_id = frame_id
         self.camera_info_url = camera_info_url
         self.use_encrypted_password = use_encrypted_password
+        self.camera = camera
         
         # generate a valid camera name based on the hostname
         self.cname = camera_info_manager.genCameraName(self.hostname)
@@ -179,7 +185,8 @@ def main():
         'height': 480,
         'frame_id': 'axis_camera',
         'camera_info_url': '',
-        'use_encrypted_password' : False}
+        'use_encrypted_password' : False,
+        'camera' : 0}
     args = updateArgs(arg_defaults)
     Axis(**args)
     rospy.spin()
