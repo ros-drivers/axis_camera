@@ -71,21 +71,24 @@ class StateThread(threading.Thread):
    
     def publishCameraState(self):
         '''Publish camera state to a ROS message'''
-        if self.cameraPosition is not None:
-            self.msg.pan = float(self.cameraPosition['pan'])
-            if self.axis.flip:
-                self.adjustForFlippedOrientation()
-            self.msg.tilt = float(self.cameraPosition['tilt'])
-            self.msg.zoom = float(self.cameraPosition['zoom'])
-            self.msg.iris = 0.0
-            if 'iris' in self.cameraPosition:
-                self.msg.iris = float(self.cameraPosition['iris'])
-            self.msg.focus = 0.0
-            if 'focus' in self.cameraPosition:
-                self.msg.focus = float(self.cameraPosition['focus'])
-            if 'autofocus' in self.cameraPosition:
-                self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
-            self.axis.pub.publish(self.msg)
+        try:
+            if self.cameraPosition is not None:
+                self.msg.pan = float(self.cameraPosition['pan'])
+                if self.axis.flip:
+                    self.adjustForFlippedOrientation()
+                self.msg.tilt = float(self.cameraPosition['tilt'])
+                self.msg.zoom = float(self.cameraPosition['zoom'])
+                self.msg.iris = 0.0
+                if 'iris' in self.cameraPosition:
+                    self.msg.iris = float(self.cameraPosition['iris'])
+                self.msg.focus = 0.0
+                if 'focus' in self.cameraPosition:
+                    self.msg.focus = float(self.cameraPosition['focus'])
+                if 'autofocus' in self.cameraPosition:
+                    self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
+                self.axis.pub.publish(self.msg)
+        except KeyError as e:
+            rospy.logwarn("Camera not ready for polling: " + repr(e.message))
             
     def adjustForFlippedOrientation(self):
         '''Correct pan and tilt parameters if camera is mounted backwards and 
