@@ -1,12 +1,13 @@
 <package>
 
   <name>axis_camera</name>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <description>
     Python ROS drivers for accessing an Axis camera's MJPG
     stream. Also provides control for PTZ cameras.
   </description>
   <maintainer email="sam.pfeiffer@pal-robotics.com">Sammy Pfeiffer</maintainer>
+  <maintainer email="ros-orphaned-packages@googlegroups.com">ROS Orphaned Package Maintainers</maintainer>
   <author>Ryan Gariepy</author>
   <license>BSD</license>
 
