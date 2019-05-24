@@ -88,7 +88,7 @@ class StateThread(threading.Thread):
                     self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
                 self.axis.pub.publish(self.msg)
         except KeyError as e:
-            rospy.logwarn("Camera not ready for polling: " + repr(e.message))
+            rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
             
     def adjustForFlippedOrientation(self):
         '''Correct pan and tilt parameters if camera is mounted backwards and 
