@@ -36,8 +36,9 @@ class StateThread(threading.Thread):
         '''Using Axis VAPIX protocol, described in the comments at the top of
         this file, is used to query the state of the camera'''
         queryParams = { 'query':'position' }
+        conn = httplib.HTTPConnection(self.axis.hostname)
+
         try:
-            conn = httplib.HTTPConnection(self.axis.hostname)
             conn.request("GET", "/axis-cgi/com/ptz.cgi?%s" % 
                                                 urllib.urlencode(queryParams))
             response = conn.getresponse()
@@ -66,8 +67,6 @@ class StateThread(threading.Thread):
             rospy.logwarn(exception_error_str)
 
             self.cameraPosition = None
-        finally:
-            conn.close()
    
     def publishCameraState(self):
         '''Publish camera state to a ROS message'''
