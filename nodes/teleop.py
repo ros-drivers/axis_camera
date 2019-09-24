@@ -36,26 +36,20 @@ class Teleop:
         self.joy = data
 
     def angle_wrap(self,angle,rad=False):
-    '''
-    Wraps the input angle to 360.0 degrees.
 
-    if radians is True: input is assumed to be in radians, output is also in
-    radians
+        PI = 3.1415
+        if rad:
+            wrapped = angle % (2.0*PI)
+            if wrapped < 0.0:
+                wrapped = 2.0*PI + wrapped
 
-    '''
-    PI = 3.1415
-    if rad:
-        wrapped = angle % (2.0*PI)
-        if wrapped < 0.0:
-            wrapped = 2.0*PI + wrapped
+        else:
 
-    else:
+            wrapped = angle % 360.0
+            if wrapped < 0.0:
+                wrapped = 360.0 + wrapped
 
-        wrapped = angle % 360.0
-        if wrapped < 0.0:
-            wrapped = 360.0 + wrapped
-
-    return wrapped 
+        return wrapped 
 
 
 if __name__ == "__main__": Teleop().spin()
