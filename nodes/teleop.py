@@ -25,8 +25,8 @@ class Teleop:
         while not rospy.is_shutdown():
             if self.joy != None and self.joy.buttons[self.enable_button] == 1:
                 #and (rospy.Time.now() - self.joy.header.stamp).to_sec() < 0.2:
-                self.state.pan += self.joy.axes[self.axis_pan]*5
-                self.state.tilt += self.joy.axes[self.axis_tilt]*5
+                self.state.pan = self.angle_wrap(self.state.pan + self.joy.axes[self.axis_pan]*5)
+                self.state.tilt = self.angle_wrap(self.state.pan + self.joy.axes[self.axis_tilt]*5)
                 if self.state.tilt > 85: self.state.tilt = 85
                 if self.state.tilt < 0: self.state.tilt = 0
                 self.pub.publish(self.state)
@@ -34,6 +34,28 @@ class Teleop:
 
     def joy_callback(self, data):
         self.joy = data
+
+    def angle_wrap(self,angle,rad=False):
+    '''
+    Wraps the input angle to 360.0 degrees.
+
+    if radians is True: input is assumed to be in radians, output is also in
+    radians
+
+    '''
+    PI = 3.1415
+    if rad:
+        wrapped = angle % (2.0*PI)
+        if wrapped < 0.0:
+            wrapped = 2.0*PI + wrapped
+
+    else:
+
+        wrapped = angle % 360.0
+        if wrapped < 0.0:
+            wrapped = 360.0 + wrapped
+
+    return wrapped 
 
 
 if __name__ == "__main__": Teleop().spin()
