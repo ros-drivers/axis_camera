@@ -26,7 +26,7 @@ class Teleop:
             if self.joy != None and self.joy.buttons[self.enable_button] == 1:
                 #and (rospy.Time.now() - self.joy.header.stamp).to_sec() < 0.2:
                 self.state.pan = self.angle_wrap(self.state.pan + self.joy.axes[self.axis_pan]*5)
-                self.state.tilt = self.angle_wrap(self.state.pan + self.joy.axes[self.axis_tilt]*5)
+                self.state.tilt = self.angle_wrap(self.state.tilt + self.joy.axes[self.axis_tilt]*5)
                 if self.state.tilt > 85: self.state.tilt = 85
                 if self.state.tilt < 0: self.state.tilt = 0
                 self.pub.publish(self.state)
