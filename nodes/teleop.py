@@ -16,7 +16,7 @@ class Teleop:
         self.state.brightness = 5000
         self.pub.publish(self.state)
 
-        rospy.Subscriber("joy", Joy, self.joy_callback)
+        rospy.Subscriber("joy", Joy, self.joy_callback, queue_size=1)
         # rospy.Subscriber("state", Axis, self.state_callback)
 
     def joy_callback(self, data):
@@ -27,6 +27,7 @@ class Teleop:
             if self.state.tilt > 85: self.state.tilt = 85
             if self.state.tilt < 0: self.state.tilt = 0
             self.pub.publish(self.state)
+            rospy.sleep(0.2)
 
     def angle_wrap(self,angle,rad=False):
 
