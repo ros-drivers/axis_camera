@@ -24,10 +24,17 @@ class Teleop:
 
     def joy_callback(self, data):
         if data.buttons[self.enable_button] == 1 and (rospy.Time.now() - self.pub_time).to_sec() > 1.0 and (rospy.Time.now() - data.header.stamp).to_sec() < 0.2:
+
             self.state.pan = self.angle_wrap(self.state.pan - 10.0 *np.sign(data.axes[self.axis_pan]))  #rotate 10 degrees at least
+
             self.state.tilt = self.state.tilt + 5.0 * np.sign(data.axes[self.axis_tilt])  #tilt at least 5 degrees
             if self.state.tilt > 85: self.state.tilt = 85
             if self.state.tilt < 0: self.state.tilt = 0
+
+            self.state.zoom = self.state.zoom + 50.0 * np.sign(data.axes[self.axis_zoom])
+            if self.state.zoom > 1000: self.state.zoom = 1000
+            if self.state.zoom < 0: self.state.zoom = 0
+
             self.pub.publish(self.state)
             self.pub_time = rospy.Time.now()
             rospy.sleep(1.0)
@@ -40,7 +47,7 @@ class Teleop:
             if self.state.tilt > 85: self.state.tilt = 85
             if self.state.tilt < 0: self.state.tilt = 0
 
-            self.state.zoom = self.state.zoom + 50.0 * np.sign(data.axes[self.axis_zoom])
+            self.state.zoom = self.state.zoom + 200.0 * np.sign(data.axes[self.axis_zoom])
             if self.state.zoom > 1000: self.state.zoom = 1000
             if self.state.zoom < 0: self.state.zoom = 0
             
