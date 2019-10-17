@@ -10,6 +10,8 @@ class Teleop:
     def __init__(self):
         self.enable_button = rospy.get_param('~enable_button', 1)
         self.enable_turbo_button = rospy.get_param('~enable_turbo_button', 3)
+        self.camera_reset_pose_1 = rospy.get_param('~camera_reset_pose_1', 4)
+        self.camera_reset_pose_2 = rospy.get_param('~camera_reset_pose_2', 5)
         self.axis_pan = rospy.get_param('~axis_pan', 0)
         self.axis_tilt = rospy.get_param('~axis_tilt', 1)
         self.axis_zoom = rospy.get_param('~axis_zoom', 6)
@@ -48,11 +50,24 @@ class Teleop:
             if self.state.tilt < 0: self.state.tilt = 0
 
             self.state.zoom = self.state.zoom + 200.0 * np.sign(data.axes[self.axis_zoom])
-            if self.state.zoom > 1000: self.state.zoom = 1000
+            if self.state.zoom > 5000: self.state.zoom = 5000
             if self.state.zoom < 0: self.state.zoom = 0
             
             self.pub.publish(self.state)
             self.pub_time = rospy.Time.now()
+            rospy.sleep(1.0)
+
+        if data.buttons[self.camera_reset_pose_1] == 1 and data.buttons[self.camera_reset_pose_2] == 1 (rospy.Time.now() - self.pub_time).to_sec() > 1.0 and (rospy.Time.now() - data.header.stamp).to_sec() < 0.2:
+            
+            self.state.pan = 10
+
+            self.state.tilt = 0
+
+            self.state.zoom = 0
+            
+            self.pub.publish(self.state)
+            self.pub_time = rospy.Time.now()
+            rospy.info("resetting camera position")
             rospy.sleep(1.0)
 
     def angle_wrap(self,angle,rad=False):
