@@ -50,7 +50,7 @@ class Teleop:
             if self.state.tilt < 0: self.state.tilt = 0
 
             self.state.zoom = self.state.zoom + 200.0 * np.sign(data.axes[self.axis_zoom])
-            if self.state.zoom > 5000: self.state.zoom = 5000
+            if self.state.zoom > 1000: self.state.zoom = 1000
             if self.state.zoom < 0: self.state.zoom = 0
             
             self.pub.publish(self.state)
