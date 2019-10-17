@@ -64,7 +64,6 @@ class Teleop:
             self.state.zoom = 0.0           
             self.pub.publish(self.state)
             self.pub_time = rospy.Time.now()
-            rospy.info("resetting camera position")
             rospy.sleep(1.0)
 
     def angle_wrap(self,angle,rad=False):
