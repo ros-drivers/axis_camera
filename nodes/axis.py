@@ -38,7 +38,7 @@ class StreamThread(threading.Thread):
 
         # support for Axis F34 multicamera switch
         if (self.axis.camera != 0):
-            self.url += "&camera=%d" % self.axis.camera
+            self.url += "&camera=%s" % str(self.axis.camera)
 
         rospy.logdebug('opening ' + str(self.axis))
 
