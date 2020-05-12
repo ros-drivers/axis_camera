@@ -1,26 +1,14 @@
-Overview
-========
+Axis camera driver for ROS
+==========================
 
-This ROS_ package provides an `Axis network camera`_ driver, written
-in Python.
+This ROS_ package provides an `Axis network camera`_ driver, written in Python. It provides both a ROS API (via ROS topics and parameters) and Python API (which can be used without having ROS at all).
 
-ROS wiki documentation: `axis_camera`_.
+Please see the documentation located here:
 
-This driver is under active development.  Its ROS interfaces are
-relatively stable, but may still change.  
+http://wiki.ros.org/axis_camera (ROS API)
 
-There is no released code API.
-
-**Warning**::
-
-  The master branch normally contains code being tested for the next
-  ROS release.  It does not always work with previous ROS distributions.
-  Sometimes, it may not work at all.
-
-Each official release is tagged in the repository. The `change
-history`_ describes every version.
+http://docs.ros.org/indigo/api/axis_camera/html/ (Python API)
 
 .. _`Axis network camera`: http://www.axis.com/products/video/camera/index.htm
-.. _`change history`: https://github.com/clearpathrobotics/axis_camera/blob/master/CHANGELOG.rst
 .. _`axis_camera`: http://ros.org/wiki/axis_camera
 .. _ROS: http://ros.org

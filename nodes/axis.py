@@ -1,200 +1,633 @@
 #!/usr/bin/env python
-#
-# Axis camera image driver. Based on:
-# https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera
-# /axis.py
-#
 
-import threading
-import urllib2
+"""
+Axis camera video driver. Inspired by:
+https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera/axis.py
 
-import rospy 
+Communication with the camera is done using the Axis VAPIX API described at
+http://www.axis.com/global/en/support/developer-support/vapix
+
+.. note::
+
+    This is a major rewrite of the former ros-drivers/axis_camera node, so it contains a (deprecated) backwards
+    compatibility layer for the previous (non-released) API.
+"""
+
+import math
+import re
+
+import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
+import dynamic_reconfigure.server
+from diagnostic_updater import Updater, DiagnosedPublisher, TimeStampStatusParam, FrequencyStatusParam, \
+    FunctionDiagnosticTask, DiagnosticStatusWrapper
 
-class StreamThread(threading.Thread):
-    def __init__(self, axis):
-        threading.Thread.__init__(self)
-        self.axis = axis
-        self.daemon = True
-        self.timeoutSeconds = 2.5
+from axis_camera.cfg import VideoStreamConfig
+from axis_camera.srv import TakeSnapshot, TakeSnapshotResponse
+from axis_camera.vapix import VAPIX
+from axis_camera.video_streaming import ImageStreamingThread
+from axis_camera.dynamic_reconfigure_tools import change_enum_items
 
-    def run(self):
-        while(True):
-            self.stream()
+# BACKWARDS COMPATIBILITY LAYER
+StreamThread = ImageStreamingThread  # deprecated
 
-    def stream(self):
-        while(True):
-            self.formURL()
-            self.authenticate()
-            if self.openURL():
-                self.publishFramesContinuously()
-            rospy.sleep(2) # if stream stays intact we shouldn't get to this
 
-    def formURL(self):
-        self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-        self.url += "?fps=0&resolution=%dx%d" % (self.axis.width, 
-                                                            self.axis.height)
+class Axis(rospy.SubscribeListener):
+    """The ROS-VAPIX interface for video streaming."""
 
-        # support for Axis F34 multicamera switch
-        if (self.axis.camera != 0):
-            self.url += "&camera=%d" % self.axis.camera
+    def __init__(self, hostname, username, password, width, height, frame_id, camera_info_url, use_encrypted_password,
+                 camera_id=1, auto_wakeup_camera=True, compression=0, fps=24, use_color=True,
+                 use_square_pixels=False):
+        """Create the ROS-VAPIX interface.
 
-        rospy.logdebug('opening ' + str(self.axis))
+        :param hostname: Hostname of the camera (without http://, can be an IP address).
+        :type hostname: basestring
+        :param username: If login is needed, provide a username here.
+        :type username: :py:obj:`basestring` | None
+        :param password: If login is needed, provide a password here.
+        :type password: :py:obj:`basestring` | None
+        :param width: Width of the requested video stream in pixels (can be changed later). Must be one of the supported
+                      resolutions. If `None`, the resolution will be chosen by height only. If also `height` is `None`,
+                      then the default camera resolution will be used.
+        :type width: int|None
+        :param height: Height of the requested video stream in pixels (can be changed later). Must be one of the
+                       supported resolutions. If `None`, the resolution will be chosen by width only. If also `width` is
+                       `None`, then the default camera resolution will be used.
+        :type height: int|None
+        :param frame_id: The ROS TF frame assigned to the camera.
+        :type frame_id: basestring
+        :param camera_info_url: The URL pointing to the camera calaibration, if available.
+        :type camera_info_url: basestring
+        :param use_encrypted_password: Whether to use Plain HTTP Auth (False) or Digest HTTP Auth (True).
+        :type use_encrypted_password: bool
+        :param camera_id: ID (number) of the camera. Can be 1 to 4.
+        :type camera_id: int
+        :param auto_wakeup_camera: If True, there will be a wakeup trial after first unsuccessful network command.
+        :type auto_wakeup_camera: bool
+        :param compression: Compression of the image (0 - no compression, 100 - max compression).
+        :type compression: int
+        :param fps: The desired frames per second.
+        :type fps: int
+        :param use_color: If True, send a color stream, otherwise send only grayscale image.
+        :type use_color: bool
+        :param use_square_pixels: If True, the resolution will be stretched to match 1:1 pixels.
+                                  By default, the pixels have a ratio of 11:12.
+        :type use_square_pixels: bool
+        :raises: :py:exc:`ValueError` if the requested resolution (either the `resolution`, or `width`+`height`
+                 is not supported.
+        """
+        # True every time the video parameters have changed and the URL has to be altered (set from other threads).
+        self.video_params_changed = False
 
-    def authenticate(self):
-        '''only try to authenticate if user/pass configured.  I have not
-        used this method (yet).'''
-        if self.axis.password != '' and self.axis.username != '':
-            # create a password manager
-            password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        self.__initializing = True
 
-            # Add the username and password, use default realm.
-            top_level_url = "http://" + self.axis.hostname
-            password_mgr.add_password(None, top_level_url, self.axis.username, 
-                                                            self.axis.password)
-            if self.axis.use_encrypted_password :
-                handler = urllib2.HTTPDigestAuthHandler(password_mgr)
-            else:
-                handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+        self._hostname = hostname
+        self._camera_id = camera_id
 
-            # create "opener" (OpenerDirector instance)
-            opener = urllib2.build_opener(handler)
+        self.diagnostic_updater = Updater()
+        self.diagnostic_updater.setHardwareID(hostname)
 
-            # ...and install it globally so it can be used with urlopen.
-            urllib2.install_opener(opener)
-    
-    def openURL(self):
-        '''Open connection to Axis camera using http'''
-        try:
-            self.fp = urllib2.urlopen(self.url, timeout=self.timeoutSeconds)
-            return(True)
-        except urllib2.URLError, e:
-            rospy.logwarn('Error opening URL %s' % (self.url) +
-                            'Possible timeout.  Looping until camera appears')
-            return(False)
-
-    def publishFramesContinuously(self):
-        '''Continuous loop to publish images'''
-        while(True):
+        self._api = None
+        # autodetect the VAPIX API and connect to it; try it forever
+        while self._api is None and not rospy.is_shutdown():
             try:
-                self.findBoundary()
-                self.getImage()
-                self.publishMsg()
-                self.publishCameraInfoMsg()
-            except:
-                rospy.loginfo('Timed out while trying to get message.')
-                break
+                self._api = VAPIX.get_api_for_camera(hostname, username, password, camera_id, use_encrypted_password)
+            except (IOError, ValueError):
+                rospy.loginfo("Retrying connection to VAPIX on host %s, camera %d in 2 seconds." %
+                              (hostname, camera_id))
+                rospy.sleep(2)
+        if rospy.is_shutdown():
+            return
 
-    def findBoundary(self):
-        '''The string "--myboundary" is used to denote the start of an image in
-        Axis cameras'''
-        while(True):
-            boundary = self.fp.readline()
-            if boundary=='--myboundary\r\n':
-                break
+        self._allowed_resolutions = self._get_allowed_resolutions()
 
-    def getImage(self):
-        '''Get the image header and image itself'''
-        self.getHeader()
-        self.getImageData()
+        rospy.loginfo("The following resolutions are available for camera %d:\n%s" %
+                      (camera_id, "\n".join([str(res) for res in self._allowed_resolutions])))
+        rospy.set_param("~allowed_resolutions", [res.get_vapix_representation() for res in self._allowed_resolutions])
 
-    def getHeader(self):
-        self.header = {}
-        while(True):
-            line = self.fp.readline()
-            if line == "\r\n":
-                break
-            line = line.strip()
-            parts = line.split(": ", 1)
-            try:
-                self.header[parts[0]] = parts[1]
-            except:
-                rospy.logwarn('Problem encountered with image header.  Setting '
-                                                    'content_length to zero')
-                self.header['Content-Length'] = 0 # set content_length to zero if 
-                                            # there is a problem reading header
-        self.content_length = int(self.header['Content-Length'])
+        # Sometimes the camera falls into power saving mode and stops streaming.
+        # This setting allows the script to try to wake up the camera.
+        self._auto_wakeup_camera = auto_wakeup_camera
 
-    def getImageData(self):
-        '''Get the binary image data itself (ie. without header)'''
-        if self.content_length>0:
-            self.img = self.fp.read(self.content_length)
-            self.fp.readline() # Read terminating \r\n and do nothing with it
+        # dynamic-reconfigurable properties - definitions
+        self._width = None  # deprecated
+        self._height = None  # deprecated
+        self._resolution = None
+        self._compression = None
+        self._fps = None
+        self._use_color = None
+        self._use_square_pixels = None
 
-    def publishMsg(self):
-        '''Publish jpeg image as a ROS message'''
-        self.msg = CompressedImage()
-        self.msg.header.stamp = rospy.Time.now()
-        self.msg.header.frame_id = self.axis.frame_id
-        self.msg.format = "jpeg"
-        self.msg.data = self.img
-        self.axis.pub.publish(self.msg)
+        # treat empty strings as None in width and height params
+        width = width if width != "" else None
+        height = height if height != "" else None
 
-    def publishCameraInfoMsg(self):
-        '''Publish camera info manager message'''
-        cimsg = self.axis.cinfo.getCameraInfo()
-        cimsg.header.stamp = self.msg.header.stamp
-        cimsg.header.frame_id = self.axis.frame_id
-        cimsg.width = self.axis.width
-        cimsg.height = self.axis.height
-        self.axis.caminfo_pub.publish(cimsg)
+        # dynamic-reconfigurable properties - defaults
+        if width is None and height is None:
+            # TODO change to perform default resolution detection from VAPIX
+            self.set_resolution(self._allowed_resolutions[0])
+        else:
+            resolution = self.find_resolution_by_size(width, height)
+            self.set_resolution(resolution.get_vapix_representation())
 
-class Axis:
-    def __init__(self, hostname, username, password, width, height, frame_id, 
-                 camera_info_url, use_encrypted_password, camera):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
-        self.width = width
-        self.height = height
-        self.frame_id = frame_id
-        self.camera_info_url = camera_info_url
-        self.use_encrypted_password = use_encrypted_password
-        self.camera = camera
-        
+        self.set_compression(compression)
+        self.set_fps(fps)
+        self.set_use_color(use_color)
+        self.set_use_square_pixels(use_square_pixels)
+
+        # only advertise the supported resolutions on dynamic reconfigure
+        change_enum_items(
+            VideoStreamConfig,
+            "resolution",
+            [{
+                'name': res.name if isinstance(res, CIFVideoResolution) else str(res),
+                'value': res.get_vapix_representation(),
+                'description': str(res)
+            } for res in self._allowed_resolutions],
+            self._resolution.get_vapix_representation()
+        )
+
+        # dynamic reconfigure server
+        self._video_stream_param_change_server = dynamic_reconfigure.server.Server(VideoStreamConfig,
+                                                                                   self.reconfigure_video)
+
+        # camera info setup
+        self._frame_id = frame_id
+        self._camera_info_url = camera_info_url
+
         # generate a valid camera name based on the hostname
-        self.cname = camera_info_manager.genCameraName(self.hostname)
-        self.cinfo = camera_info_manager.CameraInfoManager(cname = self.cname,
-                                                   url = self.camera_info_url)
-        self.cinfo.loadCameraInfo()         # required before getCameraInfo()
-        self.st = None
-        self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=1)
-        self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=1)
+        self._camera_name = camera_info_manager.genCameraName(self._hostname)
+        self._camera_info = camera_info_manager.CameraInfoManager(cname=self._camera_name, url=self._camera_info_url)
+        self._camera_info.loadCameraInfo()  # required before getCameraInfo()
+
+        # the thread used for streaming images (is instantiated when the first image subscriber subscribes)
+        self._streaming_thread = None
+
+        # the publishers are started/stopped lazily in peer_subscribe/peer_unsubscribe
+        self._video_publisher_frequency_diagnostic = FrequencyStatusParam({'min': self._fps, 'max': self._fps})
+        self._video_publisher = PausableDiagnosedPublisher(
+            self,
+            rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=100),
+            self.diagnostic_updater, self._video_publisher_frequency_diagnostic, TimeStampStatusParam()
+        )
+        self._camera_info_publisher = PausableDiagnosedPublisher(
+            self,
+            rospy.Publisher("camera_info", CameraInfo, self, queue_size=100),
+            self.diagnostic_updater, self._video_publisher_frequency_diagnostic, TimeStampStatusParam()
+        )
+
+        self._snapshot_server = rospy.Service("take_snapshot", TakeSnapshot, self.take_snapshot)
+
+        self.diagnostic_updater.add(FunctionDiagnosticTask("Camera parameters", self._camera_diagnostic_callback))
+
+        # BACKWARDS COMPATIBILITY LAYER
+
+        self.username = username  # deprecated
+        self.password = password  # deprecated
+        self.use_encrypted_password = use_encrypted_password  # deprecated
+        self.st = None  # deprecated
+        self.pub = self._video_publisher  # deprecated
+        self.caminfo_pub = self._camera_info_publisher  # deprecated
+
+        self.__initializing = False
 
     def __str__(self):
-        """Return string representation."""
-        return(self.hostname + ',' + self.username + ',' + self.password +
-                       '(' + str(self.width) + 'x' + str(self.height) + ')')
+        (width, height) = self._resolution.get_resolution(self._use_square_pixels)
+        return 'Axis driver on host %s, camera %d (%dx%d px @ %d FPS)' % \
+               (self._hostname, self._api.camera_id, width, height, self._fps)
 
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
-        '''Lazy-start the image-publisher.'''
-        if self.st is None:
-            self.st = StreamThread(self)
-            self.st.start()
+        """Lazy-start the image-publisher."""
+        if self._streaming_thread is None:
+            self._streaming_thread = ImageStreamingThread(self)
+            self._streaming_thread.start()
+        else:
+            self._streaming_thread.resume()
+
+    def peer_unsubscribe(self, topic_name, num_peers):
+        """Lazy-stop the image-publisher when nobody is interested"""
+        if num_peers == 0:
+            self._streaming_thread.pause()
+
+    def take_snapshot(self, request):
+        """Retrieve a snapshot from the camera.
+
+        :param request: The service request.
+        :type request: :py:class:`axis_camera.srv.TakeSnapshotRequest`
+        :return: The response containing the image.
+        :rtype: :py:class:`axis_camera.srv.TakeSnapshotResponse`
+        :raises: :py:exc:`IOError`, :py:exc:`urllib2.URLError`
+        """
+        image_data = self._api.take_snapshot()
+
+        image = CompressedImage()
+
+        image.header.stamp = rospy.Time.now()
+        image.header.frame_id = self._frame_id
+
+        image.format = "jpeg"
+
+        image.data = image_data
+
+        response = TakeSnapshotResponse()
+        response.image = image
+
+        return response
+
+    def reconfigure_video(self, config, level):
+        """Dynamic reconfigure callback for video parameters.
+
+        :param config: The requested configuration.
+        :type config: dict
+        :param level: Unused here.
+        :type level: int
+        :return: The config corresponding to what was really achieved.
+        :rtype: dict
+        """
+        if self.__initializing:
+            # in the initialization phase, we want to give precedence to the values given to the constructor
+            config.compression = self._compression
+            config.fps = self._fps
+            config.use_color = self._use_color
+            config.use_square_pixels = self._use_square_pixels
+            config.resolution = self._resolution.get_vapix_representation()
+        else:
+            self.__try_set_value_from_config(config, 'compression', self.set_compression)
+            self.__try_set_value_from_config(config, 'fps', self.set_fps)
+            self.__try_set_value_from_config(config, 'use_color', self.set_use_color)
+            self.__try_set_value_from_config(config, 'use_square_pixels', self.set_use_square_pixels)
+
+            try:
+                self.set_resolution(config.resolution)
+            except ValueError:
+                config.resolution = self._resolution.get_vapix_representation()
+
+        return config
+
+    def __try_set_value_from_config(self, config, field, setter):
+        """First, try to call `setter(config[field])`, and if this call doesn't succeed. set the field in config to
+        its value stored in this class.
+
+        :param config: The dynamic reconfigure config dictionary.
+        :type config: dict
+        :param field: The field name (both in :py:obj:`config` and in :py:obj:`self`).
+        :type field: basestring
+        :param setter: The setter to use to set the value.
+        :type setter: lambda function
+        """
+        try:
+            setter(config[field])
+        except ValueError:
+            config[field] = getattr(self, field)
+
+    #################################
+    # DYNAMIC RECONFIGURE CALLBACKS #
+    #################################
+
+    def set_resolution(self, resolution_value):
+        """Request a new resolution for the video stream.
+
+        :param resolution_value: The string of type `width`x`height` or a :py:class:`VideoResolution` object.
+        :type resolution_value: basestring|VideoResolution
+        :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
+        """
+        resolution = None
+        if isinstance(resolution_value, VideoResolution):
+            resolution = resolution_value
+        elif isinstance(resolution_value, basestring):
+            resolution = self._get_resolution_from_param_value(resolution_value)
+
+        if resolution is None:
+            raise ValueError("Unsupported resolution type specified: %r" % resolution_value)
+
+        if self._resolution is None or resolution != self._resolution:
+            self._resolution = resolution
+            self.video_params_changed = True
+            # deprecated values
+            self._width = resolution.get_resolution(self._use_square_pixels)[0]
+            self._height = resolution.get_resolution(self._use_square_pixels)[1]
+
+    def _get_resolution_from_param_value(self, value):
+        """Return a :py:class:`VideoResolution` object corresponding to the given video resolution param string.
+
+        :param value: Value of the resolution parameter to parse (of form `width`x`height`).
+        :type value: basestring
+        :return: The :py:class:`VideoResolution` corresponding to the given resolution param string.
+        :rtype: :py:class:`VideoResolution`
+        :raises: :py:exc:`ValueError` if the resolution is unknown/unsupported.
+        """
+        for resolution in self._allowed_resolutions:
+            if resolution.get_vapix_representation() == value:
+                return resolution
+
+        raise ValueError("%s is not a valid valid resolution." % value)
+
+    def find_resolution_by_size(self, width, height):
+        """Return a :py:class:`VideoResolution` object with the given dimensions.
+
+        If there are more resolutions with the same size, any of them may be returned.
+
+        :param width: Image width in pixels. If `None`, resolutions will be matched only by height.
+        :type width: int|None
+        :param height: Image height in pixels. If `None`, resolutions will be matched only by width.
+        :type height: int|None
+        :return: The corresponding resolution object.
+        :rtype: :py:class:`VideoResolution`
+        :raises: :py:exc:`ValueError` if no resolution with the given dimensions can be found.
+        :raises: :py:exc:`ValueError` if both `width` and `height` are None.
+        """
+        if width is None and height is None:
+            raise ValueError("Either width or height of the desired resolution must be specified.")
+
+        for resolution in self._allowed_resolutions:
+            size = resolution.get_resolution(use_square_pixels=False)
+            if (width is None or width == size[0]) and (height is None or height == size[1]):
+                return resolution
+
+            size = resolution.get_resolution(use_square_pixels=True)
+            if (width is None or width == size[0]) and (height is None or height == size[1]):
+                return resolution
+
+        raise ValueError("Cannot find a supported resolution with dimensions %sx%s" % (width, height))
+
+    def _get_allowed_resolutions(self):
+        """Return a list of resolutions supported both by the camera.
+
+        :return: The supported resolutions list.
+        :rtype: list of :py:class:`VideoResolution`
+        """
+        camera_resolutions = self._get_resolutions_supported_by_camera()
+
+        return camera_resolutions
+
+    def _get_resolutions_supported_by_camera(self):
+        """Return a list of resolutions supported the camera.
+
+        :return: The supported resolutions list.
+        :rtype: list of :py:class:`VideoResolution`
+        """
+        try:
+            names = self._api.parse_list_parameter_value(self._api.get_parameter("Properties.Image.Resolution"))
+            return [VideoResolution.parse_from_vapix_param_value(name, self._api) for name in names]
+        except (IOError, ValueError):
+            rospy.logwarn("Could not determine resolutions supported by the camera. Asssuming only CIF.")
+            return [CIFVideoResolution("CIF", 384, 288)]
+
+    def set_compression(self, compression):
+        """Request the given compression level for the video stream.
+
+        :param compression: Compression of the image (0 - no compression, 100 - max compression).
+        :type compression: int
+        :raises: :py:exc:`ValueError` if the given compression level is outside the allowed range.
+        """
+        if compression != self._compression:
+            self._compression = self.sanitize_compression(compression)
+            self.video_params_changed = True
+
+    @staticmethod
+    def sanitize_compression(compression):
+        """Make sure the given value can be used as a compression level of the video stream.
+
+        :param compression: Compression of the image (0 - no compression, 100 - max compression).
+        :type compression: int
+        :return: The given compression converted to an int.
+        :rtype: int
+        :raises: :py:exc:`ValueError` if the given compression level is outside the allowed range.
+        """
+        compression = int(compression)
+        if not (0 <= compression <= 100):
+            raise ValueError("%s is not a valid value for compression." % str(compression))
+
+        return compression
+
+    def set_fps(self, fps):
+        """Request the given compression level for the video stream.
+
+        :param fps: The desired frames per second.
+        :type fps: int
+        :raises: :py:exc:`ValueError` if the given FPS is outside the allowed range.
+        """
+        if fps != self._fps:
+            self._fps = self.sanitize_fps(fps)
+            self.video_params_changed = True
+            if hasattr(self, "_video_publisher_frequency_diagnostic"):
+                self._video_publisher_frequency_diagnostic.freq_bound['min'] = self._fps
+                self._video_publisher_frequency_diagnostic.freq_bound['max'] = self._fps
+
+    @staticmethod
+    def sanitize_fps(fps):
+        """Make sure the given value can be used as FPS of the video stream.
+
+        :param fps: The desired frames per second.
+        :type fps: int
+        :return: The given FPS converted to an int.
+        :rtype: int
+        :raises: :py:exc:`ValueError` if the given FPS is outside the allowed range.
+        """
+        fps = int(fps)
+        if not (1 <= fps <= 30):
+            raise ValueError("%s is not a valid value for FPS." % str(fps))
+
+        return fps
+
+    def set_use_color(self, use_color):
+        """Request using/not using color in the video stream.
+        :param use_color: If True, send a color stream, otherwise send only grayscale image.
+
+        :type use_color: bool
+        :raises: :py:exc:`ValueError` if the given argument is not a bool.
+        """
+        if use_color != self._use_color:
+            self._use_color = self.sanitize_bool(use_color, "use_color")
+            self.video_params_changed = True
+
+    def set_use_square_pixels(self, use_square_pixels):
+        """Request using/not using square pixels.
+
+        :param use_square_pixels: If True, the resolution will be stretched to match 1:1 pixels.
+                                  By default, the pixels have a ratio of 11:12.
+        :type use_square_pixels: bool
+        :raises: :py:exc:`ValueError` if the given argument is not a bool.
+        """
+        if use_square_pixels != self._use_square_pixels:
+            self._use_square_pixels = self.sanitize_bool(use_square_pixels, "use_square_pixels")
+            self.video_params_changed = True
+
+    @staticmethod
+    def sanitize_bool(value, field_name):
+        """Convert the given value to a bool.
+
+        :param value: Either True, False,, "1", "0", 1 or 0.
+        :type value: :py:class:`basestring` | :py:class:`bool` | :py:class:`int`
+        :param field_name: Name of the field this value belongs to (just for debug messages).
+        :type field_name: basestring
+        :return: The bool value of the given value.
+        :rtype: :py:class:`bool`
+        :raises: :py:exc:`ValueError` if the given value is not supported in this conversion.
+        """
+        if value not in (True, False, "1", "0", 1, 0):
+            raise ValueError("%s is not a valid value for %s." % (str(value), field_name))
+
+        # bool("0") returns True because it is a nonempty string
+        if value == "0":
+            return False
+
+        return bool(value)
+
+    def _camera_diagnostic_callback(self, diag_message):
+        assert isinstance(diag_message, DiagnosticStatusWrapper)
+
+        diag_message.summary(DiagnosticStatusWrapper.OK, "Video parameters")
+        diag_message.add("FPS", self._fps)
+        diag_message.add("Resolution", self._resolution)
+        diag_message.add("Compression", self._compression)
+        diag_message.add("Color image", self._use_color)
+        diag_message.add("Square pixels used", self._use_square_pixels)
+
+
+class VideoResolution(object):
+    """A class representing a video resolution."""
+
+    def __init__(self, width, height):
+        """Create a representation of the resolution.
+
+        :param width: Width of the resolution in pixels.
+        :type width: int
+        :param height: Height of the resolution in pixels.
+        :type height: int
+        """
+        super(VideoResolution, self).__init__()
+
+        self.width = int(width)
+        self.height = int(height)
+
+        self.square_pixel_conversion_ratio_width = 12.0 / 11.0
+        self.square_pixel_conversion_ratio_height = 1
+
+    def __str__(self):
+        return "%dx%d" % (self.width, self.height)
+
+    def __repr__(self):
+        return "VideoResolution(width=%r,height=%r)" % (self.width, self.height)
+
+    def __eq__(self, other):
+        # compare by attribute values
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        # reuse the former __eq__ definition
+        return not self == other
+
+    def get_resolution(self, use_square_pixels=False):
+        """Get the image dimensions corresponding to this resolution.
+
+        :param use_square_pixels: Whether to strech the resulting resolution to square pixels.
+        :type use_square_pixels: bool
+        :return: A tuple (width, height)
+        :rtype: tuple
+        """
+        width = self.width
+        height = self.height
+
+        if use_square_pixels:
+            width = int(math.ceil(self.square_pixel_conversion_ratio_width * self.width))
+            height = int(math.ceil(self.square_pixel_conversion_ratio_height * self.height))
+
+        return width, height
+
+    def get_vapix_representation(self):
+        return "%dx%d" % (self.width, self.height)
+
+    @staticmethod
+    def parse_from_vapix_param_value(value, api):
+        assert isinstance(value, basestring)
+        assert isinstance(api, VAPIX)
+
+        numeric_regexp = re.compile(r"(\d+)x(\d+)")
+        match = numeric_regexp.match(value)
+
+        if match is not None:
+            return VideoResolution(int(match.group(1)), int(match.group(2)))
+        else:  # resolution given by CIF name
+            name = value
+            width, height = api.resolve_video_resolution_name(name)
+            return CIFVideoResolution(name, width, height)
+
+
+class CIFVideoResolution(VideoResolution):
+    """A class representing a CIF standard resolution."""
+
+    def __init__(self, name, width, height):
+        """Create a representation of a CIF resolution.
+
+        :param name: CIF standard name of the resolution.
+        :type name: basestring
+        :param width: Width of the resolution in pixels.
+        :type width: int
+        :param height: Height of the resolution in pixels.
+        :type height: int
+        """
+        super(CIFVideoResolution, self).__init__(width, height)
+
+        self.name = name
+
+    def __str__(self):
+        return "%s (%dx%d)" % (self.name, self.width, self.height)
+
+    def __repr__(self):
+        return "CIFVideoResolution(name=%r,width=%r,height=%r)" % (self.name, self.width, self.height)
 
 
 def main():
+    """Start the ROS driver and ROS node."""
     rospy.init_node("axis_driver")
 
     arg_defaults = {
         'hostname': '192.168.0.90',       # default IP address
-        'username': 'root',               # default login name
-        'password': '',
-        'width': 640,
-        'height': 480,
+        'username': None,               # default login name
+        'password': None,
+        'width': 704,
+        'height': 576,
         'frame_id': 'axis_camera',
         'camera_info_url': '',
-        'use_encrypted_password' : False,
-        'camera' : 0}
-    args = updateArgs(arg_defaults)
-    Axis(**args)
-    rospy.spin()
+        'use_encrypted_password': False,
+        'camera_id': 1,
+        'auto_wakeup_camera': True,
+        'compression': 0,
+        'fps': 24,
+        'use_color': True,
+        'use_square_pixels': False,
+        }
+    args = read_args_with_defaults(arg_defaults)
+    axis = Axis(**args)
 
-def updateArgs(arg_defaults):
-    '''Look up parameters starting in the driver's private parameter space, but
-    also searching outer namespaces.  Defining them in a higher namespace allows
-    the axis_ptz.py script to share parameters with the driver.'''
+    rate = rospy.Rate(1)
+
+    while not rospy.is_shutdown():
+        axis.diagnostic_updater.update()
+        try:
+            rate.sleep()
+        except rospy.ROSTimeMovedBackwardsException:
+            rospy.logwarn("Detected jump back in time.")
+
+
+class PausableDiagnosedPublisher(DiagnosedPublisher):
+    def __init__(self, axis, pub, diag, freq, stamp):
+        DiagnosedPublisher.__init__(self, pub, diag, freq, stamp)
+        self._axis = axis
+
+    def run(self, stat):
+        if self._axis._streaming_thread is None or  self._axis._streaming_thread.is_paused():
+            stat.summary(DiagnosticStatusWrapper.OK, "Video not subscribed")
+        else:
+            stat = DiagnosedPublisher.run(self, stat)
+        return stat
+
+
+def read_args_with_defaults(arg_defaults):
+    """Look up parameters starting in the driver's private parameter space, but also searching outer namespaces.
+    Defining them in a higher namespace allows the axis_ptz.py script to share parameters with the driver."""
     args = {}
     for name, val in arg_defaults.iteritems():
         full_name = rospy.search_param(name)
@@ -211,7 +644,7 @@ def updateArgs(arg_defaults):
             if prefix_val[0] != '/':          # prefix not absolute?
                 prefix_val = '/' + prefix_val
         args['frame_id'] = prefix_val + '/' + args['frame_id']
-    return(args)
+    return args
 
 if __name__ == "__main__":
     main()
