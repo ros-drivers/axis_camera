@@ -14,7 +14,7 @@ relatively stable, but may still change.
 
 There is no released code API.
 
-:warning:**Warning**::
+:warning:**Warning**
 > The master branch normally contains code being tested for the next
 > ROS release.  It does not always work with previous ROS distributions.
 > Sometimes, it may not work at all.
