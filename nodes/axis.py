@@ -69,7 +69,7 @@ class StreamThread(threading.Thread):
         try:
             self.fp = urllib2.urlopen(self.url, timeout=self.timeoutSeconds)
             return(True)
-        except urllib2.URLError, e:
+        except urllib2.URLError as e:
             rospy.logwarn('Error opening URL %s' % (self.url) +
                             'Possible timeout.  Looping until camera appears')
             return(False)
