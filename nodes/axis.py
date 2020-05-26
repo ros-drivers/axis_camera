@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Axis camera image driver. Based on:
 # https://code.ros.org/svn/wg-ros-pkg/branches/trunk_cturtle/sandbox/axis_camera
@@ -6,9 +6,9 @@
 #
 
 import threading
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
-import rospy 
+import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 import camera_info_manager
 
@@ -33,7 +33,7 @@ class StreamThread(threading.Thread):
 
     def formURL(self):
         self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-        self.url += "?fps=0&resolution=%dx%d" % (self.axis.width, 
+        self.url += "?fps=0&resolution=%dx%d" % (self.axis.width,
                                                             self.axis.height)
 
         # support for Axis F34 multicamera switch
@@ -47,29 +47,29 @@ class StreamThread(threading.Thread):
         used this method (yet).'''
         if self.axis.password != '' and self.axis.username != '':
             # create a password manager
-            password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
 
             # Add the username and password, use default realm.
             top_level_url = "http://" + self.axis.hostname
-            password_mgr.add_password(None, top_level_url, self.axis.username, 
+            password_mgr.add_password(None, top_level_url, self.axis.username,
                                                             self.axis.password)
-            if self.axis.use_encrypted_password :
-                handler = urllib2.HTTPDigestAuthHandler(password_mgr)
+            if self.axis.use_encrypted_password:
+                handler = urllib.request.HTTPDigestAuthHandler(password_mgr)
             else:
-                handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+                handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
 
             # create "opener" (OpenerDirector instance)
-            opener = urllib2.build_opener(handler)
+            opener = urllib.request.build_opener(handler)
 
             # ...and install it globally so it can be used with urlopen.
-            urllib2.install_opener(opener)
-    
+            urllib.request.install_opener(opener)
+
     def openURL(self):
         '''Open connection to Axis camera using http'''
         try:
-            self.fp = urllib2.urlopen(self.url, timeout=self.timeoutSeconds)
+            self.fp = urllib.request.urlopen(self.url, timeout=self.timeoutSeconds)
             return(True)
-        except urllib2.URLError as e:
+        except urllib.error.URLError as e:
             rospy.logwarn('Error opening URL %s' % (self.url) +
                             'Possible timeout.  Looping until camera appears')
             return(False)
@@ -82,8 +82,9 @@ class StreamThread(threading.Thread):
                 self.getImage()
                 self.publishMsg()
                 self.publishCameraInfoMsg()
+
             except:
-                rospy.loginfo('Timed out while trying to get message.')
+                rospy.logwarn('Timed out while trying to get message.')
                 break
 
     def findBoundary(self):
@@ -91,7 +92,7 @@ class StreamThread(threading.Thread):
         Axis cameras'''
         while(True):
             boundary = self.fp.readline()
-            if boundary=='--myboundary\r\n':
+            if boundary == b'--myboundary\r\n':
                 break
 
     def getImage(self):
@@ -103,18 +104,18 @@ class StreamThread(threading.Thread):
         self.header = {}
         while(True):
             line = self.fp.readline()
-            if line == "\r\n":
+            if line == b'\r\n':
                 break
             line = line.strip()
-            parts = line.split(": ", 1)
+            parts = line.split(b": ", 1)
             try:
                 self.header[parts[0]] = parts[1]
             except:
                 rospy.logwarn('Problem encountered with image header.  Setting '
                                                     'content_length to zero')
-                self.header['Content-Length'] = 0 # set content_length to zero if 
+                self.header[b'Content-Length'] = 0 # set content_length to zero if
                                             # there is a problem reading header
-        self.content_length = int(self.header['Content-Length'])
+        self.content_length = int(self.header[b'Content-Length'])
 
     def getImageData(self):
         '''Get the binary image data itself (ie. without header)'''
@@ -141,7 +142,7 @@ class StreamThread(threading.Thread):
         self.axis.caminfo_pub.publish(cimsg)
 
 class Axis:
-    def __init__(self, hostname, username, password, width, height, frame_id, 
+    def __init__(self, hostname, username, password, width, height, frame_id,
                  camera_info_url, use_encrypted_password, camera):
         self.hostname = hostname
         self.username = username
@@ -152,7 +153,7 @@ class Axis:
         self.camera_info_url = camera_info_url
         self.use_encrypted_password = use_encrypted_password
         self.camera = camera
-        
+
         # generate a valid camera name based on the hostname
         self.cname = camera_info_manager.genCameraName(self.hostname)
         self.cinfo = camera_info_manager.CameraInfoManager(cname = self.cname,
@@ -186,7 +187,7 @@ def main():
         'frame_id': 'axis_camera',
         'camera_info_url': '',
         'use_encrypted_password' : False,
-        'camera' : 0}
+        'camera' : 0 }
     args = updateArgs(arg_defaults)
     Axis(**args)
     rospy.spin()
@@ -196,7 +197,7 @@ def updateArgs(arg_defaults):
     also searching outer namespaces.  Defining them in a higher namespace allows
     the axis_ptz.py script to share parameters with the driver.'''
     args = {}
-    for name, val in arg_defaults.iteritems():
+    for name, val in arg_defaults.items():
         full_name = rospy.search_param(name)
         if full_name is None:
             args[name] = val

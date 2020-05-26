@@ -44,8 +44,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'axis_camera'
-copyright = u'2012, Ryan Gariepy'
+project = 'axis_camera'
+copyright = '2012, Ryan Gariepy'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -187,8 +187,8 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'axis_camera.tex', u'ROS Axis camera driver.',
-   u'Ryan Gariepy', 'manual'),
+  ('index', 'axis_camera.tex', 'ROS Axis camera driver.',
+   'Ryan Gariepy', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -217,8 +217,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'axis_camera', u'ROS Python Axis camera driver.',
-     [u'Ryan Gariepy'], 1)
+    ('index', 'axis_camera', 'ROS Python Axis camera driver.',
+     ['Ryan Gariepy'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -231,8 +231,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'axis_camera', u'axis_camera Documentation',
-   u'Ryan Gariepy', 'axis_camera', 'ROS Axis camera driver.',
+  ('index', 'axis_camera', 'axis_camera Documentation',
+   'Ryan Gariepy', 'axis_camera', 'ROS Axis camera driver.',
    'Miscellaneous'),
 ]
 
