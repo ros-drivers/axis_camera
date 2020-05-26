@@ -11,6 +11,7 @@
     <param name="hostname" value="$(arg hostname)" />
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
+    <param name="camera" value="0" />
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
 
