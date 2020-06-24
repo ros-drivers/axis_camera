@@ -11,7 +11,8 @@
                               (default: use generic axis_camera calibration)
 -->
 <launch>
-  <arg name="camera" default="axis_camera" />
+  <arg name="camera_name" default="axis" />
+  <arg name="camera" default="1" />
   <arg name="hostname" default="192.168.0.90" />
   <arg name="username" default="root" />
   <arg name="password" />
@@ -24,7 +25,8 @@
       <param name="hostname" value="$(arg hostname)" />
       <param name="username" value="$(arg username)" />
       <param name="password" value="$(arg password)" />
-      <param name="frame_id" value="$(arg camera)" />
+      <param name="frame_id" value="$(arg camera_name)" />
+      <param name="camera"   value="$(arg camera)" />
       <param name="camera_info_url" value="$(arg camera_info_url)" />
     </node>
 
