@@ -1,6 +1,38 @@
 Change history
 ==============
 
+0.3.1 (2020-12-10)
+------------------
+* Merge pull request `#62 <https://github.com/ros-drivers/axis_camera/issues/62>`_ from ros-drivers/teleop-axis
+  Fixed tele-op axis params.
+* Merge pull request `#55 <https://github.com/ros-drivers/axis_camera/issues/55>`_ from sgemme-csa/master
+  KeyError in publishCameraState when camera is not ready on PTZ camera
+* Expose the height & width parameters as arguments in the launch file
+* Merge pull request `#56 <https://github.com/ros-drivers/axis_camera/issues/56>`_ from jeff-o/patch-1
+  Update axis.launch
+* Merge pull request `#58 <https://github.com/ros-drivers/axis_camera/issues/58>`_ from luishowell/master
+  add support for quad video
+* Merge pull request `#61 <https://github.com/ros-drivers/axis_camera/issues/61>`_ from cclauss/patch-1
+  Fix Python 3 syntax error
+* Remove the html_static directory from conf.py; it doesn't exist anyway and is just creating a warning that's causing Jenkins to see the build as unstable
+* Fix Python 3 syntax error
+  `#52 <https://github.com/ros-drivers/axis_camera/issues/52>`_ again
+* Copy the README contents to the .md so they show up on the github main page
+* Update the maintainer now that Clearpath is officially maintaining this package again
+* Merge pull request `#54 <https://github.com/ros-drivers/axis_camera/issues/54>`_ from k-okada/add_travis
+  update travis.yml
+* add support for quad video
+* Update axis.launch
+  Adds the "camera" param to the launch file. Helps launch the driver cleanly when used with other drivers that also use "camera" as a param name.
+* No need to close connection as it will get garbage collected
+* Merge remote-tracking branch 'csa/develop' into github-master
+* Adjusting error message on KeyError
+* Merge remote-tracking branch 'github/master' into develop
+* Merge branch 'develop' of git+ssh://liberty/data/git/ros/axis_camera into develop
+* Fixing camera telemetry where accessing its telemetry before a certain time after startup would causes a KeyError because the fields in the response were not present. Now catching the KeyError exception to fix the problem.
+* Fixing connection problem which was causing the telemetry to stall
+* Contributors: Chris I-B, Christian Clauss, Howell, Jeff Schmidt, Kei Okada, Sebastien Gemme, Tony Baltovski
+
 0.3.0 (2018-05-25)
 ------------------
 * Merge pull request `#49 <https://github.com/ros-drivers/axis_camera/issues/49>`_ from rossctaylor/feature/support_for_f34
