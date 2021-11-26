@@ -15,6 +15,7 @@
   <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>python3-setuptools</buildtool_depend>
 
   <build_depend>camera_info_manager_py</build_depend>
   <build_depend>geometry_msgs</build_depend>

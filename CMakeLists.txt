@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(axis_camera)
 
 find_package(catkin REQUIRED
@@ -17,7 +17,7 @@ generate_dynamic_reconfigure_options(cfg/PTZ.cfg)
 
 catkin_package()
 
-install(PROGRAMS
+catkin_install_python(PROGRAMS
   nodes/axis.py
   nodes/axis_ptz.py
   nodes/publish_axis_tf.py
