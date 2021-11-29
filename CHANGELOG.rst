@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.0 (2021-11-29)
+------------------
 * upgraded cmakelist and package.xml, and setup.py for noetic (`#70 <https://github.com/ros-drivers/axis_camera/issues/70>`_)
 * Update the python files to be python-3 compliant.  Fix some bugs in the image data parsing needed as part of this update
 * Merge pull request `#55 <https://github.com/ros-drivers/axis_camera/issues/55>`_ from sgemme-csa/master
