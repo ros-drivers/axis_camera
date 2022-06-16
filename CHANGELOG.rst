@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.1 (2022-06-16)
+------------------
 * Fix the #! lines to use python3, decode the utf8 bytes into a string to suppress a warning when parsing the camera position
 * Contributors: Chris Iverach-Brereton
 
