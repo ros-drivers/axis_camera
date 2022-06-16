@@ -1,6 +1,11 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Fix the #! lines to use python3, decode the utf8 bytes into a string to suppress a warning when parsing the camera position
+* Contributors: Chris Iverach-Brereton
+
 0.4.0 (2021-11-29)
 ------------------
 * upgraded cmakelist and package.xml, and setup.py for noetic (`#70 <https://github.com/ros-drivers/axis_camera/issues/70>`_)
