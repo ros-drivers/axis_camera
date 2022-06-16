@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Basic PTZ node, based on documentation here:
 #   http://www.axis.com/files/manuals/vapix_ptz_45621_en_1112.pdf
@@ -47,6 +47,7 @@ class StateThread(threading.Thread):
                 body = response.read()
                 new_camera_position = dict()
                 for s in body.splitlines():
+                    s = s.decode('utf-8')
                     field_and_value = s.split('=', 2)
                     if len(field_and_value) == 2:
                         # On some PTZ cameras (AXIS 212 PTZ for example)
