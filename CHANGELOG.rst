@@ -1,6 +1,11 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Explicitly use Python3 in shebang for teleop nodes; remove unnecessary shebang in setup.py (`#72 <https://github.com/ros-drivers/axis_camera/issues/72>`_)
+* Contributors: Joey Yang
+
 0.4.1 (2022-06-16)
 ------------------
 * Fix the #! lines to use python3, decode the utf8 bytes into a string to suppress a warning when parsing the camera position
