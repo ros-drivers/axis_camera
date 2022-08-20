@@ -33,7 +33,7 @@ class StreamThread(threading.Thread):
 
     def formURL(self):
         self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-        self.url += "?fps=0&resolution=%dx%d" % (self.axis.width,
+        self.url += "?fps=%d&resolution=%dx%d" % (self.axis.fps, self.axis.width,
                                                             self.axis.height)
 
         # support for Axis F34 multicamera switch
@@ -142,13 +142,14 @@ class StreamThread(threading.Thread):
         self.axis.caminfo_pub.publish(cimsg)
 
 class Axis:
-    def __init__(self, hostname, username, password, width, height, frame_id,
+    def __init__(self, hostname, username, password, width, height, fps, frame_id,
                  camera_info_url, use_encrypted_password, camera):
         self.hostname = hostname
         self.username = username
         self.password = password
         self.width = width
         self.height = height
+        self.fps = fps
         self.frame_id = frame_id
         self.camera_info_url = camera_info_url
         self.use_encrypted_password = use_encrypted_password
@@ -184,6 +185,7 @@ def main():
         'password': '',
         'width': 640,
         'height': 480,
+        'fps': 0,                         # frames per second (0 = camera default)
         'frame_id': 'axis_camera',
         'camera_info_url': '',
         'use_encrypted_password' : False,
