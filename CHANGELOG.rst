@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.3 (2022-08-22)
+------------------
 * Merge pull request `#73 <https://github.com/ros-drivers/axis_camera/issues/73>`_ from jhiggins-cpr/noetic-devel
   Add frames-per-second (fps) as a configurable option
 * Reverting package change as it happens automatically
