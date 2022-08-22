@@ -1,6 +1,14 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Merge pull request `#73 <https://github.com/ros-drivers/axis_camera/issues/73>`_ from jhiggins-cpr/noetic-devel
+  Add frames-per-second (fps) as a configurable option
+* Reverting package change as it happens automatically
+* Add frames-per-second (fps) as a configurable option
+* Contributors: Jason Higgins, Tony Baltovski
+
 0.4.2 (2022-07-29)
 ------------------
 * Explicitly use Python3 in shebang for teleop nodes; remove unnecessary shebang in setup.py (`#72 <https://github.com/ros-drivers/axis_camera/issues/72>`_)
