@@ -14,7 +14,7 @@ import time
 import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import Bool
-from std_srvs.srv import SetBool, SetBoolResponse
+from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 import camera_info_manager
 
 class StreamThread(threading.Thread):
@@ -148,7 +148,7 @@ class StreamThread(threading.Thread):
 
 class Axis:
     def __init__(self, hostname, username, password, width, height, fps, frame_id,
-                 camera_info_url, use_encrypted_password, camera, ir, wiper):
+                 camera_info_url, use_encrypted_password, camera, ir, defog, wiper):
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -159,6 +159,12 @@ class Axis:
         self.camera_info_url = camera_info_url
         self.use_encrypted_password = use_encrypted_password
         self.camera = camera
+
+        self.http_headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+            'From': f'http://{self.hostname}'
+        }
+        self.http_auth = requests.auth.HTTPDigestAuth(self.username, self.password)
 
         # generate a valid camera name based on the hostname
         self.cname = camera_info_manager.genCameraName(self.hostname)
@@ -178,6 +184,8 @@ class Axis:
             self.ir_on_pub_thread = threading.Thread(target=self.ir_on_pub_thread_fn)
             self.ir_on_pub_thread.start()
 
+            self.handle_toggle_ir(SetBoolRequest(False))
+
         # The Axis Q6215 is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if wiper:
@@ -187,6 +195,19 @@ class Axis:
             self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1)
             self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
             self.wiper_on_pub_thread.start()
+
+            self.handle_toggle_wiper(SetBoolRequest(False))
+
+        # The Axis Q6215 is equipped with a defogger
+        # If this option is enabled, add the necessary services and topics
+        if wiper:
+            self.defog_on = False
+            self.defog_on_off_srv = rospy.Service('set_defog_on', SetBool, self.handle_toggle_defog)
+            self.defog_on_pub = rospy.Publisher('defog_on', Bool, queue_size=1)
+            self.defog_on_pub_thread = threading.Thread(target=self.defog_on_pub_thread_fn)
+            self.defog_on_pub_thread.start()
+
+            self.handle_toggle_defog(SetBoolRequest(False))
 
     def __str__(self):
         """Return string representation."""
@@ -210,25 +231,19 @@ class Axis:
         try:
             self.ir_on = req.data
 
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
-                'From': f'http://{self.hostname}'
-            }
-            auth = requests.auth.HTTPDigestAuth(self.username, self.password)
-
             # Set the IR led on/off as needed
             if self.ir_on:
                 post_data = '{"apiVersion": "1.0", "method": "enableLight", "params": {"lightID": "led0"}}'
             else:
                 post_data = '{"apiVersion": "1.0", "method": "disableLight", "params": {"lightID": "led0"}}'
-            requests.post(f"http://{self.hostname}/axis-cgi/lightcontrol.cgi", post_data, auth=auth, headers=headers)
+            requests.post(f"http://{self.hostname}/axis-cgi/lightcontrol.cgi", post_data, auth=self.http_auth, headers=self.http_headers)
 
             # Enable/disable the IR filter
             if self.ir_on:
                 get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}"
             else:
                 get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}"
-            requests.get(get_url, auth=auth, headers=headers)
+            requests.get(get_url, auth=self.http_auth, headers=self.http_headers)
 
             resp.message = f"IR mode is {on_off[req.data]}"
         except Exception as err:
@@ -256,19 +271,13 @@ class Axis:
         resp = SetBoolResponse()
         resp.success = True
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
-                'From': f'http://{self.hostname}'
-            }
-            auth = requests.auth.HTTPDigestAuth(self.username, self.password)
-
             if self.wiper_on:
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "start", "params": {"id": 0, "duration": 10}}'
                 self.wiper_on_time = datetime.datetime.utcnow()
             else:
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "stop", "params": {"id": 0}}'
 
-            requests.post(f"http://{self.hostname}/axis-cgi/clearviewcontrol.cgi", post_data, auth=auth, headers=headers)
+            requests.post(f"http://{self.hostname}/axis-cgi/clearviewcontrol.cgi", post_data, auth=self.http_auth, headers=self.http_headers)
 
             resp.message = f"Wiper is {on_off[self.wiper_on]}"
         except Exception as err:
@@ -276,7 +285,6 @@ class Axis:
             resp.success = False
             resp.message = str(err)
         return resp
-
 
     def wiper_on_pub_thread_fn(self):
         """Publish whether the wiper is running or not at 1Hz"""
@@ -289,6 +297,37 @@ class Axis:
             self.wiper_on_pub.publish(Bool(self.wiper_on))
             rate.sleep()
 
+    def handle_toggle_defog(self, req):
+        """Turn the defogger on/off (if supported)"""
+        on_off = {
+            True: "on",
+            False: "off"
+        }
+
+        self.defog_on = req.data
+        resp = SetBoolResponse()
+        resp.success = True
+        try:
+            if self.defog_on:
+                get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=on&timestamp={int(time.time())}"
+            else:
+                get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=off&timestamp={int(time.time())}"
+
+            requests.get(get_url, auth=self.http_auth, headers=self.http_headers)
+
+            resp.message = f"Defogger is {on_off[self.defog_on]}"
+        except Exception as err:
+            rospy.logwarn(f"Failed to set defogger mode: {err}")
+            resp.success = False
+            resp.message = str(err)
+        return resp
+
+    def defog_on_pub_thread_fn(self):
+        """Publish the state of the defogger at 1Hz"""
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.defog_on_pub.publish(Bool(self.defog_on))
+            rate.sleep()
 
 def main():
     rospy.init_node("axis_driver")
@@ -305,6 +344,7 @@ def main():
         'use_encrypted_password' : False,
         'camera' : 0,
         'ir': False,
+        'defog': False,
         'wiper': False }
     args = updateArgs(arg_defaults)
     Axis(**args)
