@@ -7,11 +7,13 @@
 
 import threading
 import urllib.request, urllib.error, urllib.parse
+import requests, requests.auth
+import time
 
 import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import Bool
-from std_srvs.srv import SetBool
+from std_srvs.srv import SetBool, SetBoolResponse
 import camera_info_manager
 
 class StreamThread(threading.Thread):
@@ -184,7 +186,6 @@ class Axis:
             self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
             self.wiper_on_pub_thread.start()
 
-
     def __str__(self):
         """Return string representation."""
         return(self.hostname + ',' + self.username + ',' + self.password +
@@ -198,8 +199,42 @@ class Axis:
 
     def handle_toggle_ir(self, req):
         """Turn the IR mode on/off (if supported)"""
-        # TODO: figure out the URL endpoint to toggle the IR mode
-        self.ir_on = req.data
+        resp = SetBoolResponse()
+        resp.success = True
+        on_off = {
+            True: "on",
+            False: "off"
+        }
+        try:
+            self.ir_on = req.data
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+                'From': f'http://{self.hostname}'
+            }
+            auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+
+            # Set the IR led on/off as needed
+            if self.ir_on:
+                post_data = '{"apiVersion": "1.0", "method": "enableLight", "params": {"lightID": "led0"}}'
+            else:
+                post_data = '{"apiVersion": "1.0", "method": "disableLight", "params": {"lightID": "led0"}}'
+            requests.post(f"http://{self.hostname}/axis-cgi/lightcontrol.cgi", post_data, auth=auth, headers=headers)
+
+            # Enable/disable the IR filter
+            if self.ir_on:
+                get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}"
+            else:
+                get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}"
+            requests.get(get_url, auth=auth, headers=headers)
+
+            resp.message = f"IR mode is {on_off[req.data]}"
+        except Exception as err:
+            rospy.logwarn(f"Failed to set IR mode: {err}")
+            ok = False
+            resp.message = str(err)
+
+        return resp
 
     def ir_on_pub_thread_fn(self):
         """Publish whether the IR mode is on or off at 1Hz"""
@@ -210,7 +245,6 @@ class Axis:
 
     def handle_toggle_wiper(self, req):
         """Turn the wiper on/off (if supported)"""
-        # TODO: figure out the URL endpoint to toggle the wiper
         self.wiper_on = req.data
 
     def wiper_on_pub_thread_fn(self):
@@ -238,7 +272,6 @@ def main():
         'ir': False,
         'wiper': False }
     args = updateArgs(arg_defaults)
-    rospy.logwarn(args)
     Axis(**args)
     rospy.spin()
 

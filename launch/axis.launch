@@ -1,6 +1,9 @@
 <launch>
   <arg name="camera_name" default="axis" />
   <arg name="hostname" default="192.168.0.90" />
+  <arg name="username" default="root" />
+  <arg name="password" default="pass" />
+
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
   <arg name="enable_ptz_teleop" default="0" />
@@ -12,6 +15,8 @@
 
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
+    <param name="username" value="$(arg username)" />
+    <param name="password" value="$(arg password)" />
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
