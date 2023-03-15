@@ -4,6 +4,8 @@
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
   <arg name="enable_ptz_teleop" default="0" />
+  <arg name="enable_ir" default="0" />
+  <arg name="enable_wiper" default="0" />
   <arg name="width" default="640" />
   <arg name="height" default="480" />
   <arg name="camera" default="1" />
@@ -13,6 +15,10 @@
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
+    <param name="frame_id" default="$(arg camera_name)" />
+    <param name="wiper" default="$(arg enable_wiper)" />
+    <param name="ir" default="$(arg enable_ir)" />
+
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
 

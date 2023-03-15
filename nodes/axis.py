@@ -10,6 +10,8 @@ import urllib.request, urllib.error, urllib.parse
 
 import rospy
 from sensor_msgs.msg import CompressedImage, CameraInfo
+from std_msgs.msg import Bool
+from std_srvs.srv import SetBool
 import camera_info_manager
 
 class StreamThread(threading.Thread):
@@ -143,7 +145,7 @@ class StreamThread(threading.Thread):
 
 class Axis:
     def __init__(self, hostname, username, password, width, height, fps, frame_id,
-                 camera_info_url, use_encrypted_password, camera):
+                 camera_info_url, use_encrypted_password, camera, ir, wiper):
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -164,6 +166,25 @@ class Axis:
         self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=1)
         self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=1)
 
+        # The Axis Q6215 supports a night-vision mode with an active IR illuminator
+        # If this option is enabled, add the necessary services and topics
+        if ir:
+            self.ir_on = False
+            self.ir_on_off_srv = rospy.Service('set_ir_on', SetBool, self.handle_toggle_ir)
+            self.ir_on_pub = rospy.Publisher('ir_on', Bool, queue_size=1)
+            self.ir_on_pub_thread = threading.Thread(target=self.ir_on_pub_thread_fn)
+            self.ir_on_pub_thread.start()
+
+        # The Axis Q6215 is equipped with a wiper on the camera lens
+        # If this option is enabled, add the necessary services and topics
+        if wiper:
+            self.wiper_on = False
+            self.wiper_on_off_srv = rospy.Service('set_wiper_on', SetBool, self.handle_toggle_wiper)
+            self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1)
+            self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
+            self.wiper_on_pub_thread.start()
+
+
     def __str__(self):
         """Return string representation."""
         return(self.hostname + ',' + self.username + ',' + self.password +
@@ -174,6 +195,30 @@ class Axis:
         if self.st is None:
             self.st = StreamThread(self)
             self.st.start()
+
+    def handle_toggle_ir(self, req):
+        """Turn the IR mode on/off (if supported)"""
+        # TODO: figure out the URL endpoint to toggle the IR mode
+        pass
+
+    def ir_on_pub_thread_fn(self):
+        """Publish whether the IR mode is on or off at 1Hz"""
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.ir_on_pub_thread.publish(Bool(self.ir_on))
+            rate.sleep()
+
+    def handle_toggle_wiper(self, req):
+        """Turn the wiper on/off (if supported)"""
+        # TODO: figure out the URL endpoint to toggle the wiper
+        pass
+
+    def wiper_on_pub_thread_fn(self):
+        """Publish whether the wiper is running or not at 1Hz"""
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.wiper_on_pub_thread.publish(Bool(self.wiper_on))
+            rate.sleep()
 
 
 def main():
@@ -189,7 +234,9 @@ def main():
         'frame_id': 'axis_camera',
         'camera_info_url': '',
         'use_encrypted_password' : False,
-        'camera' : 0 }
+        'camera' : 0,
+        'ir': False,
+        'wiper': False }
     args = updateArgs(arg_defaults)
     Axis(**args)
     rospy.spin()
