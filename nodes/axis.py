@@ -199,25 +199,25 @@ class Axis:
     def handle_toggle_ir(self, req):
         """Turn the IR mode on/off (if supported)"""
         # TODO: figure out the URL endpoint to toggle the IR mode
-        pass
+        self.ir_on = req.data
 
     def ir_on_pub_thread_fn(self):
         """Publish whether the IR mode is on or off at 1Hz"""
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.ir_on_pub_thread.publish(Bool(self.ir_on))
+            self.ir_on_pub.publish(Bool(self.ir_on))
             rate.sleep()
 
     def handle_toggle_wiper(self, req):
         """Turn the wiper on/off (if supported)"""
         # TODO: figure out the URL endpoint to toggle the wiper
-        pass
+        self.wiper_on = req.data
 
     def wiper_on_pub_thread_fn(self):
         """Publish whether the wiper is running or not at 1Hz"""
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.wiper_on_pub_thread.publish(Bool(self.wiper_on))
+            self.wiper_on_pub.publish(Bool(self.wiper_on))
             rate.sleep()
 
 
@@ -238,6 +238,7 @@ def main():
         'ir': False,
         'wiper': False }
     args = updateArgs(arg_defaults)
+    rospy.logwarn(args)
     Axis(**args)
     rospy.spin()
 

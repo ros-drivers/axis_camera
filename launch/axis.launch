@@ -15,9 +15,9 @@
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
-    <param name="frame_id" default="$(arg camera_name)" />
-    <param name="wiper" default="$(arg enable_wiper)" />
-    <param name="ir" default="$(arg enable_ir)" />
+    <param name="frame_id" value="$(arg camera_name)" />
+    <param name="wiper" value="$(arg enable_wiper)" />
+    <param name="ir" value="$(arg enable_ir)" />
 
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
