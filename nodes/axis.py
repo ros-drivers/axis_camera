@@ -8,6 +8,7 @@
 import threading
 import urllib.request, urllib.error, urllib.parse
 import requests, requests.auth
+import datetime
 import time
 
 import rospy
@@ -180,6 +181,7 @@ class Axis:
         # The Axis Q6215 is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if wiper:
+            self.wiper_on_time = datetime.datetime.utcnow()
             self.wiper_on = False
             self.wiper_on_off_srv = rospy.Service('set_wiper_on', SetBool, self.handle_toggle_wiper)
             self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1)
@@ -245,12 +247,45 @@ class Axis:
 
     def handle_toggle_wiper(self, req):
         """Turn the wiper on/off (if supported)"""
+        on_off = {
+            True: "on",
+            False: "off"
+        }
+
         self.wiper_on = req.data
+        resp = SetBoolResponse()
+        resp.success = True
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+                'From': f'http://{self.hostname}'
+            }
+            auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+
+            if self.wiper_on:
+                post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "start", "params": {"id": 0, "duration": 10}}'
+                self.wiper_on_time = datetime.datetime.utcnow()
+            else:
+                post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "stop", "params": {"id": 0}}'
+
+            requests.post(f"http://{self.hostname}/axis-cgi/clearviewcontrol.cgi", post_data, auth=auth, headers=headers)
+
+            resp.message = f"Wiper is {on_off[self.wiper_on]}"
+        except Exception as err:
+            rospy.logwarn(f"Failed to set wiper mode: {err}")
+            resp.success = False
+            resp.message = str(err)
+        return resp
+
 
     def wiper_on_pub_thread_fn(self):
         """Publish whether the wiper is running or not at 1Hz"""
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
+            # the wiper shuts off automatically after 10s
+            if (datetime.datetime.utcnow() - self.wiper_on_time).total_seconds() > 10:
+                self.wiper_on = False
+
             self.wiper_on_pub.publish(Bool(self.wiper_on))
             rate.sleep()
 
