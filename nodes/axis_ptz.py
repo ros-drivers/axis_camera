@@ -4,7 +4,8 @@
 #   http://www.axis.com/files/manuals/vapix_ptz_45621_en_1112.pdf
 #
 import threading
-import http.client, urllib.request, urllib.parse, urllib.error
+import requests, requests.auth
+import urllib.parse
 import rospy
 from axis_camera.msg import Axis
 from std_msgs.msg import Bool
@@ -35,33 +36,34 @@ class StateThread(threading.Thread):
     def queryCameraPosition(self):
         '''Using Axis VAPIX protocol, described in the comments at the top of
         this file, is used to query the state of the camera'''
+
         queryParams = { 'query':'position' }
-        conn = http.client.HTTPConnection(self.axis.hostname)
 
         try:
-            conn.request("GET", "/axis-cgi/com/ptz.cgi?%s" %
-                                                urllib.parse.urlencode(queryParams))
-            response = conn.getresponse()
-            # Response code 200 means there are data to be read:
-            if response.status == 200:
-                body = response.read()
-                new_camera_position = dict()
-                for s in body.splitlines():
-                    s = s.decode('utf-8')
-                    field_and_value = s.split('=', 2)
-                    if len(field_and_value) == 2:
-                        # On some PTZ cameras (AXIS 212 PTZ for example)
-                        # The returning string has a newline at the end
-                        # so if we don't have a field AND value, don't insert
-                        new_camera_position[field_and_value[0]] = field_and_value[1]
+            url = f"http://{self.axis.hostname}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}"
+            resp = requests.get(url, auth=self.axis.http_auth, timeout=self.axis.http_timeout, headers=self.axis.http_headers)
+
+            if resp.status_code == requests.status_codes.codes.ok:
+                # returns a string of the form
+                #   pan=-0.01
+                #   tilt=-45.03
+                #   zoom=1
+                #   iris=5748
+                #   focus=4642
+                #   brightness=4999
+                #   autofocus=on
+                #   autoiris=on
+                new_camera_position = {}
+                body = resp.text.split()
+                for row in body:
+                    if '=' in row:
+                        (key, value) = row.split('=')
+                        new_camera_position[key.strip()] = value.strip()
+
                 self.cameraPosition = new_camera_position
-            # Response code 401 means authentication error
-            elif response.status == 401:
-                rospy.logwarn('You need to enable anonymous PTZ control login'
-                              'at http://%s -> Setup Basic Setup -> Users' % self.hostname)
             else:
-                self.cameraPosition = None
-                rospy.logwarn('Received HTTP response %i from camera, expecting 200' % response.status)
+                raise Exception(f"HTTP Error querying the camera position: {resp.status_code}")
+
         except Exception as e:
             exception_error_str = "Exception: '" + str(e) + "' when querying the url: http://" + \
                                   self.axis.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.parse.urlencode(queryParams)
@@ -103,10 +105,11 @@ class StateThread(threading.Thread):
 class AxisPTZ:
     '''This class creates a node to manage the PTZ functions of an Axis PTZ
     camera'''
-    def __init__(self, hostname, username, password, flip, speed_control):
+    def __init__(self, hostname, username, password, use_encrypted_password, flip, speed_control):
         self.hostname = hostname
         self.username = username
         self.password = password
+        self.use_encrypted_password = use_encrypted_password
         self.flip = flip
         # speed_control is true for speed control and false for
         # position control:
@@ -118,6 +121,16 @@ class AxisPTZ:
         self.sub = rospy.Subscriber("cmd", Axis, self.cmd, queue_size=1)
         self.sub_mirror = rospy.Subscriber("mirror", Bool, self.mirrorCallback,
                                                                 queue_size=1)
+
+        if self.use_encrypted_password:
+            self.http_auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+        else:
+            self.http_auth = requests.auth.HTTPBasicAuth(self.username, self.password)
+        self.http_headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+            'From': f'http://{self.hostname}'
+        }
+        self.http_timeout = (3, 5)
 
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         '''Lazy-start the state publisher.'''
@@ -215,13 +228,19 @@ class AxisPTZ:
 
     def applySetpoints(self):
         '''Apply set-points to camera via HTTP'''
-        conn = http.client.HTTPConnection(self.hostname)
+
         self.createCmdString()
         try:
-            conn.request('GET', self.cmdString)
-        except:
-            rospy.logwarn('Failed to connect to camera to send command message')
-            conn.close()
+            url = f"http://{self.hostname}/{self.cmdString}"
+            resp = requests.get(url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers)
+
+            if resp.status_code != requests.status_codes.codes.ok:
+                pass
+            else:
+                raise Exception(f"HTTP error {resp.status_code}")
+
+        except Exception as e:
+            rospy.logwarn(f'Failed to connect to camera to send command message: {e}')
 
     def createCmdString(self):
         '''creates http cgi string to command PTZ camera'''
@@ -285,10 +304,11 @@ def main():
 
     arg_defaults = {
         'hostname': '192.168.0.90',
-        'username': '',
+        'username': 'root',
         'password': '',
+        'use_encrypted_password': False,
         'flip': False,  # things get weird if flip=true
-        'speed_control': False
+        'speed_control': False,
         }
     args = {}
 
