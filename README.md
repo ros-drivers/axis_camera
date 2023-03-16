@@ -44,17 +44,33 @@ manufacturer's specifications.
 We recommend configuring the camera to use a static IP address on your robot's internal wired LAN, rather than DHCP.
 Because the driver addresses the camera by hostname or IP address it's easier if the address is constant.
 
-Some cameras work best if you also enable `Anonymous Viewing` and `Anonymous PTZ Commands`, if supported.  This removes
-the need to authenticate to the camera to consume video data or control the PTZ position.
+HTTP Authentication and Anonymous Control
+------------------------------------------
 
+By default most Axis cameras require HTTP authentication to view the camera data & to send PTZ (or other) commands.
 
-Usage
-------
+There are two solutions to this:
+
+1. Log into the camera's web GUI and enable `Anomymous Viewers` and `Anonymous PTZ Operators`. These options can usually
+   be found under settings > Users
+2. Configure the launch file to use a valid Axis user's username and password.  This is done with the `username` and
+   `password` arguments to `axis.launch`.  Some cameras require HTTP Digest authentication instead of basic
+   authentication.  If this is the case for your camera, make sure to also set the `encrypt_password` argument im
+   `axis.launch`.  (The Q62 series cameras are known to require digest authentication.)
+
+Usage Examples
+---------------
 
 Once the camera is configured, simply launch the driver:
 
 ```bash
 roslaunch axis_camera axis.launch hostname:=192.168.0.90 username:=root password:=password
+```
+
+If your camera requires digest authentication instead of basic authentication, set the `encrypt_password` argument:
+
+```bash
+roslaunch axis_camera axis.launch hostname:=192.168.0.90 username:=root password:=password encrypted:=true
 ```
 
 If your camera supports PTZ control, you can enable it with
@@ -77,15 +93,16 @@ The Q62 Series cameras also feature a night-vision mode (adds and IR illuminator
 wiper, and a defogger in addition to the normal PTZ control.  To enable all of this camera's supported features, use
 
 ```bash
-roslaunch axis_camera axis.launch hostname:=192.168.0.90 username:=root password:=password enable_ptz:=true enable_ir:=true enable_defog:=true enable_wiper:=true
+roslaunch axis_camera axis.launch hostname:=192.168.0.90 username:=root password:=password encrypt_password:=true enable_ptz:=true enable_ir:=true enable_defog:=true enable_wiper:=true
 ```
 
 Topics and Services
 --------------------
 
-The camera's main image data is published on `/camera_name/image_raw` as a `sensor_msgs/Image` message.
+The camera's main image data is published on `/camera_name/image_raw/compressed` as a `sensor_msgs/CompressedImage`.
 
-If the `enable_theora` argument is `true` then a the compressed camera data is also available on `/camera_name/image_raw_out`.
+If the `enable_theora` argument is `true` then additional image topics are available in the `/camera_name/image_raw_out`
+namespace, including `/camera_name/image_raw_out/theora` as `theora_image_transport/Packet` messages.
 
 PTZ control (if enabled) uses the `axis_camera/Axis.msg` type:
 
@@ -107,7 +124,7 @@ rostopic pub /camera_name/cmd axis_camera/Axis "{pan: 45.0, tilt: 20.0, zoom: 10
 
 All writable camera properties are set simultaneously.  It is recommended to read the camera's current state from
 `/camera_name/state`, copy the `focus`, `autofocus`, `brightness`, and `iris` parameters, and then set the `pan`,
-`tilt` and `zoom` fields as desired.
+`tilt` and `zoom` fields as desired.  Failure to set the `brightness` field may result in a very dark image.
 
 `pan` and `tilt` are expressed in degrees (for ease of use with Axis' REST API) with positive tilt being upwards and
 positive pan being anticockwise.
