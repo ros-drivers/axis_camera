@@ -2,7 +2,7 @@
   <arg name="camera_name" default="axis" />
   <arg name="hostname" default="192.168.0.90" />
   <arg name="username" default="root" />
-  <arg name="password" default="pass" />
+  <arg name="password" default="" />
   <arg name="encrypt_password" default="false" />
 
   <arg name="enable_theora" default="0" />

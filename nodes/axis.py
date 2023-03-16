@@ -164,7 +164,10 @@ class Axis:
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
             'From': f'http://{self.hostname}'
         }
-        self.http_auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+        if self.use_encrypted_password:
+            self.http_auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+        else:
+            self.http_auth = requests.auth.HTTPBasicAuth(self.username, self.password)
         self.http_timeout = (3, 5)
 
         # generate a valid camera name based on the hostname
@@ -176,7 +179,7 @@ class Axis:
         self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=1)
         self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=1)
 
-        # The Axis Q6215 supports a night-vision mode with an active IR illuminator
+        # The Axis Q62 series supports a night-vision mode with an active IR illuminator
         # If this option is enabled, add the necessary services and topics
         if ir:
             self.ir_on = False
@@ -187,7 +190,7 @@ class Axis:
 
             self.handle_toggle_ir(SetBoolRequest(False))
 
-        # The Axis Q6215 is equipped with a wiper on the camera lens
+        # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if wiper:
             self.wiper_on_time = datetime.datetime.utcnow()
@@ -199,7 +202,7 @@ class Axis:
 
             self.handle_toggle_wiper(SetBoolRequest(False))
 
-        # The Axis Q6215 is equipped with a defogger
+        # The Axis Q62 series is equipped with a defogger
         # If this option is enabled, add the necessary services and topics
         if defog:
             self.defog_on = False
