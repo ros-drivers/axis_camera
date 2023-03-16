@@ -3,6 +3,7 @@
   <arg name="hostname" default="192.168.0.90" />
   <arg name="username" default="root" />
   <arg name="password" default="pass" />
+  <arg name="encrypt_password" default="false" />
 
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
@@ -18,6 +19,7 @@
     <param name="hostname" value="$(arg hostname)" />
     <param name="username" value="$(arg username)" />
     <param name="password" value="$(arg password)" />
+    <param name="use_encrypted_password" value="$(arg encrypt_password)" />
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
