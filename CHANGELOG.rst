@@ -1,6 +1,23 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Improve support for the F34 multi-camera controller by adding default values for the camera index (1-4). Change the camera arg in view_axis to camera_name, change its default IP address to better-match with the main axis.launch file
+* Merge latest changes in master into noetic-devel
+* Merge Q62 support into noetic-devel branch (`#76 <https://github.com/ros-drivers/axis_camera/issues/76>`_)
+  * Add support for the Q6215 IR mode, defogger, and wiper
+  * Ensure that wiper, defog, IR modes are all disabled on startup
+  * Add a launch argument to expose the encrypted password option
+  * Add support for basic & digest HTTP authorization
+  * Rewrite some of the underling CGI calls to use requests to make the code easier to maintain
+  * Add support for authentication to the PTZ node
+  * Enable password encryption in view_axis.launch
+  * Expand the readme with details on usage, supported devices, available topics & services
+  * Add python3-requests as a dependendency
+  * Add support for the autoiris feature available on some cameras
+* Contributors: Chris Iverach-Brereton
+
 0.4.3 (2022-08-22)
 ------------------
 * Merge pull request `#73 <https://github.com/ros-drivers/axis_camera/issues/73>`_ from jhiggins-cpr/noetic-devel
