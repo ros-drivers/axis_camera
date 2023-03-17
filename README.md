@@ -127,7 +127,7 @@ All writable camera properties are set simultaneously.  It is recommended to rea
 `tilt` and `zoom` fields as desired.  Failure to set the `brightness` field may result in a very dark image.
 
 `pan` and `tilt` are expressed in degrees (for ease of use with Axis' REST API) with positive tilt being upwards and
-positive pan being anticockwise.
+positive pan being clockwise.
 
 `zoom` is a value from 1 to 10000, with higher numbers indicating a narrower field of view.
 
