@@ -5,3 +5,4 @@ float32 focus
 float32 brightness
 float32 iris
 bool autofocus
+bool autoiris

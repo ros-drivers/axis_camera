@@ -80,6 +80,7 @@ class StateThread(threading.Thread):
                     self.adjustForFlippedOrientation()
                 self.msg.tilt = float(self.cameraPosition['tilt'])
                 self.msg.zoom = float(self.cameraPosition['zoom'])
+                self.msg.brightness = float(self.cameraPosition['brightness'])
                 self.msg.iris = 0.0
                 if 'iris' in self.cameraPosition:
                     self.msg.iris = float(self.cameraPosition['iris'])
@@ -88,6 +89,8 @@ class StateThread(threading.Thread):
                     self.msg.focus = float(self.cameraPosition['focus'])
                 if 'autofocus' in self.cameraPosition:
                     self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
+                if 'autoiris' in self.cameraPosition:
+                    self.msg.autoiris = (self.cameraPosition['autoiris'] == 'on')
                 self.axis.pub.publish(self.msg)
         except KeyError as e:
             rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
@@ -257,7 +260,10 @@ class AxisPTZ:
             else:
                 self.cmdString += 'autofocus=off&continuousfocusmove=%d&' % \
                                                         (int(self.msg.focus))
-            self.cmdString += 'autoiris=on'
+            if self.msg.autoiris:
+                self.cmdString += 'autoiris=on'
+            else:
+                self.cmdString += 'autoiris=off'
         else: # position control:
             self.cmdString += 'pan=%d&tilt=%d&' % (self.msg.pan, self.msg.tilt)\
                         + 'zoom=%d&' % (int(self.msg.zoom)) \
@@ -267,7 +273,10 @@ class AxisPTZ:
             else:
                 self.cmdString += 'autofocus=off&focus=%d&' % \
                                                         (int(self.msg.focus))
-            self.cmdString += 'autoiris=on'
+            if self.msg.autoiris:
+                self.cmdString += 'autoiris=on'
+            else:
+                self.cmdString += 'autoiris=off'
 
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''

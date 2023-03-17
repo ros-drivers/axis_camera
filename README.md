@@ -29,10 +29,14 @@ Supported Cameras
 The following is a list of cameras that have been tested with this driver and are known to work.  Other cameras may
 also be usable, but have not been tested by the developers/maintainers of this package.
 
-- [M30 Series](https://www.axis.com/en-ca/products/axis-m30-series)
-- [M42 Series](https://www.axis.com/en-ca/products/axis-m42-series)
-- [Q62 Series](https://www.axis.com/en-ca/products/axis-q62-series)
-- [F Series](https://www.axis.com/en-ca/products/axis-f-series)
+If you have used this driver with a specific model of camera not listed below, please submit a PR so we can keep this
+list up-to-date.
+
+- [F Series](https://www.axis.com/products/axis-f-series)
+- [M30 Series](https://www.axis.com/products/axis-m30-series)
+- [P55 Series](https://www.axis.com/products/axis-p55-series)
+- [Q62 Series](https://www.axis.com/products/axis-q62-series)
+
 
 
 Camera Preparation
@@ -114,12 +118,13 @@ float32 focus
 float32 brightness
 float32 iris
 bool autofocus
+bool autoiris
 ```
 
 To write to the camera, use
 
 ```bash
-rostopic pub /camera_name/cmd axis_camera/Axis "{pan: 45.0, tilt: 20.0, zoom: 1000.0, focus: 0.0, brightness: 1.0, iris: 1.0, autofocus: true}" -1
+rostopic pub /camera_name/cmd axis_camera/Axis "{pan: 45.0, tilt: 20.0, zoom: 1000.0, focus: 0.0, brightness: 1.0, iris: 1.0, autofocus: true, autoiris: true}" -1
 ```
 
 All writable camera properties are set simultaneously.  It is recommended to read the camera's current state from
