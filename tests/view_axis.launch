@@ -15,19 +15,18 @@
   <arg name="camera" default="1" />
   <arg name="hostname" default="192.168.0.90" />
   <arg name="username" default="root" />
-  <arg name="password" />
+  <arg name="password" default="" />
+  <arg name="encrypt_password" default="false" />
 
-  <arg name="camera_info_url"
-       default="package://axis_camera/tests/default_calibration.yaml" />
-  <group ns="$(arg camera)">
+  <group ns="$(arg camera_name)">
 
     <node pkg="axis_camera" type="axis.py" name="axis">
       <param name="hostname" value="$(arg hostname)" />
       <param name="username" value="$(arg username)" />
       <param name="password" value="$(arg password)" />
+      <param name="use_encrypted_password" value="$(arg encrypt_password)" />
       <param name="frame_id" value="$(arg camera_name)" />
       <param name="camera"   value="$(arg camera)" />
-      <param name="camera_info_url" value="$(arg camera_info_url)" />
     </node>
 
   <!-- Viewer window -->

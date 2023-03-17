@@ -1,6 +1,39 @@
 Change history
 ==============
 
+0.4.3 (2022-08-22)
+------------------
+* Merge pull request `#73 <https://github.com/ros-drivers/axis_camera/issues/73>`_ from jhiggins-cpr/noetic-devel
+  Add frames-per-second (fps) as a configurable option
+* Reverting package change as it happens automatically
+* Add frames-per-second (fps) as a configurable option
+* Contributors: Jason Higgins, Tony Baltovski
+
+0.4.2 (2022-07-29)
+------------------
+* Explicitly use Python3 in shebang for teleop nodes; remove unnecessary shebang in setup.py (`#72 <https://github.com/ros-drivers/axis_camera/issues/72>`_)
+* Contributors: Joey Yang
+
+0.4.1 (2022-06-16)
+------------------
+* Fix the #! lines to use python3, decode the utf8 bytes into a string to suppress a warning when parsing the camera position
+* Contributors: Chris Iverach-Brereton
+
+0.4.0 (2021-11-29)
+------------------
+* upgraded cmakelist and package.xml, and setup.py for noetic (`#70 <https://github.com/ros-drivers/axis_camera/issues/70>`_)
+* Update the python files to be python-3 compliant.  Fix some bugs in the image data parsing needed as part of this update
+* Merge pull request `#55 <https://github.com/ros-drivers/axis_camera/issues/55>`_ from sgemme-csa/master
+  KeyError in publishCameraState when camera is not ready on PTZ camera
+* Merge branch 'master' of github.com:ros-drivers/axis_camera
+* Expose the height & width parameters as arguments in the launch file
+* Merge pull request `#56 <https://github.com/ros-drivers/axis_camera/issues/56>`_ from jeff-o/patch-1
+  Update axis.launch
+* Revert "Fix up the main scripts to be python-3 compliant"
+  This reverts commit 569e4b22415edee653914fa387a689d2e85e2879.
+* Fix up the main scripts to be python-3 compliant
+* Merge branch 'master' of github.com:ros-drivers/axis_camera
+
 0.3.2 (2021-05-21)
 ------------------
 * Improve support for the F34 and F44 multi-camera controllers by adding default values for the camera index (1-4). Change the camera arg in view_axis to camera_name, change its default IP address to better-match with the main axis.launch file
@@ -22,10 +55,11 @@ Change history
 * Remove the html_static directory from conf.py; it doesn't exist anyway and is just creating a warning that's causing Jenkins to see the build as unstable
 * Fix Python 3 syntax error
   `#52 <https://github.com/ros-drivers/axis_camera/issues/52>`_ again
+* Remove the :: leftover from the .rst
 * Copy the README contents to the .md so they show up on the github main page
 * Update the maintainer now that Clearpath is officially maintaining this package again
 * Merge pull request `#54 <https://github.com/ros-drivers/axis_camera/issues/54>`_ from k-okada/add_travis
-  update travis.yml
+* update travis.yml
 * add support for quad video
 * Update axis.launch
   Adds the "camera" param to the launch file. Helps launch the driver cleanly when used with other drivers that also use "camera" as a param name.
@@ -35,8 +69,9 @@ Change history
 * Merge remote-tracking branch 'github/master' into develop
 * Merge branch 'develop' of git+ssh://liberty/data/git/ros/axis_camera into develop
 * Fixing camera telemetry where accessing its telemetry before a certain time after startup would causes a KeyError because the fields in the response were not present. Now catching the KeyError exception to fix the problem.
+* Fixing camera telemetry where accessing its telemetr before a certain time after startup would cause a KeyError because the fiels in the response were not present, now catchin the KeyError exception to fix the problem
 * Fixing connection problem which was causing the telemetry to stall
-* Contributors: Chris I-B, Christian Clauss, Howell, Jeff Schmidt, Kei Okada, Sebastien Gemme, Tony Baltovski
+* Contributors: Chris I-B, Christian Clauss, Howell, Jeff Schmidt, Kei Okada, Sebastien Gemme, jmastrangelo-cpr
 
 0.3.0 (2018-05-25)
 ------------------

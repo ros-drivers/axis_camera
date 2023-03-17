@@ -1,11 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Basic PTZ node, based on documentation here:
 #   http://www.axis.com/files/manuals/vapix_ptz_45621_en_1112.pdf
 #
 import threading
-import httplib, urllib
-import rospy 
+import requests, requests.auth
+import urllib.parse
+import rospy
 from axis_camera.msg import Axis
 from std_msgs.msg import Bool
 import math
@@ -13,15 +14,15 @@ from dynamic_reconfigure.server import Server
 from axis_camera.cfg import PTZConfig
 
 class StateThread(threading.Thread):
-    '''This class handles the publication of the positional state of the camera 
+    '''This class handles the publication of the positional state of the camera
     to a ROS message'''
-    
+
     def __init__(self, axis):
         threading.Thread.__init__(self)
         self.axis = axis
         # Permit program to exit even if threads are still running by flagging
         # thread as a daemon:
-        self.daemon = True 
+        self.daemon = True
 
     def run(self):
         r = rospy.Rate(1)
@@ -35,39 +36,41 @@ class StateThread(threading.Thread):
     def queryCameraPosition(self):
         '''Using Axis VAPIX protocol, described in the comments at the top of
         this file, is used to query the state of the camera'''
+
         queryParams = { 'query':'position' }
-        conn = httplib.HTTPConnection(self.axis.hostname)
 
         try:
-            conn.request("GET", "/axis-cgi/com/ptz.cgi?%s" % 
-                                                urllib.urlencode(queryParams))
-            response = conn.getresponse()
-            # Response code 200 means there are data to be read:
-            if response.status == 200: 
-                body = response.read()
-                new_camera_position = dict()
-                for s in body.splitlines():
-                    field_and_value = s.split('=', 2)
-                    if len(field_and_value) == 2:
-                        # On some PTZ cameras (AXIS 212 PTZ for example)
-                        # The returning string has a newline at the end
-                        # so if we don't have a field AND value, don't insert
-                        new_camera_position[field_and_value[0]] = field_and_value[1]
+            url = f"http://{self.axis.hostname}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}"
+            resp = requests.get(url, auth=self.axis.http_auth, timeout=self.axis.http_timeout, headers=self.axis.http_headers)
+
+            if resp.status_code == requests.status_codes.codes.ok:
+                # returns a string of the form
+                #   pan=-0.01
+                #   tilt=-45.03
+                #   zoom=1
+                #   iris=5748
+                #   focus=4642
+                #   brightness=4999
+                #   autofocus=on
+                #   autoiris=on
+                new_camera_position = {}
+                body = resp.text.split()
+                for row in body:
+                    if '=' in row:
+                        (key, value) = row.split('=')
+                        new_camera_position[key.strip()] = value.strip()
+
                 self.cameraPosition = new_camera_position
-            # Response code 401 means authentication error
-            elif response.status == 401:
-                rospy.logwarn('You need to enable anonymous PTZ control login' 
-                              'at http://%s -> Setup Basic Setup -> Users' % self.hostname)
             else:
-                self.cameraPosition = None
-                rospy.logwarn('Received HTTP response %i from camera, expecting 200' % response.status)
+                raise Exception(f"HTTP Error querying the camera position: {resp.status_code}")
+
         except Exception as e:
             exception_error_str = "Exception: '" + str(e) + "' when querying the url: http://" + \
-                                  self.axis.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.urlencode(queryParams)
+                                  self.axis.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.parse.urlencode(queryParams)
             rospy.logwarn(exception_error_str)
 
             self.cameraPosition = None
-   
+
     def publishCameraState(self):
         '''Publish camera state to a ROS message'''
         try:
@@ -77,6 +80,7 @@ class StateThread(threading.Thread):
                     self.adjustForFlippedOrientation()
                 self.msg.tilt = float(self.cameraPosition['tilt'])
                 self.msg.zoom = float(self.cameraPosition['zoom'])
+                self.msg.brightness = float(self.cameraPosition['brightness'])
                 self.msg.iris = 0.0
                 if 'iris' in self.cameraPosition:
                     self.msg.iris = float(self.cameraPosition['iris'])
@@ -85,12 +89,14 @@ class StateThread(threading.Thread):
                     self.msg.focus = float(self.cameraPosition['focus'])
                 if 'autofocus' in self.cameraPosition:
                     self.msg.autofocus = (self.cameraPosition['autofocus'] == 'on')
+                if 'autoiris' in self.cameraPosition:
+                    self.msg.autoiris = (self.cameraPosition['autoiris'] == 'on')
                 self.axis.pub.publish(self.msg)
         except KeyError as e:
             rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
-            
+
     def adjustForFlippedOrientation(self):
-        '''Correct pan and tilt parameters if camera is mounted backwards and 
+        '''Correct pan and tilt parameters if camera is mounted backwards and
         facing down'''
         self.msg.pan = 180 - self.msg.pan
         if self.msg.pan > 180:
@@ -100,12 +106,13 @@ class StateThread(threading.Thread):
         self.msg.tilt = -self.msg.tilt
 
 class AxisPTZ:
-    '''This class creates a node to manage the PTZ functions of an Axis PTZ 
+    '''This class creates a node to manage the PTZ functions of an Axis PTZ
     camera'''
-    def __init__(self, hostname, username, password, flip, speed_control):
+    def __init__(self, hostname, username, password, use_encrypted_password, flip, speed_control):
         self.hostname = hostname
         self.username = username
         self.password = password
+        self.use_encrypted_password = use_encrypted_password
         self.flip = flip
         # speed_control is true for speed control and false for
         # position control:
@@ -117,6 +124,16 @@ class AxisPTZ:
         self.sub = rospy.Subscriber("cmd", Axis, self.cmd, queue_size=1)
         self.sub_mirror = rospy.Subscriber("mirror", Bool, self.mirrorCallback,
                                                                 queue_size=1)
+
+        if self.use_encrypted_password:
+            self.http_auth = requests.auth.HTTPDigestAuth(self.username, self.password)
+        else:
+            self.http_auth = requests.auth.HTTPBasicAuth(self.username, self.password)
+        self.http_headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+            'From': f'http://{self.hostname}'
+        }
+        self.http_timeout = (3, 5)
 
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         '''Lazy-start the state publisher.'''
@@ -142,9 +159,9 @@ class AxisPTZ:
             self.msg.pan = -self.msg.pan
         else:
             self.msg.pan = 180.0 - self.msg.pan
-    
+
     def sanitisePTZCommands(self):
-        '''Applies limits to message and corrects for flipped camera if 
+        '''Applies limits to message and corrects for flipped camera if
         necessary'''
         self.sanitisePan()
         self.sanitiseTilt()
@@ -155,7 +172,7 @@ class AxisPTZ:
 
     def sanitisePan(self):
         '''Pan speed (in percent) must be: -100<pan<100'
-        Pan must be: -180<pan<180 even though the Axis cameras can only achieve 
+        Pan must be: -180<pan<180 even though the Axis cameras can only achieve
         +/-170 degrees rotation.'''
         if self.speedControl:
             if abs(self.msg.pan)>100.0:
@@ -172,7 +189,7 @@ class AxisPTZ:
             self.msg.tilt = ((self.msg.tilt + 180.0) % 360) - 180.0
 
     def sanitiseZoom(self):
-        '''Zoom must be: 1<zoom<9999.  continuouszoommove must be: 
+        '''Zoom must be: 1<zoom<9999.  continuouszoommove must be:
         -100<zoom<100'''
         if self.speedControl:
             if abs(self.msg.zoom)>100:
@@ -182,7 +199,7 @@ class AxisPTZ:
                 self.msg.zoom = 9999.0
             elif self.msg.zoom<1.0:
                 self.msg.zoom = 1.0
-        
+
     def sanitiseFocus(self):
         '''Focus must be: 1<focus<9999.  continuousfocusmove: -100<rfocus<100'''
         if self.speedControl:
@@ -193,7 +210,7 @@ class AxisPTZ:
                 self.msg.focus = 9999.0
             elif self.msg.focus < 1.0:
                 self.msg.focus = 1.0
-            
+
     def sanitiseBrightness(self):
         '''Brightness must be: 1<brightness<9999.  continuousbrightnessmove must
         be: -100<rbrightness<100.  Note that it appears that the brightness
@@ -214,13 +231,19 @@ class AxisPTZ:
 
     def applySetpoints(self):
         '''Apply set-points to camera via HTTP'''
-        conn = httplib.HTTPConnection(self.hostname)
+
         self.createCmdString()
         try:
-            conn.request('GET', self.cmdString)
-        except:
-            rospy.logwarn('Failed to connect to camera to send command message')
-            conn.close()
+            url = f"http://{self.hostname}/{self.cmdString}"
+            resp = requests.get(url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers)
+
+            if resp.status_code != requests.status_codes.codes.ok:
+                pass
+            else:
+                raise Exception(f"HTTP error {resp.status_code}")
+
+        except Exception as e:
+            rospy.logwarn(f'Failed to connect to camera to send command message: {e}')
 
     def createCmdString(self):
         '''creates http cgi string to command PTZ camera'''
@@ -237,7 +260,10 @@ class AxisPTZ:
             else:
                 self.cmdString += 'autofocus=off&continuousfocusmove=%d&' % \
                                                         (int(self.msg.focus))
-            self.cmdString += 'autoiris=on'
+            if self.msg.autoiris:
+                self.cmdString += 'autoiris=on'
+            else:
+                self.cmdString += 'autoiris=off'
         else: # position control:
             self.cmdString += 'pan=%d&tilt=%d&' % (self.msg.pan, self.msg.tilt)\
                         + 'zoom=%d&' % (int(self.msg.zoom)) \
@@ -247,15 +273,18 @@ class AxisPTZ:
             else:
                 self.cmdString += 'autofocus=off&focus=%d&' % \
                                                         (int(self.msg.focus))
-            self.cmdString += 'autoiris=on'
+            if self.msg.autoiris:
+                self.cmdString += 'autoiris=on'
+            else:
+                self.cmdString += 'autoiris=off'
 
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
         self.mirror = msg.data
-        
+
     def callback(self, config, level):
         #self.speedControl = config.speed_control
-        
+
         # create temporary message and fill with data from dynamic reconfigure
         temp_msg = Axis()
         temp_msg.pan = config.pan
@@ -264,10 +293,10 @@ class AxisPTZ:
         temp_msg.focus = config.focus
         temp_msg.brightness = config.brightness
         temp_msg.autofocus = config.autofocus
-        
+
         # check sanity and apply values
         self.cmd(temp_msg)
-        
+
         # read sanitized values and update GUI
         config.pan = self.msg.pan
         config.tilt = self.msg.tilt
@@ -275,7 +304,7 @@ class AxisPTZ:
         config.focus = self.msg.focus
         config.brightness = self.msg.brightness
         config.autofocus = self.msg.autofocus
-        
+
         # update GUI with sanitized values
         return config
 
@@ -284,13 +313,14 @@ def main():
 
     arg_defaults = {
         'hostname': '192.168.0.90',
-        'username': '',
+        'username': 'root',
         'password': '',
+        'use_encrypted_password': False,
         'flip': False,  # things get weird if flip=true
-        'speed_control': False
+        'speed_control': False,
         }
     args = {}
-    
+
     # go through all arguments
     for name in arg_defaults:
         full_param_name = rospy.search_param(name)
@@ -307,4 +337,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
