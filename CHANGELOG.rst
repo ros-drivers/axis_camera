@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.5 (2023-03-30)
+------------------
 * Enable digest authentication by default
 * Contributors: Chris Iverach-Brereton
 
