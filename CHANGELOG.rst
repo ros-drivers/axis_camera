@@ -1,6 +1,11 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Enable digest authentication by default
+* Contributors: Chris Iverach-Brereton
+
 0.4.4 (2023-03-17)
 ------------------
 * Improve support for the F34 multi-camera controller by adding default values for the camera index (1-4). Change the camera arg in view_axis to camera_name, change its default IP address to better-match with the main axis.launch file
