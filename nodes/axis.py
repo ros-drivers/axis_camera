@@ -368,7 +368,7 @@ def main():
         'fps': 0,                         # frames per second (0 = camera default)
         'frame_id': 'axis_camera',
         'camera_info_url': '',
-        'use_encrypted_password' : False,
+        'use_encrypted_password' : True,
         'camera' : 0,
         'ir': False,
         'defog': False,

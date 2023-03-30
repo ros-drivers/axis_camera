@@ -315,7 +315,7 @@ def main():
         'hostname': '192.168.0.90',
         'username': 'root',
         'password': '',
-        'use_encrypted_password': False,
+        'use_encrypted_password': True,
         'flip': False,  # things get weird if flip=true
         'speed_control': False,
         }
