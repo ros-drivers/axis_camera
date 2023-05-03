@@ -32,9 +32,9 @@ class StreamThread(threading.Thread):
 
         # ping syntax is different on Windows than Linux, so set the command accordingly
         if os.name == 'nt':
-            cmd = f"ping -W 5 -n 1 f{self.axis.hostname}".split()
+            cmd = f"ping -W 5 -n 1 {self.axis.hostname}".split()
         else:
-            cmd = f"ping -W 5 -c 1 f{self.axis.hostname}".split()
+            cmd = f"ping -W 5 -c 1 {self.axis.hostname}".split()
 
         rospy.loginfo(f"Waiting until {self.axis.hostname} is online...")
         host_alive = subprocess.call(cmd) == 0
