@@ -115,6 +115,7 @@ class StateThread(threading.Thread):
                 if 'autoiris' in self.cameraPosition:
                     self.msg.autoiris = (self.cameraPosition['autoiris'] == 'on')
                 self.axis.pub.publish(self.msg)
+                self.cameraPosition = None  # This prevents us re-publishing the same state on-error
         except KeyError as e:
             rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
 
