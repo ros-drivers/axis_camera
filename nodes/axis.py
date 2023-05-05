@@ -5,17 +5,19 @@
 # /axis.py
 #
 
-import threading
-import urllib.request, urllib.error, urllib.parse
-import requests, requests.auth
+import camera_info_manager
 import datetime
-import time
-
+import os
+import requests, requests.auth
 import rospy
+import subprocess
+import threading
+import time
+import urllib.request, urllib.error, urllib.parse
+
 from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
-import camera_info_manager
 
 class StreamThread(threading.Thread):
     def __init__(self, axis):
@@ -24,7 +26,28 @@ class StreamThread(threading.Thread):
         self.daemon = True
         self.timeoutSeconds = 2.5
 
+    def waitForHost(self):
+        '''Wait until the host is actually online before we try to contact it.
+        This reduces http related errors'''
+
+        # ping syntax is different on Windows than Linux, so set the command accordingly
+        if os.name == 'nt':
+            cmd = f"ping -W 5 -n 1 {self.axis.hostname}".split()
+        else:
+            cmd = f"ping -W 5 -c 1 {self.axis.hostname}".split()
+
+        rospy.loginfo(f"Waiting until {self.axis.hostname} is online...")
+        host_alive = subprocess.call(cmd) == 0
+        rate = rospy.Rate(1)
+        while not host_alive:
+            rate.sleep()
+            host_alive = subprocess.call(cmd) == 0
+
+        rospy.loginfo(f"{self.axis.hostname} is now online")
+
     def run(self):
+        self.waitForHost()
+
         while(True):
             self.stream()
 

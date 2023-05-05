@@ -3,15 +3,19 @@
 # Basic PTZ node, based on documentation here:
 #   http://www.axis.com/files/manuals/vapix_ptz_45621_en_1112.pdf
 #
-import threading
-import requests, requests.auth
-import urllib.parse
-import rospy
-from axis_camera.msg import Axis
-from std_msgs.msg import Bool
+
 import math
-from dynamic_reconfigure.server import Server
+import os
+import requests, requests.auth
+import rospy
+import subprocess
+import threading
+import urllib.parse
+
 from axis_camera.cfg import PTZConfig
+from axis_camera.msg import Axis
+from dynamic_reconfigure.server import Server
+from std_msgs.msg import Bool
 
 class StateThread(threading.Thread):
     '''This class handles the publication of the positional state of the camera
@@ -32,6 +36,25 @@ class StateThread(threading.Thread):
             self.queryCameraPosition()
             self.publishCameraState()
             r.sleep()
+
+    def waitForHost(self):
+        '''Wait until the host is actually online before we try to contact it.
+        This reduces http related errors'''
+
+        # ping syntax is different on Windows than Linux, so set the command accordingly
+        if os.name == 'nt':
+            cmd = f"ping -W 5 -n 1 {self.axis.hostname}".split()
+        else:
+            cmd = f"ping -W 5 -c 1 {self.axis.hostname}".split()
+
+        rospy.loginfo(f"Waiting until {self.axis.hostname} is online...")
+        host_alive = subprocess.call(cmd) == 0
+        rate = rospy.Rate(1)
+        while not host_alive:
+            rate.sleep()
+            host_alive = subprocess.call(cmd) == 0
+
+        rospy.loginfo(f"{self.axis.hostname} is now online")
 
     def queryCameraPosition(self):
         '''Using Axis VAPIX protocol, described in the comments at the top of
@@ -92,6 +115,7 @@ class StateThread(threading.Thread):
                 if 'autoiris' in self.cameraPosition:
                     self.msg.autoiris = (self.cameraPosition['autoiris'] == 'on')
                 self.axis.pub.publish(self.msg)
+                self.cameraPosition = None  # This prevents us re-publishing the same state on-error
         except KeyError as e:
             rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
 
