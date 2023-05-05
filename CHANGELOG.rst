@@ -1,6 +1,13 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Wait until camera is online before connecting (`#78 <https://github.com/ros-drivers/axis_camera/issues/78>`_)
+  * Add a wait loop to prevent execution until the camera responds to a ping. This should prevent issues where the node starts while the camera is still powering-on, resulting in some excessive errors
+  * Clear the camera position after publishing the state to avoid issues where we republush the same state ad nauseum if there's an error
+* Contributors: Chris Iverach-Brereton
+
 0.4.5 (2023-03-30)
 ------------------
 * Enable digest authentication by default
