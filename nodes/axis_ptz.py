@@ -76,7 +76,16 @@ class StateThread(threading.Thread):
                 #   brightness=4999
                 #   autofocus=on
                 #   autoiris=on
-                new_camera_position = {}
+                new_camera_position = {
+                    'pan': 0,
+                    'tilt': 0,
+                    'zoom': 1,
+                    'iris': 0,
+                    'focus': 0,
+                    'brightness': 0,
+                    'autofocus': 'off',
+                    'autoiris': 'off'
+                }
                 body = resp.text.split()
                 for row in body:
                     if '=' in row:
@@ -117,7 +126,7 @@ class StateThread(threading.Thread):
                 self.axis.pub.publish(self.msg)
                 self.cameraPosition = None  # This prevents us re-publishing the same state on-error
         except KeyError as e:
-            rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e.message))
+            rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e))
 
     def adjustForFlippedOrientation(self):
         '''Correct pan and tilt parameters if camera is mounted backwards and
