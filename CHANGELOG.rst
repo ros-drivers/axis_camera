@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.7 (2023-06-01)
+------------------
 * Fix a bug that caused the ptz node to crash if the camera has fixed brightness
 * Contributors: Chris Iverach-Brereton
 
