@@ -29,6 +29,7 @@ class StateThread(threading.Thread):
         self.daemon = True
 
     def run(self):
+        self.waitForHost()
         r = rospy.Rate(1)
         self.msg = Axis()
 
@@ -173,6 +174,26 @@ class AxisPTZ:
         if self.st is None:
             self.st = StateThread(self)
             self.st.start()
+
+            rate = rospy.Rate(2)
+            while self.st.cameraPosition is None:
+                rate.sleep()
+
+            # Force the camera to the zero position on startup
+            msg = Axis()
+            msg.pan = 0
+            msg.tilt = 0
+            msg.zoom = self.st.cameraPosition['zoom']
+            if 'focus' in self.st.cameraPosition:
+                msg.focus = self.st.cameraPosition['focus']
+            if 'brightness' in self.st.cameraPosition:
+                msg.brightness = self.st.cameraPosition['brightness']
+            if 'autofocus' in self.st.cameraPosition:
+                msg.autofocus = self.st.cameraPosition['autofocus']
+            if 'autoiris' in self.st.cameraPosition:
+                msg.autoiris = self.st.cameraPosition['autoiris']
+            self.cmd(msg)
+
 
     def cmd(self, msg):
         '''Command the camera with speed control or position control commands'''
