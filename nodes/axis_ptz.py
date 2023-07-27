@@ -28,6 +28,8 @@ class StateThread(threading.Thread):
         # thread as a daemon:
         self.daemon = True
 
+        self.cameraPosition = None
+
     def run(self):
         self.waitForHost()
         r = rospy.Rate(1)
