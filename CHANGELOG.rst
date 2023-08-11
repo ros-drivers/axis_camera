@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.4.8 (2023-08-11)
+------------------
 * Fix the image_transport node to publish theora frames of the `enable_theora` argument is enabled.
 * Add `fps` as an additional argument to the launch file
 * Contributors: Chris Iverach-Brereton
