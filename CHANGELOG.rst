@@ -1,6 +1,12 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Fix the image_transport node to publish theora frames of the `enable_theora` argument is enabled.
+* Add `fps` as an additional argument to the launch file
+* Contributors: Chris Iverach-Brereton
+
 0.4.7 (2023-06-01)
 ------------------
 * Fix a bug that caused the ptz node to crash if the camera has fixed brightness
