@@ -15,6 +15,9 @@
   <arg name="height" default="480" />
   <arg name="camera" default="1" />
 
+  <!-- desired FPS of the camera. 0=camera default -->
+  <arg name="fps" default="0" />
+
   <group ns="$(arg camera_name)">
     <param name="hostname" value="$(arg hostname)" />
     <param name="username" value="$(arg username)" />
@@ -27,12 +30,13 @@
     <param name="wiper" value="$(arg enable_wiper)" />
     <param name="defog" value="$(arg enable_defog)" />
     <param name="ir" value="$(arg enable_ir)" />
+    <param name="fps" value="$(arg fps)" />
 
     <node pkg="axis_camera" type="axis.py" name="axis" />
     <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
 
     <node pkg="image_transport" type="republish" name="republish"
-          args="compressed" if="$(arg enable_theora)">
+          args="compressed theora" if="$(arg enable_theora)">
       <remap from="in" to="image_raw" />
       <remap from="out" to="image_raw_out" />
     </node>
