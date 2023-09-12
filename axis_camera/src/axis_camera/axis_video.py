@@ -16,6 +16,7 @@ import threading
 import time
 import urllib.request, urllib.error, urllib.parse
 
+from axis_msgs.srv import SetFloat, SetFloatResponse
 from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse

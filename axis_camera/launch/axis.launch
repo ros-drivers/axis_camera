@@ -31,9 +31,9 @@
     <param name="defog" value="$(arg enable_defog)" />
     <param name="ir" value="$(arg enable_ir)" />
     <param name="fps" value="$(arg fps)" />
+    <param name="ptz" value="$(arg enable_ptz)" />
 
-    <node pkg="axis_camera" type="axis.py" name="axis" />
-    <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
+    <node pkg="axis_camera" type="axis_camera_node" name="axis" />
 
     <node pkg="image_transport" type="republish" name="republish"
           args="compressed theora" if="$(arg enable_theora)">
@@ -41,17 +41,13 @@
       <remap from="out" to="image_raw_out" />
     </node>
 
+    <!--
     <node pkg="axis_camera" type="teleop.py" name="teleop" if="$(arg enable_ptz_teleop)">
       <param name="enable_button" value="1" />
       <param name="scale_pan_deg" value="25" />
       <param name="scale_tilt_deg" value="25" />
       <remap from="joy" to="/joy" />
     </node>
+    -->
   </group>
-
-  <!-- To control the PTZ, issue commands like so:
-  rostopic pub /axis/cmd axis_camera/Axis '{ brightness: 5000, pan: 100, tilt: 10, zoom: 0, autofocus: True }'
-  NOTE: Don't forget to populate the brightness field, or
-        you'll get very dark images.
-  -->
 </launch>
