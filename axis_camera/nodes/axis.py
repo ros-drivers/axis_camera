@@ -270,6 +270,10 @@ class Axis:
                 raise Exception(f"HTTP Error setting IR illuminator: {http_resp.status_code}")
 
             # Enable/disable the IR filter
+            # OLD:
+            #   http://192.168.131.10/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp=$(date +'%s')
+            # NEW:
+            #   http://192.168.131.10/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=no&timestamp=$(date +'%s')
             if req.data:
                 get_url = f"http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}"
             else:
