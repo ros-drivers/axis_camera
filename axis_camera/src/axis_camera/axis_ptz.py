@@ -287,6 +287,7 @@ class AxisPTZ:
 
         else:
             # externally we treat positive angles as anticlockwise, but the Axis API treats them as clockwise
+            # we also need to convert to degrees, since that's what the REST API uses
             pan_degrees = -rad2deg(msg.pan)
             tilt_degrees = rad2deg(msg.tilt)
             self.cmdString += f"pan={int(pan_degrees)}&tilt={int(tilt_degrees)}&zoom={int(msg.zoom)}"
