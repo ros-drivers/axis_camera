@@ -47,8 +47,7 @@ def main():
         'ir': False,
         'defog': False,
         'wiper': False,
-        'ptz': False,
-        'speed_control': False }
+        'ptz': False }
 
     args = updateArgs(arg_defaults)
 
