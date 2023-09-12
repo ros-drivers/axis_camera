@@ -13,7 +13,7 @@ import threading
 import urllib.parse
 
 from axis_camera.cfg import PTZConfig
-from axis_camera.msg import Axis
+from axis_msgs.msg import Axis
 from dynamic_reconfigure.server import Server
 from std_msgs.msg import Bool
 

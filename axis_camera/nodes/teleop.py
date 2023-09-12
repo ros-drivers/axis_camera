@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import Joy
-from axis_camera.msg import Axis
+from axis_msgs.msg import Axis
 
 
 class Teleop:

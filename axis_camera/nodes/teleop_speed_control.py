@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import Joy
-from axis_camera.msg import Axis
+from axis_msgs.msg import Axis
 from std_msgs.msg import Bool
 
 class Teleop:
@@ -12,18 +12,18 @@ class Teleop:
         self.pub = rospy.Publisher('cmd', Axis, queue_size=1)
         rospy.Subscriber("joy", Joy, self.joy_callback, queue_size=1)
         self.pub_mirror = rospy.Publisher('mirror', Bool, queue_size=1)
-        
+
     def initialiseVariables(self):
         self.joy = None
         self.msg = Axis() # instantiate Axis message
         self.msg.autofocus = True # autofocus is on by default
-        # sensitivities[0..5] corresponding to fwd, left, up, tilt right, 
+        # sensitivities[0..5] corresponding to fwd, left, up, tilt right,
         # tilt forwards, anticlockwise twist
         self.mirror = False
         self.mirror_already_actioned = False # to stop mirror flip-flopping
         self.sensitivities = [120, -60, 40, 0, 0, 30]
         self.deadband = [0.2, 0.2, 0.2, 0.2, 0.4, 0.4]
-       
+
     def spin(self):
         self.pub.publish(self.msg)
         r = rospy.Rate(5)
@@ -56,7 +56,7 @@ class Teleop:
         for i in range(n):
             if (abs(self.joy.axes[i])>self.deadband[i]):
                 self.axes_thresholded[i] = self.joy.axes[i]
-                
+
     def joy_callback(self, data):
         self.joy = data
 
@@ -69,7 +69,7 @@ class Teleop:
         else:
             self.mirror_already_actioned = False
         self.pub_mirror.publish(Bool(self.mirror))
-    
+
 if __name__ == "__main__":
     teleop = Teleop()
     teleop.spin()

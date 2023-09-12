@@ -11,6 +11,10 @@ find_package(catkin REQUIRED
 # ROS message generation
 add_message_files(FILES
   Axis.msg
+  Ptz.msg
+)
+add_service_files(FILES
+  SetFloat.srv
 )
 
 generate_messages(DEPENDENCIES
