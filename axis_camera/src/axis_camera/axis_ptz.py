@@ -340,30 +340,3 @@ class AxisPTZ:
 
         # update GUI with sanitized values
         return config
-
-def main():
-    rospy.init_node("axis_twist")
-
-    arg_defaults = {
-        'hostname': '192.168.0.90',
-        'username': 'root',
-        'password': '',
-        'use_encrypted_password': True,
-        'flip': False,  # things get weird if flip=true
-        'speed_control': False,
-        }
-    args = {}
-
-    # go through all arguments
-    for name in arg_defaults:
-        full_param_name = rospy.search_param(name)
-        # make sure argument was found (https://github.com/ros/ros_comm/issues/253)
-        if full_param_name == None:
-            args[name] = arg_defaults[name]
-        else:
-            args[name] = rospy.get_param(full_param_name, arg_defaults[name])
-
-    # create new PTZ object and start dynamic_reconfigure server
-    my_ptz = AxisPTZ(**args)
-    srv = Server(PTZConfig, my_ptz.callback)
-    rospy.spin()

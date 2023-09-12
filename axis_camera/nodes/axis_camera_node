@@ -9,8 +9,7 @@ from axis_camera.axis_ptz import AxisPTZ
 
 def updateArgs(arg_defaults):
     '''Look up parameters starting in the driver's private parameter space, but
-    also searching outer namespaces.  Defining them in a higher namespace allows
-    the axis_ptz.py script to share parameters with the driver.
+    also searching outer namespaces
     '''
     args = {}
     for name, val in arg_defaults.items():
