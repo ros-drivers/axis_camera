@@ -66,7 +66,8 @@ axis_zoom     : 1
 invert_tilt   : false
 
 # Maximum pan/tilt/zoom velocities
-# [-100, 100] is the fastest the driver can go
-scale_pan     : 100
-scale_tilt    : 100
+# max 2.61 rad/s rotation
+# zoom speed -100 to + 100
+scale_pan     : 2.61
+scale_tilt    : 2.61
 scale_zoom    : 100

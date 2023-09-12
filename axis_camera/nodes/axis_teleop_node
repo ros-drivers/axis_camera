@@ -14,8 +14,9 @@ axis_tilt = 1
 axis_zoom = 1
 invert_tilt = False
 
-scale_pan = 100
-scale_tilt = 100
+# max pan/tilt speed of 2.61 rad/2
+scale_pan = 2.61
+scale_tilt = 2.61
 scale_zoom = 100
 
 class AxisPtzTeleopNode:

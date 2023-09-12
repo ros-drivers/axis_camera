@@ -273,7 +273,9 @@ class AxisPTZ:
         self.cmdString = '/axis-cgi/com/ptz.cgi?'
         if speedControl:
             # externally we treat positive pan as anticlockwise, but the Axis API treats it as clockwise
-            self.cmdString += f"continuouspantiltmove={int(-msg.pan)},{int(msg.tilt)}&continuouszoommove={int(msg.zoom)}"
+            pan_deg_per_s = -rad2deg(msg.pan)
+            tilt_deg_per_s = rad2deg(msg.tilt)
+            self.cmdString += f"continuouspantiltmove={int(pan_deg_per_s)},{int(tilt_deg_per_s)}&continuouszoommove={int(msg.zoom)}"
 
         else:
             # externally we treat positive angles as anticlockwise, but the Axis API treats them as clockwise

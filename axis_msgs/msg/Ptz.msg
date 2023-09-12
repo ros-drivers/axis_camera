@@ -4,7 +4,7 @@
 # - is to the right (clockwise)
 # Valid ranges:
 #  position: -pi to pi
-#  speed: -100 to 100
+#  speed: -2.61 to +2.61 (max 150 deg/s)
 float32 pan
 
 # The tilt position or velocity of the camera, in radians or rad/s
@@ -13,7 +13,7 @@ float32 pan
 # - is downward
 # Valid ranges:
 #  position: -pi/2 to pi/2
-#  speed: -100 to 100
+#  speed: -2.61 to +2.61 (max 150 deg/s)
 float32 tilt
 
 # The camera's zoom level or speed
