@@ -13,7 +13,7 @@ import threading
 import urllib.parse
 
 from axis_camera.cfg import PTZConfig
-from axis_msgs.msg import Axis
+from axis_msgs.msg import Ptz
 from std_msgs.msg import Bool
 
 from math import degrees as rad2deg
@@ -134,14 +134,16 @@ class StateThread(threading.Thread):
         msg.tilt = -msg.tilt
 
 class AxisPTZ:
-    '''This class creates a node to manage the PTZ functions of an Axis PTZ
-    camera'''
-    def __init__(self, hostname, username, password, use_encrypted_password, flip):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
-        self.use_encrypted_password = use_encrypted_password
-        self.flip = flip
+    '''This class creates a node to manage the PTZ functions of an Axis PTZ camera
+
+    @param args  A dictionaru containing the rosparam values we need
+    '''
+    def __init__(self, args):
+        self.hostname = args['hostname']
+        self.username = args['username']
+        self.password = args['password']
+        self.use_encrypted_password = args['use_encrypted_password']
+        self.flip = False
         self.mirror = False
 
         self.st = None
@@ -241,7 +243,7 @@ class AxisPTZ:
         Position: [0, 9999]
         Velocity: [-100, 100]
         '''
-        if self.speedControl:
+        if speedControl:
             if abs(msg.zoom)>100:
                 msg.zoom = math.copysign(100.0, msg.zoom)
         else:

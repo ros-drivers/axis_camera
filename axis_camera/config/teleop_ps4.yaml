@@ -1,0 +1,72 @@
+# Teleop configuration for PS4 joystick using the x-pad configuration.
+# Left thumb-stick up/down for velocity, left/right for twist
+# Left shoulder button for enable
+# Right shoulder button for enable-turbo
+#
+#          L1                                       R1
+#          L2                                       R2
+#       _=====_                                  _=====_
+#      / _____ \                                / _____ \
+#    +.-'_____'-.------------------------------.-'_____'-.+
+#   /   |     |  '.        S O N Y           .'  |  _  |   \
+#  / ___| /|\ |___ \                        / ___| /_\ |___ \      (Y)
+# / |      |      | ;                      ; | _         _ ||
+# | | <---   ---> | |                      | ||_|       (_)||  (X)     (B)
+# | |___   |   ___| ;                      ; |___       ___||
+# |\    | \|/ |    /  _      ____      _   \    | (X) |    /|      (A)
+# | \   |_____|  .','" "',  (_PS_)  ,'" "', '.  |_____|  .' |
+# |  '-.______.-' /       \        /       \  '-._____.-'   |
+# |               |  LJ   |--------|  RJ   |                |
+# |              /\       /        \       /\               |
+# |             /  '.___.'          '.___.'  \              |
+# |            /                              \             |
+#  \          /                                \           /
+#   \________/                                  \_________/
+#
+#          ^ x
+#          |
+#          |
+#  y <-----+      Accelerometer axes
+#           \
+#            \
+#             > z (out)
+#
+# BUTTON         Value
+#   L1             4
+#   L2             6
+#   R1             5
+#   R2             7
+#   A              0       Big X
+#   B              1       Circle
+#   X              3       Square
+#   Y              2       Triangle
+#
+#    AXIS        Value
+# Left Horiz.      0
+# Left Vert.       1
+# Right Horiz.     2
+# Right Vert.      5
+#    L2            3
+#    R2            4
+# D-pad Horiz.     9
+# D-pad Vert.      10
+# Accel x          7
+# Accel y          6
+# Accel z          8
+
+# Hold X button to enable pan/tilt control
+# Hold circle button to enable zoom control
+button_enable_pan_tilt : 0
+button_enable_zoom     : 1
+
+# Left thumb stick for pan/tilt/zoom (depending on button above)
+axis_pan      : 0
+axis_tilt     : 1
+axis_zoom     : 1
+invert_tilt   : false
+
+# Maximum pan/tilt/zoom velocities
+# [-100, 100] is the fastest the driver can go
+scale_pan     : 100
+scale_tilt    : 100
+scale_zoom    : 100

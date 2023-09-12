@@ -172,18 +172,17 @@ class StreamThread(threading.Thread):
         self.axis.caminfo_pub.publish(cimsg)
 
 class Axis:
-    def __init__(self, hostname, username, password, width, height, fps, frame_id,
-                 camera_info_url, use_encrypted_password, camera, ir, defog, wiper):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
-        self.width = width
-        self.height = height
-        self.fps = fps
-        self.frame_id = frame_id
-        self.camera_info_url = camera_info_url
-        self.use_encrypted_password = use_encrypted_password
-        self.camera = camera
+    def __init__(self, args):
+        self.hostname = args['hostname']
+        self.username = args['username']
+        self.password = args['password']
+        self.width = args['width']
+        self.height = args['height']
+        self.fps = args['fps']
+        self.frame_id = args['frame_id']
+        self.camera_info_url = args['camera_info_url']
+        self.use_encrypted_password = args['use_encrypted_password']
+        self.camera = args['camera']
 
         self.use_legacy_ir_url = False
 
@@ -208,7 +207,7 @@ class Axis:
 
         # The Axis Q62 series supports a night-vision mode with an active IR illuminator
         # If this option is enabled, add the necessary services and topics
-        if ir:
+        if args['ir']:
             self.ir_on = False
             self.ir_on_off_srv = rospy.Service('set_ir_on', SetBool, self.handle_toggle_ir)
             self.ir_on_pub = rospy.Publisher('ir_on', Bool, queue_size=1)
@@ -219,7 +218,7 @@ class Axis:
 
         # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
-        if wiper:
+        if args['wiper']:
             self.wiper_on_time = datetime.datetime.utcnow()
             self.wiper_on = False
             self.wiper_on_off_srv = rospy.Service('set_wiper_on', SetBool, self.handle_toggle_wiper)
@@ -231,7 +230,7 @@ class Axis:
 
         # The Axis Q62 series is equipped with a defogger
         # If this option is enabled, add the necessary services and topics
-        if defog:
+        if args['defog']:
             self.defog_on = False
             self.defog_on_off_srv = rospy.Service('set_defog_on', SetBool, self.handle_toggle_defog)
             self.defog_on_pub = rospy.Publisher('defog_on', Bool, queue_size=1)

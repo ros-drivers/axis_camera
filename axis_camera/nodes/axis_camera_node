@@ -51,11 +51,10 @@ def main():
 
     args = updateArgs(arg_defaults)
 
-    axis = Axis(**args)
+    axis = Axis(args)
 
     if args['ptz']:
-        ptz = AxisPTZ(**args)
-        srv = Server(PTZConfig, my_ptz.callback)
+        ptz = AxisPTZ(args)
 
     rospy.spin()
 

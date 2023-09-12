@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""A simple node that subscribes to a joy input topic and publishes velocity control messages to the camera
+"""
+
+import rospy
+from sensor_msgs.msg import Joy
+from axis_msgs.msg import Ptz
+
+button_enable_pan_tilt = 0
+button_enable_zoom = 1
+
+axis_pan = 0
+axis_tilt = 1
+axis_zoom = 1
+invert_tilt = False
+
+scale_pan = 100
+scale_tilt = 100
+scale_zoom = 100
+
+class AxisPtzTeleopNode:
+    def __init__(self):
+        self.button_enable_pan_tilt = rospy.get_param("~button_enable_pan_tilt", button_enable_pan_tilt)
+        self.button_enable_zoom = rospy.get_param("~button_enable_zoom", button_enable_zoom)
+        self.axis_pan = rospy.get_param("~axis_pan", axis_pan)
+        self.axis_tilt = rospy.get_param("~axis_tilt", axis_tilt)
+        self.axis_zoom = rospy.get_param("~axis_zoom", axis_zoom)
+        self.invert_tilt = rospy.get_param("~invert_tilt", invert_tilt)
+        self.scale_pan = rospy.get_param("~scale_pan", scale_pan)
+        self.scale_tilt = rospy.get_param("~scale_tilt", scale_tilt)
+        self.scale_zoom = rospy.get_param("~scale_zoom", scale_zoom)
+
+    def start(self):
+        self.cmd_pub = rospy.Publisher("cmd/velocity", Ptz, queue_size=1)
+        self.joy_sub = rospy.Subscriber("joy", Joy, self.joy_callback)
+
+    def joy_callback(self, msg):
+        cmd = Ptz()
+        if msg.buttons[self.button_enable_pan_tilt]:
+            cmd.pan = msg.axes[self.axis_pan] * self.scale_pan
+            cmd.tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
+
+        if msg.buttons[self.button_enable_zoom]:
+            cmd.zoom = msg.axes[self.axis_zoom] * self.scale_zoom
+
+        self.cmd_pub.publish(cmd)
+
+def main():
+    rospy.init_node("axis_teleop_node")
+    node = AxisPtzTeleopNode()
+    node.start()
+    rospy.spin()
+
+if __name__=="__main__":
+    main()

@@ -41,13 +41,11 @@
       <remap from="out" to="image_raw_out" />
     </node>
 
-    <!--
-    <node pkg="axis_camera" type="teleop.py" name="teleop" if="$(arg enable_ptz_teleop)">
-      <param name="enable_button" value="1" />
-      <param name="scale_pan_deg" value="25" />
-      <param name="scale_tilt_deg" value="25" />
-      <remap from="joy" to="/joy" />
-    </node>
-    -->
+    <group if="$(eval arg('enable_ptz_teleop') and arg('enable_ptz'))">
+      <node pkg="axis_camera" type="axis_teleop_node" name="axis_teleop">
+        <rosparam command="load" file="$(find axis_camera)/config/teleop_ps4.yaml" />
+        <remap from="joy" to="/bluetooth_teleop/joy" />
+      </node>
+    </group>
   </group>
 </launch>

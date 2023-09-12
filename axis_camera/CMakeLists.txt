@@ -10,8 +10,7 @@ catkin_package()
 
 catkin_install_python(PROGRAMS
   nodes/axis_camera_node
-  nodes/teleop.py
-  nodes/teleop_speed_control.py
+  nodes/axis_teleop_node
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch tests
