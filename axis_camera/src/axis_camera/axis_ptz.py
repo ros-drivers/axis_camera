@@ -18,6 +18,9 @@ from std_msgs.msg import Bool
 
 from math import degrees as rad2deg
 
+## The Axis cameras have a maximum pan/tilt speed of 2.61 rad/s (150 deg/s)
+MAX_ANGULAR_VELOCITY = 2.61
+
 class StateThread(threading.Thread):
     '''This class handles the publication of the positional state of the camera
     to a ROS message'''
@@ -206,14 +209,16 @@ class AxisPTZ:
         '''Clamp the message's pan value to be in the valid range for the control mode
 
         Position: [-pi, pi]
-        Velocity: [-100, 100]
+        Velocity: [-2.61, 2.61]
 
         Certain models of camera may not be able to achieve full 360-degree rotation, e.g. many dome
         cameras are restricted to -170 to 170 degrees, but e.g. the the Q62 allows continuous panning through zero
         '''
         if speedControl:
-            if abs(msg.pan)>100.0:
-                msg.pan = math.copysign(100.0, msg.pan)
+            if msg.pan < -MAX_ANGULAR_VELOCITY:
+                msg.pan = -MAX_ANGULAR_VELOCITY
+            elif msg.pan > MAX_ANGULAR_VELOCITY:
+                msg.pan = MAX_ANGULAR_VELOCITY
         else:
             if msg.pan < -math.pi:
                 msg.pan = -math.pi
@@ -224,13 +229,15 @@ class AxisPTZ:
         '''Clamp the message's tilt value to be in the valid range for the control mode
 
         Position: [-pi/2, pi/2]
-        Velocity: [-100, 100]
+        Velocity: [-2.61, 2.61]
 
         Certain models of camera may not have the full -90 to +90 tilt range, but some do
         '''
         if speedControl:
-            if abs(msg.tilt)>100.0:
-                msg.tilt = math.copysign(100.0, msg.tilt)
+            if msg.tilt < -MAX_ANGULAR_VELOCITY:
+                msg.tilt = -MAX_ANGULAR_VELOCITY
+            elif msg.tilt > MAX_ANGULAR_VELOCITY:
+                msg.tilt = MAX_ANGULAR_VELOCITY
         else:
             if msg.tilt < -math.pi/2:
                 msg.tilt = -math.pi/2
@@ -273,9 +280,10 @@ class AxisPTZ:
         self.cmdString = '/axis-cgi/com/ptz.cgi?'
         if speedControl:
             # externally we treat positive pan as anticlockwise, but the Axis API treats it as clockwise
-            pan_deg_per_s = -rad2deg(msg.pan)
-            tilt_deg_per_s = rad2deg(msg.tilt)
-            self.cmdString += f"continuouspantiltmove={int(pan_deg_per_s)},{int(tilt_deg_per_s)}&continuouszoommove={int(msg.zoom)}"
+            # we also need to rescale to [-100, 100] as a percentage of max speed
+            pan_speed_percent = -msg.pan / MAX_ANGULAR_VELOCITY * 100
+            tilt_speed_percent = msg.tilt / MAX_ANGULAR_VELOCITY * 100
+            self.cmdString += f"continuouspantiltmove={int(pan_speed_percent)},{int(tilt_speed_percent)}&continuouszoommove={int(msg.zoom)}"
 
         else:
             # externally we treat positive angles as anticlockwise, but the Axis API treats them as clockwise
