@@ -14,7 +14,7 @@ class Teleop:
         self.state = Axis(pan=220)
         self.joy = None
 
-        self.pub = rospy.Publisher('cmd', Axis)
+        self.pub = rospy.Publisher('cmd', Axis, queue_size=1)
         rospy.Subscriber("joy", Joy, self.joy_callback)
         # rospy.Subscriber("state", Axis, self.state_callback)
 

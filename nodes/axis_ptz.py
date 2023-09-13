@@ -284,32 +284,10 @@ class AxisPTZ:
         if self.speedControl:
             self.cmdString += 'continuouspantiltmove=%d,%d&' % \
                                     (int(self.msg.pan), int(self.msg.tilt)) \
-                    + 'continuouszoommove=%d&' % (int(self.msg.zoom)) \
-                    + 'continuousbrightnessmove=%d&' % \
-                                                    (int(self.msg.brightness))
-            # Note that brightness adjustment has no effect for Axis 214PTZ.
-            if self.msg.autofocus:
-                self.cmdString += 'autofocus=on&'
-            else:
-                self.cmdString += 'autofocus=off&continuousfocusmove=%d&' % \
-                                                        (int(self.msg.focus))
-            if self.msg.autoiris:
-                self.cmdString += 'autoiris=on'
-            else:
-                self.cmdString += 'autoiris=off'
+                    + 'continuouszoommove=%d&' % (int(self.msg.zoom))
         else: # position control:
             self.cmdString += 'pan=%d&tilt=%d&' % (self.msg.pan, self.msg.tilt)\
-                        + 'zoom=%d&' % (int(self.msg.zoom)) \
-                        + 'brightness=%d&' % (int(self.msg.brightness))
-            if self.msg.autofocus:
-                self.cmdString += 'autofocus=on&'
-            else:
-                self.cmdString += 'autofocus=off&focus=%d&' % \
-                                                        (int(self.msg.focus))
-            if self.msg.autoiris:
-                self.cmdString += 'autoiris=on'
-            else:
-                self.cmdString += 'autoiris=off'
+                        + 'zoom=%d&' % (int(self.msg.zoom))
 
     def mirrorCallback(self, msg):
         '''Command the camera with speed control or position control commands'''
