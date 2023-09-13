@@ -60,53 +60,6 @@ class StateThread(threading.Thread):
 
         rospy.loginfo(f"{self.axis.hostname} is now online")
 
-    def queryCameraPosition(self):
-        '''Using Axis VAPIX protocol, described in the comments at the top of
-        this file, is used to query the state of the camera'''
-
-        queryParams = { 'query':'position' }
-
-        try:
-            url = f"http://{self.axis.hostname}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}"
-            resp = requests.get(url, auth=self.axis.http_auth, timeout=self.axis.http_timeout, headers=self.axis.http_headers)
-
-            if resp.status_code == requests.status_codes.codes.ok:
-                # returns a string of the form
-                #   pan=-0.01
-                #   tilt=-45.03
-                #   zoom=1
-                #   iris=5748
-                #   focus=4642
-                #   brightness=4999
-                #   autofocus=on
-                #   autoiris=on
-                new_camera_position = {
-                    'pan': 0,
-                    'tilt': 0,
-                    'zoom': 1,
-                    'iris': 0,
-                    'focus': 0,
-                    'brightness': 0,
-                    'autofocus': 'off',
-                    'autoiris': 'off'
-                }
-                body = resp.text.split()
-                for row in body:
-                    if '=' in row:
-                        (key, value) = row.split('=')
-                        new_camera_position[key.strip()] = value.strip()
-
-                self.cameraPosition = new_camera_position
-            else:
-                raise Exception(f"HTTP Error querying the camera position: {resp.status_code}")
-
-        except Exception as e:
-            exception_error_str = "Exception: '" + str(e) + "' when querying the url: http://" + \
-                                  self.axis.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.parse.urlencode(queryParams)
-            rospy.logwarn(exception_error_str)
-
-            self.cameraPosition = None
-
     def publishCameraState(self):
         '''Publish camera state to a ROS message'''
         try:
@@ -141,7 +94,9 @@ class AxisPTZ:
 
     @param args  A dictionaru containing the rosparam values we need
     '''
-    def __init__(self, args):
+    def __init__(self, axis_camera, args):
+        self.axis_camera = axis_camera
+
         self.hostname = args['hostname']
         self.username = args['username']
         self.password = args['password']

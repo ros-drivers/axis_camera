@@ -14,7 +14,7 @@ add_message_files(FILES
   Ptz.msg
 )
 add_service_files(FILES
-  SetFloat.srv
+  SetInt.srv
 )
 
 generate_messages(DEPENDENCIES

@@ -9,6 +9,7 @@ also provided
 import camera_info_manager
 import datetime
 import os
+import re
 import requests, requests.auth
 import rospy
 import subprocess
@@ -16,9 +17,9 @@ import threading
 import time
 import urllib.request, urllib.error, urllib.parse
 
-from axis_msgs.srv import SetFloat, SetFloatResponse
+from axis_msgs.srv import SetInt, SetInt
 from sensor_msgs.msg import CompressedImage, CameraInfo
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int32, Float32, String
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 
 class StreamThread(threading.Thread):
@@ -205,6 +206,27 @@ class Axis:
         self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=1)
         self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=1)
 
+        self.last_camera_position = None
+        self.iris = -1
+        self.focus = -1
+        self.brightness = -1
+        self.autofocus = False
+        self.autoiris = False
+        self.state_thread = threading.Thread(target=self.statePubThread)
+        self.state_thread.start()
+
+        self.set_iris_srv = rospy.Service('set_iris', SetInt, self.handle_set_iris)
+        self.set_focus_srv = rospy.Service('set_focus', SetInt, self.handle_set_focus)
+        self.set_brightness_srv = rospy.Service('set_brightness', SetInt, self.handle_set_brightness)
+        self.set_autofocus_srv = rospy.Service('set_autofocus', SetBool, self.handle_set_autofocus)
+        self.set_autoiris_srv = rospy.Service('set_autoiris', SetBool, self.handle_set_autoiris)
+
+        self.iris_pub = rospy.Publisher('iris', Int32, queue_size=1)
+        self.focus_pub = rospy.Publisher('focus', Int32, queue_size=1)
+        self.brightness_pub = rospy.Publisher('brightness', Int32, queue_size=1)
+        self.autofocus_pub = rospy.Publisher('autofocus', Bool, queue_size=1)
+        self.autoiris_pub = rospy.Publisher('autoiris', Bool, queue_size=1)
+
         # The Axis Q62 series supports a night-vision mode with an active IR illuminator
         # If this option is enabled, add the necessary services and topics
         if args['ir']:
@@ -243,6 +265,180 @@ class Axis:
         """Return string representation."""
         return(self.hostname + ',' + self.username + ',' + self.password +
                        '(' + str(self.width) + 'x' + str(self.height) + ')')
+
+    def statePubThread(self):
+        """Queries the state of the Axis hardware using the VAPIX protocol and publishes the camera's state at 1Hz
+        """
+
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            rate.sleep()
+            self.last_camera_position = self.queryCameraPosition()
+
+            if self.last_camera_position is not None:
+                if "iris" in self.last_camera_position.keys():
+                    self.iris = self.last_camera_position["iris"]
+                if "focus" in self.last_camera_position.keys():
+                    self.focus = self.last_camera_position["focus"]
+                if "brightness" in self.last_camera_position.keys():
+                    self.brightness = self.last_camera_position["brightness"]
+                if "autofocus" in self.last_camera_position.keys():
+                    self.autofocus = self.last_camera_position["autofocus"]
+                if "autoiris" in self.last_camera_position.keys():
+                    self.autoiris = self.last_camera_position["autoiris"]
+
+                self.iris_pub.publish(self.iris)
+                self.focus_pub.publish(self.focus)
+                self.brightness_pub.publish(self.brightness)
+                self.autofocus_pub.publish(self.autofocus)
+                self.autoiris_pub.publish(self.autoiris)
+
+    def queryCameraPosition(self):
+        '''Using Axis VAPIX protocol, query the state of the camera
+
+        This will return the following information, with some variation depending on what exactly the camera supports:
+            - pan (degrees)
+            - tilt (degrees)
+            - zoom (1-9999)
+            - iris
+            - focus
+            - brightness
+            - autofocus
+            - autoiris
+
+        @return A dict with keys & values corresponding to the data provided by the camera, or None if the data
+                could not be acquired
+        '''
+        queryParams = { 'query':'position' }
+        new_camera_position = None
+        try:
+            url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}"
+            resp = requests.get(url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers)
+
+            if resp.status_code == requests.status_codes.codes.ok:
+                # returns a string of the form
+                #   pan=-0.01
+                #   tilt=-45.03
+                #   zoom=1
+                #   iris=5748
+                #   focus=4642
+                #   brightness=4999
+                #   autofocus=on
+                #   autoiris=on
+                new_camera_position = {
+                }
+                body = resp.text.split()
+                for row in body:
+                    if '=' in row:
+                        (key, value) = row.split('=')
+                        key = key.strip()
+                        value = value.strip()
+
+                        # convert the value into the appropriate Python type, since it's just a string now
+                        # use a regex to check for int/float values, and use standard YAML keywords for booleans
+                        # otherwise, just save the value as a string
+                        float_re = r'^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$'
+                        int_re = r'^[-+]?[0-9]+([eE][-+]?[0-9]+)?$'
+                        if bool(re.match(int_re, value)):
+                            value = int(value)
+                        elif bool(re.match(float_re, value)):
+                            value = float(value)
+                        elif value.lower() == "on" or value.lower() == "true" or value.lower() == "yes":
+                            value = True
+                        elif value.lower() == "off" or value.lower() == "false" or value.lower() == "no":
+                            value = False
+
+                        new_camera_position[key] = value
+            else:
+                raise Exception(f"HTTP Error querying the camera position: {resp.status_code}")
+
+        except Exception as e:
+            exception_error_str = "Exception: '" + str(e) + "' when querying the url: http://" + \
+                                  self.hostname + "/axis-cgi/com/ptz.cgi?%s" % urllib.parse.urlencode(queryParams)
+            rospy.logwarn(exception_error_str)
+            new_camera_position = None
+
+        return new_camera_position
+
+    def handle_set_iris(self, req):
+        get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?iris={req.data}"
+        resp = SetIntResponse()
+        try:
+            http_resp = requests.get(get_url,
+                auth=self.http_auth,
+                headers=self.http_headers,
+                timeout=self.http_timeout)
+
+            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+        except Exception as err:
+            rospy.logwarn("Error setting iris: {err}")
+            resp.success = False
+
+        return resp
+
+    def handle_set_focus(self, req):
+        get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?focus={req.data}"
+        resp = SetIntResponse()
+        try:
+            http_resp = requests.get(get_url,
+                auth=self.http_auth,
+                headers=self.http_headers,
+                timeout=self.http_timeout)
+
+            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+        except Exception as err:
+            rospy.logwarn("Error setting focus: {err}")
+            resp.success = False
+
+        return resp
+
+    def handle_set_brightness(self, req):
+        get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?brightness={req.data}"
+        resp = SetIntResponse()
+        try:
+            http_resp = requests.get(get_url,
+                auth=self.http_auth,
+                headers=self.http_headers,
+                timeout=self.http_timeout)
+
+            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+        except Exception as err:
+            rospy.logwarn("Error setting brightness: {err}")
+            resp.success = False
+
+        return resp
+
+    def handle_set_autofocus(self, req):
+        get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"
+        resp = SetBoolResponse()
+        try:
+            http_resp = requests.get(get_url,
+                auth=self.http_auth,
+                headers=self.http_headers,
+                timeout=self.http_timeout)
+
+            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+        except Exception as err:
+            rospy.logwarn("Error setting autofocus: {err}")
+            resp.success = False
+
+        return resp
+
+    def handle_set_autoiris(self, req):
+        get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"
+        resp = SetBoolResponse()
+        try:
+            http_resp = requests.get(get_url,
+                auth=self.http_auth,
+                headers=self.http_headers,
+                timeout=self.http_timeout)
+
+            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+        except Exception as err:
+            rospy.logwarn("Error setting autoiris: {err}")
+            resp.success = False
+
+        return resp
 
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         '''Lazy-start the image-publisher.'''

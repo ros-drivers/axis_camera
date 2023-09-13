@@ -4,7 +4,7 @@
 
 import rospy
 
-from axis_camera.axis_video import Axis
+from axis_camera.axis_camera import Axis
 from axis_camera.axis_ptz import AxisPTZ
 
 def updateArgs(arg_defaults):
@@ -54,7 +54,7 @@ def main():
     axis = Axis(args)
 
     if args['ptz']:
-        ptz = AxisPTZ(args)
+        ptz = AxisPTZ(axis, args)
 
     rospy.spin()
 
