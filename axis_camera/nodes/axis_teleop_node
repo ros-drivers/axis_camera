@@ -36,15 +36,16 @@ class AxisPtzTeleopNode:
         self.joy_sub = rospy.Subscriber("joy", Joy, self.joy_callback)
 
     def joy_callback(self, msg):
-        cmd = Ptz()
-        if msg.buttons[self.button_enable_pan_tilt]:
-            cmd.pan = msg.axes[self.axis_pan] * self.scale_pan
-            cmd.tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
+        if msg.buttons[self.button_enable_pan_tilt] or msg.buttons[self.button_enable_zoom]:
+            cmd = Ptz()
+            if msg.buttons[self.button_enable_pan_tilt]:
+                cmd.pan = msg.axes[self.axis_pan] * self.scale_pan
+                cmd.tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
 
-        if msg.buttons[self.button_enable_zoom]:
-            cmd.zoom = msg.axes[self.axis_zoom] * self.scale_zoom
+            if msg.buttons[self.button_enable_zoom]:
+                cmd.zoom = msg.axes[self.axis_zoom] * self.scale_zoom
 
-        self.cmd_pub.publish(cmd)
+            self.cmd_pub.publish(cmd)
 
 def main():
     rospy.init_node("axis_teleop_node")
