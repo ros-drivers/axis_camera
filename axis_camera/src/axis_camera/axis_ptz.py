@@ -17,6 +17,7 @@ from axis_msgs.msg import Ptz
 from std_msgs.msg import Bool
 
 from math import degrees as rad2deg
+from math import radians as deg2rad
 
 ## The Axis cameras have a maximum pan/tilt speed of 2.61 rad/s (150 deg/s)
 MAX_ANGULAR_VELOCITY = 2.61
@@ -34,7 +35,6 @@ class StateThread(threading.Thread):
 
     def run(self):
         r = rospy.Rate(1)
-        self.msg = Axis()
 
         while True:
             self.queryCameraPosition()
