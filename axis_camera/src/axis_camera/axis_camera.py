@@ -232,22 +232,15 @@ class Axis:
         if args['ir']:
             self.ir_on = False
             self.ir_on_off_srv = rospy.Service('set_ir_on', SetBool, self.handle_toggle_ir)
-            self.ir_on_pub = rospy.Publisher('ir_on', Bool, queue_size=1)
-            self.ir_on_pub_thread = threading.Thread(target=self.ir_on_pub_thread_fn)
-            self.ir_on_pub_thread.start()
-
+            self.ir_on_pub = rospy.Publisher('ir_on', Bool, queue_size=1, latch=True)
             self.handle_toggle_ir(SetBoolRequest(False))
 
         # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if args['wiper']:
-            self.wiper_on_time = datetime.datetime.utcnow()
             self.wiper_on = False
             self.wiper_on_off_srv = rospy.Service('set_wiper_on', SetBool, self.handle_toggle_wiper)
-            self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1)
-            self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
-            self.wiper_on_pub_thread.start()
-
+            self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1, latch=True)
             self.handle_toggle_wiper(SetBoolRequest(False))
 
         # The Axis Q62 series is equipped with a defogger
@@ -255,10 +248,7 @@ class Axis:
         if args['defog']:
             self.defog_on = False
             self.defog_on_off_srv = rospy.Service('set_defog_on', SetBool, self.handle_toggle_defog)
-            self.defog_on_pub = rospy.Publisher('defog_on', Bool, queue_size=1)
-            self.defog_on_pub_thread = threading.Thread(target=self.defog_on_pub_thread_fn)
-            self.defog_on_pub_thread.start()
-
+            self.defog_on_pub = rospy.Publisher('defog_on', Bool, queue_size=1, latch=True)
             self.handle_toggle_defog(SetBoolRequest(False))
 
     def __str__(self):
@@ -482,6 +472,8 @@ class Axis:
 
             resp.message = f"IR mode is {on_off[req.data]}"
             self.ir_on = req.data
+
+            self.ir_on_pub.publish(self.ir_on)
         except Exception as err:
             rospy.logwarn(f"Failed to set IR mode: {err}")
             ok = False
@@ -515,13 +507,6 @@ class Axis:
 
         return http_resp
 
-    def ir_on_pub_thread_fn(self):
-        """Publish whether the IR mode is on or off at 1Hz"""
-        rate = rospy.Rate(1)
-        while not rospy.is_shutdown():
-            self.ir_on_pub.publish(Bool(self.ir_on))
-            rate.sleep()
-
     def handle_toggle_wiper(self, req):
         """Turn the wiper on/off (if supported)"""
         on_off = {
@@ -532,11 +517,20 @@ class Axis:
         resp = SetBoolResponse()
         resp.success = True
         try:
-            if req.data:
+            if req.data and not self.wiper_on:  # only turn the wiper on if it's not already on
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "start", "params": {"id": 0, "duration": 10}}'
-                self.wiper_on_time = datetime.datetime.utcnow()
-            else:
+
+                # Start a background thread to publish when the wiper turns off
+                self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
+                self.wiper_on_pub_thread.start()
+            elif not req.data:
+                # turn the wiper off manually
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "stop", "params": {"id": 0}}'
+            else:
+                # We're turning the wiper on, but it's already on, so don't do anything
+                resp.message = "Wiper is already on"
+                resp.success = False
+                return resp
 
             http_resp = requests.post(f"http://{self.hostname}/axis-cgi/clearviewcontrol.cgi", post_data,
                 auth=self.http_auth,
@@ -548,22 +542,23 @@ class Axis:
 
             resp.message = f"Wiper is {on_off[self.wiper_on]}"
             self.wiper_on = req.data
+
+            self.wiper_on_pub.publish(self.wiper_on)
         except Exception as err:
             rospy.logwarn(f"Failed to set wiper mode: {err}")
             resp.success = False
             resp.message = str(err)
         return resp
 
-    def wiper_on_pub_thread_fn(self):
-        """Publish whether the wiper is running or not at 1Hz"""
-        rate = rospy.Rate(1)
-        while not rospy.is_shutdown():
-            # the wiper shuts off automatically after 10s
-            if (datetime.datetime.utcnow() - self.wiper_on_time).total_seconds() > 10:
-                self.wiper_on = False
-
-            self.wiper_on_pub.publish(Bool(self.wiper_on))
-            rate.sleep()
+    def wiper_timeout_pub_thread(self):
+        """A background thread that starts when the wiper is turned on and sleeps for the duration of the wiper operation
+        and then publishes when the wiper turns off
+        """
+        # the wiper turns off automatically after 10s
+        rate = rospy.Rate(10)
+        rate.sleep()
+        self.wiper_on = False
+        self.wiper_on_pub.publish(self.wiper_on)
 
     def handle_toggle_defog(self, req):
         """Turn the defogger on/off (if supported)"""
@@ -590,15 +585,10 @@ class Axis:
 
             resp.message = f"Defogger is {on_off[self.defog_on]}"
             self.defog_on = req.data
+
+            self.defog_on_pub.publish(self.defog_on)
         except Exception as err:
             rospy.logwarn(f"Failed to set defogger mode: {err}")
             resp.success = False
             resp.message = str(err)
         return resp
-
-    def defog_on_pub_thread_fn(self):
-        """Publish the state of the defogger at 1Hz"""
-        rate = rospy.Rate(1)
-        while not rospy.is_shutdown():
-            self.defog_on_pub.publish(Bool(self.defog_on))
-            rate.sleep()
