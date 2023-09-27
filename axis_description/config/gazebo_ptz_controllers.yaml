@@ -1,0 +1,15 @@
+pan_position_controller:
+  type: "velocity_controllers/JointPositionController"
+  joint: "ptz_camera_pan_joint"
+  pid:
+    p: 1.0
+    i: 0.01
+    d: 0.1
+
+tilt_position_controller:
+  type: "velocity_controllers/JointPositionController"
+  joint: "ptz_camera_tilt_joint"
+  pid:
+    p: 5.0
+    i: 0.01
+    d: 1.0
