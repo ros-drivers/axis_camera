@@ -28,7 +28,7 @@
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
-    <param name="frame_id" value="$(arg camera_name)" />
+    <param name="frame_id" value="$(arg camera_name)_camera_link" />
     <param name="wiper" value="$(arg enable_wiper)" />
     <param name="defog" value="$(arg enable_defog)" />
     <param name="ir" value="$(arg enable_ir)" />
