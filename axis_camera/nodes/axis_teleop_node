@@ -39,7 +39,7 @@ class AxisPtzTeleopNode:
         if msg.buttons[self.button_enable_pan_tilt] or msg.buttons[self.button_enable_zoom]:
             cmd = Ptz()
             if msg.buttons[self.button_enable_pan_tilt]:
-                cmd.pan = msg.axes[self.axis_pan] * self.scale_pan
+                cmd.pan = -msg.axes[self.axis_pan] * self.scale_pan   # invert the pan direction
                 cmd.tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
 
             if msg.buttons[self.button_enable_zoom]:

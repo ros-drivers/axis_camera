@@ -58,7 +58,7 @@
       </inertial>
     </link>
     <joint name="${prefix}_pan_joint" type="continuous">
-      <axis xyz="0 0 1" />
+      <axis xyz="0 0 -1" />
       <parent link="${prefix}_base_link" />
       <child link="${prefix}_body_link" />
       <origin xyz="0 0 ${stand_height}" rpy="0 0 0" />

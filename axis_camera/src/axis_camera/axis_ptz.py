@@ -65,7 +65,7 @@ class StateThread(threading.Thread):
         try:
             if self.axis.last_camera_position is not None:
                 msg = Ptz()
-                msg.pan = deg2rad(-float(self.axis.last_camera_position["pan"]))
+                msg.pan = deg2rad(float(self.axis.last_camera_position["pan"]))
                 msg.tilt = deg2rad(float(self.axis.last_camera_position["tilt"]))
                 msg.zoom = float(self.axis.last_camera_position["zoom"])
 
@@ -214,16 +214,14 @@ class AxisPTZ:
         '''Creates http cgi string to command PTZ camera'''
         self.cmdString = '/axis-cgi/com/ptz.cgi?'
         if speedControl:
-            # externally we treat positive pan as anticlockwise, but the Axis API treats it as clockwise
-            # we also need to rescale to [-100, 100] as a percentage of max speed
-            pan_speed_percent = -msg.pan / MAX_ANGULAR_VELOCITY * 100
+            # we need to rescale to [-100, 100] as a percentage of max speed
+            pan_speed_percent = msg.pan / MAX_ANGULAR_VELOCITY * 100
             tilt_speed_percent = msg.tilt / MAX_ANGULAR_VELOCITY * 100
             self.cmdString += f"continuouspantiltmove={int(pan_speed_percent)},{int(tilt_speed_percent)}&continuouszoommove={int(msg.zoom)}"
 
         else:
-            # externally we treat positive angles as anticlockwise, but the Axis API treats them as clockwise
-            # we also need to convert to degrees, since that's what the REST API uses
-            pan_degrees = -rad2deg(msg.pan)
+            # we need to convert to degrees, since that's what the REST API uses
+            pan_degrees = rad2deg(msg.pan)
             tilt_degrees = rad2deg(msg.tilt)
             self.cmdString += f"pan={int(pan_degrees)}&tilt={int(tilt_degrees)}&zoom={int(msg.zoom)}"
 
