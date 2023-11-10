@@ -26,8 +26,9 @@ class StateThread(threading.Thread):
     '''This class handles the publication of the positional state of the camera
     to a ROS message'''
 
-    def __init__(self, axis):
+    def __init__(self, ptz, axis):
         threading.Thread.__init__(self)
+        self.ptz = ptz
         self.axis = axis
         # Permit program to exit even if threads are still running by flagging
         # thread as a daemon:
@@ -37,7 +38,6 @@ class StateThread(threading.Thread):
         r = rospy.Rate(1)
 
         while True:
-            self.queryCameraPosition()
             self.publishCameraState()
             r.sleep()
 
@@ -63,19 +63,13 @@ class StateThread(threading.Thread):
     def publishCameraState(self):
         '''Publish camera state to a ROS message'''
         try:
-            if self.cameraPosition is not None:
+            if self.axis.last_camera_position is not None:
                 msg = Ptz()
-                msg.pan = deg2rad(-float(self.cameraPosition["pan"]))
-                msg.tilt = deg2rad(float(self.cameraPosition["tilt"]))
-                msg.zoom = float(self.cameraPosition["zoom"])
+                msg.pan = deg2rad(-float(self.axis.last_camera_position["pan"]))
+                msg.tilt = deg2rad(float(self.axis.last_camera_position["tilt"]))
+                msg.zoom = float(self.axis.last_camera_position["zoom"])
 
-                if self.axis.flip:
-                    self.adjustForFlippedOrientation(msg)
-                if self.axis.mirror:
-                    msg.pan = math.pi - msg.pan
-
-                self.axis.pub.publish(msg)
-                self.cameraPosition = None  # This prevents us re-publishing the same state on-error
+                self.ptz.pub.publish(msg)
         except KeyError as e:
             rospy.logwarn("Camera not ready for polling its telemetry: " + repr(e))
 
@@ -124,31 +118,17 @@ class AxisPTZ:
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         '''Lazy-start the state publisher.'''
         if self.st is None:
-            self.st = StateThread(self)
+            self.st = StateThread(self, self.axis_camera)
             self.st.start()
 
     def cmd_position(self, msg):
         '''Command the camera with position control commands'''
-
-        # flip & mirror as needed
-        if self.flip:
-            msg.tilt = - msg.tilt
-            msg.pan = math.pi - msg.pan
-        if self.mirror:
-            msg.pan = -msg.pan
 
         self.sanitisePTZCommands(msg, False)
         self.applySetpoints(msg, False)
 
     def cmd_velocity(self, msg):
         '''Command the camera with speed control commands'''
-
-        # flip & mirror as needed
-        if self.flip:
-            msg.tilt = - msg.tilt
-            msg.pan = -msg.pan
-        if self.mirror:
-            msg.pan = -msg.pan
 
         self.sanitisePTZCommands(msg, True)
         self.applySetpoints(msg, True)
