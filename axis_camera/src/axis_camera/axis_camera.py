@@ -238,6 +238,8 @@ class Axis:
         # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if args['wiper']:
+            self.wiper_on_pub_thread = None
+            self.wiper_start_at = rospy.Time.now()
             self.wiper_on = False
             self.wiper_on_off_srv = rospy.Service('set_wiper_on', SetBool, self.handle_toggle_wiper)
             self.wiper_on_pub = rospy.Publisher('wiper_on', Bool, queue_size=1, latch=True)
@@ -521,8 +523,10 @@ class Axis:
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "start", "params": {"id": 0, "duration": 10}}'
 
                 # Start a background thread to publish when the wiper turns off
-                self.wiper_on_pub_thread = threading.Thread(target=self.wiper_on_pub_thread_fn)
-                self.wiper_on_pub_thread.start()
+                self.wiper_start_at = rospy.Time.now()
+                if self.wiper_on_pub_thread is None:
+                    self.wiper_on_pub_thread = threading.Thread(target=self.wiper_timeout_pub_thread)
+                    self.wiper_on_pub_thread.start()
             elif not req.data:
                 # turn the wiper off manually
                 post_data = '{"apiVersion": "1.0", "context": "lvc_context", "method": "stop", "params": {"id": 0}}'
@@ -555,10 +559,13 @@ class Axis:
         and then publishes when the wiper turns off
         """
         # the wiper turns off automatically after 10s
-        rate = rospy.Rate(10)
-        rate.sleep()
+        WIPER_DURATION = rospy.Duration(10)
+        rate = rospy.Rate(1)
+        while rospy.Time.now() - self.wiper_start_at > WIPER_DURATION:
+            rate.sleep()
         self.wiper_on = False
         self.wiper_on_pub.publish(self.wiper_on)
+        self.wiper_on_pub_thread = None
 
     def handle_toggle_defog(self, req):
         """Turn the defogger on/off (if supported)"""
