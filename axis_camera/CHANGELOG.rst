@@ -1,6 +1,24 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Major overhaul for better PTZ support (`#80 <https://github.com/ros-drivers/axis_camera/issues/80>`_)
+  * Move the messages out of the driver and into their own package
+  * Migrating essential components into the src folder so we can use a single ROS node to contain both the video & ptz functionality. Start filling necessary messages & services for incoming features
+  * Remove the old axis and axis_ptz nodes, roll both into the new axis_camera_node script with the backends moved to the src directory
+  * Remove the dynamic_reconfigure, strip the PTZ controller down to just controlling pan, tilt, and zoom; don't set brightness, white balance, etc.... Add support for velocity & position control topics, change the driver to use radians instead of degrees
+  * Re-implement the teleop controls to use the PS4 controller. Fix some bugs found during testing
+  * Expose the joy topic as an arg to make remapping easier
+  * Use rad/s instead of [-100, 100] for pan & tilt velocity control
+  * Re-implement brightness/iris/focus/etc... support via individual services & topics instead of all combined into a single one.
+  * Latch the wiper, night-mode, and defogger topics instead of publishing at 1Hz. Prevent the wiper from being turned on if it's already on & running
+  * Add meshes & URDF files for a fixed dome camera, PTZ dome camera, and the Q62 PTZ camera
+  * Update the default camera frame ID to match the new description files
+  * Update the plugin name for the dome camera model
+  * Fixes after testing on hardware
+* Contributors: Chris Iverach-Brereton
+
 0.4.8 (2023-08-11)
 ------------------
 * Fix the image_transport node to publish theora frames of the `enable_theora` argument is enabled.

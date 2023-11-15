@@ -4,6 +4,7 @@ Changelog for package axis_description
 
 Forthcoming
 -----------
+* Initial release
 * Add meshes & URDF files for a fixed dome camera, PTZ dome camera, and the Q62 PTZ camera
 * Contributors: Chris Iverach-Brereton
 
