@@ -107,33 +107,57 @@ The camera's main image data is published on `/camera_name/image_raw/compressed`
 If the `enable_theora` argument is `true` then additional image topics are available in the `/camera_name/image_raw_out`
 namespace, including `/camera_name/image_raw_out/theora` as `theora_image_transport/Packet` messages.
 
-PTZ control (if enabled) uses the `axis_camera/Axis.msg` type:
+PTZ control (if enabled) uses the `axis_camera/Ptz.msg` type:
 
 ```
 float32 pan
 float32 tilt
 float32 zoom
-float32 focus
-float32 brightness
-float32 iris
-bool autofocus
-bool autoiris
 ```
 
-To write to the camera, use
+The driver supports both position and velocity control using the same message type.  The camera's current position is
+published using the `Ptz.msg` format on `/camera_name/state/position`. The camera's velocity is not reported at present.
+
+#### Position control
+Pan and tilt are expressed in radians, with positive pan being anticlockwise relative and positive tilt being upwards.
+The pan angle covers a full circle, from `-pi` to `pi`. Tilt covers a semicircle, from `-pi/2` to `pi/2`.  Larger
+zoom values indicate a narrower field of view
+
+- `pan`: `[-3.14, 3.14]`
+- `tilt`: `[-1.57, 1.57]`
+- `zoom`: `[1, 9999]`
+
+To send a position command to the camera, use something like
 
 ```bash
-rostopic pub /camera_name/cmd axis_camera/Axis "{pan: 45.0, tilt: 20.0, zoom: 1000.0, focus: 0.0, brightness: 1.0, iris: 1.0, autofocus: true, autoiris: true}" -1
+rostopic pub /camera_name/cmd/position axis_camera/Ptz "{pan: 0.0, tilt: 0.0, zoom: 1.0}" -1
 ```
 
-All writable camera properties are set simultaneously.  It is recommended to read the camera's current state from
-`/camera_name/state`, copy the `focus`, `autofocus`, `brightness`, and `iris` parameters, and then set the `pan`,
-`tilt` and `zoom` fields as desired.  Failure to set the `brightness` field may result in a very dark image.
+#### Velocity control
+Pan and tilt are expressed in rad/s, with positive pan being anticlockwise relative and positive tilt being upwards.
+Axis cameras support a maximum of 150 degrees/s, approximately 2.61 rad/s.  Positive zoom values will zoom in,
+negative zoom values will zoom out.  Sending a zero in any field will cease all movement
 
-`pan` and `tilt` are expressed in degrees (for ease of use with Axis' REST API) with positive tilt being upwards and
-positive pan being clockwise.
+- `pan`: `[-2.61, 2.61]`
+- `tilt`: `[-2.61, 2.61]`
+- `zoom`: `[-100, 100]`
 
-`zoom` is a value from 1 to 10000, with higher numbers indicating a narrower field of view.
+To send a velocity command to the camera, use something like
+
+```bash
+rostopic pub /camera_name/cmd/velocity axis_camera/Ptz "{pan: 1.5, tilt: 0.0, zoom: 0.0}" -1
+```
+
+The camera will continue to move until commanded to stop. To stop the movement, send an all-zero command:
+
+```bash
+rostopic pub /camera_name/cmd/velocity axis_camera/Ptz "{pan: 0.0, tilt: 0.0, zoom: 0.0}" -1
+```
+
+IR, Wiper, Defogger Services
+-----------------------------
+
+The Q62 camera features an optional IR mode, a lens wiper, and a heater for defogging the lens in cold conditions.
 
 The Q62 Series' IR mode can be toggled by running
 

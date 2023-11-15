@@ -1,0 +1,24 @@
+<package>
+
+  <name>axis_description</name>
+  <version>0.4.8</version>
+  <description>
+    Description package with URDF files for common Axis fixed and PTZ cameras
+  </description>
+  <maintainer email="civerachb@clearpathrobotics.com">Chris Iverach-Brereton</maintainer>
+  <author>Chris Iverach-Brereton</author>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/axis_camera</url>
+  <url type="repository">https://github.com/ros-drivers/axis_camera</url>
+  <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>urdf</run_depend>
+  <run_depend>xacro</run_depend>
+
+  <export>
+  </export>
+
+</package>

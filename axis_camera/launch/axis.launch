@@ -7,13 +7,15 @@
 
   <arg name="enable_theora" default="0" />
   <arg name="enable_ptz" default="0" />
-  <arg name="enable_ptz_teleop" default="0" />
   <arg name="enable_defog" default="0" />
   <arg name="enable_ir" default="0" />
   <arg name="enable_wiper" default="0" />
   <arg name="width" default="640" />
   <arg name="height" default="480" />
   <arg name="camera" default="1" />
+
+  <arg name="enable_ptz_teleop" default="0" />
+  <arg name="joy_topic" default="/bluetooth_teleop/joy" />
 
   <!-- desired FPS of the camera. 0=camera default -->
   <arg name="fps" default="0" />
@@ -26,14 +28,14 @@
     <param name="width" value="$(arg width)" />
     <param name="height" value="$(arg height)" />
     <param name="camera" value="$(arg camera)" />
-    <param name="frame_id" value="$(arg camera_name)" />
+    <param name="frame_id" value="$(arg camera_name)_camera_link" />
     <param name="wiper" value="$(arg enable_wiper)" />
     <param name="defog" value="$(arg enable_defog)" />
     <param name="ir" value="$(arg enable_ir)" />
     <param name="fps" value="$(arg fps)" />
+    <param name="ptz" value="$(arg enable_ptz)" />
 
-    <node pkg="axis_camera" type="axis.py" name="axis" />
-    <node pkg="axis_camera" type="axis_ptz.py" name="axis_ptz" if="$(arg enable_ptz)" />
+    <node pkg="axis_camera" type="axis_camera_node" name="axis" />
 
     <node pkg="image_transport" type="republish" name="republish"
           args="compressed theora" if="$(arg enable_theora)">
@@ -41,17 +43,11 @@
       <remap from="out" to="image_raw_out" />
     </node>
 
-    <node pkg="axis_camera" type="teleop.py" name="teleop" if="$(arg enable_ptz_teleop)">
-      <param name="enable_button" value="1" />
-      <param name="scale_pan_deg" value="25" />
-      <param name="scale_tilt_deg" value="25" />
-      <remap from="joy" to="/joy" />
-    </node>
+    <group if="$(eval arg('enable_ptz_teleop') and arg('enable_ptz'))">
+      <node pkg="axis_camera" type="axis_teleop_node" name="axis_teleop">
+        <rosparam command="load" file="$(find axis_camera)/config/teleop_ps4.yaml" />
+        <remap from="joy" to="$(arg joy_topic)" />
+      </node>
+    </group>
   </group>
-
-  <!-- To control the PTZ, issue commands like so:
-  rostopic pub /axis/cmd axis_camera/Axis '{ brightness: 5000, pan: 100, tilt: 10, zoom: 0, autofocus: True }'
-  NOTE: Don't forget to populate the brightness field, or
-        you'll get very dark images.
-  -->
 </launch>
