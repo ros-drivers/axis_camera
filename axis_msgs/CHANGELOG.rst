@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.5.0 (2023-11-15)
+------------------
 * Major overhaul for better PTZ support (`#80 <https://github.com/ros-drivers/axis_camera/issues/80>`_)
   * Move the messages out of the driver and into their own package
   * Migrating essential components into the src folder so we can use a single ROS node to contain both the video & ptz functionality. Start filling necessary messages & services for incoming features
