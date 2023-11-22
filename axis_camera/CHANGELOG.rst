@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.5.1 (2023-11-22)
+------------------
 * Remove an unnecessary import
 * Contributors: Chris Iverach-Brereton
 
