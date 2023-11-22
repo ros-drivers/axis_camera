@@ -12,7 +12,6 @@ import subprocess
 import threading
 import urllib.parse
 
-from axis_camera.cfg import PTZConfig
 from axis_msgs.msg import Ptz
 from std_msgs.msg import Bool
 
