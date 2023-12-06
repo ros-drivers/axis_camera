@@ -2,6 +2,9 @@
 Changelog for package axis_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.5.1 (2023-11-22)
 ------------------
 

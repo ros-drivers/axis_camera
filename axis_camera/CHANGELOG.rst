@@ -1,6 +1,11 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Add the config directory to the install targets
+* Contributors: Chris Iverach-Brereton
+
 0.5.1 (2023-11-22)
 ------------------
 * Remove an unnecessary import
