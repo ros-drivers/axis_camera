@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.5.2 (2023-12-06)
+------------------
 * Add the config directory to the install targets
 * Contributors: Chris Iverach-Brereton
 

@@ -1,7 +1,7 @@
 <package>
 
   <name>axis_description</name>
-  <version>0.5.1</version>
+  <version>0.5.2</version>
   <description>
     Description package with URDF files for common Axis fixed and PTZ cameras
   </description>
