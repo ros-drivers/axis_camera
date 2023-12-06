@@ -13,5 +13,5 @@ catkin_install_python(PROGRAMS
   nodes/axis_teleop_node
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(DIRECTORY launch tests
+install(DIRECTORY config launch tests
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
