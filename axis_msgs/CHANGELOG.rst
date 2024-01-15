@@ -1,6 +1,70 @@
 Change history
 ==============
 
+0.5.2 (2023-12-06)
+------------------
+
+0.5.1 (2023-11-22)
+------------------
+
+0.5.0 (2023-11-15)
+------------------
+* Major overhaul for better PTZ support (`#80 <https://github.com/ros-drivers/axis_camera/issues/80>`_)
+  * Move the messages out of the driver and into their own package
+  * Migrating essential components into the src folder so we can use a single ROS node to contain both the video & ptz functionality. Start filling necessary messages & services for incoming features
+  * Remove the old axis and axis_ptz nodes, roll both into the new axis_camera_node script with the backends moved to the src directory
+  * Remove the dynamic_reconfigure, strip the PTZ controller down to just controlling pan, tilt, and zoom; don't set brightness, white balance, etc.... Add support for velocity & position control topics, change the driver to use radians instead of degrees
+  * Re-implement the teleop controls to use the PS4 controller. Fix some bugs found during testing
+  * Expose the joy topic as an arg to make remapping easier
+  * Use rad/s instead of [-100, 100] for pan & tilt velocity control
+  * Re-implement brightness/iris/focus/etc... support via individual services & topics instead of all combined into a single one.
+  * Latch the wiper, night-mode, and defogger topics instead of publishing at 1Hz. Prevent the wiper from being turned on if it's already on & running
+  * Add meshes & URDF files for a fixed dome camera, PTZ dome camera, and the Q62 PTZ camera
+  * Update the default camera frame ID to match the new description files
+  * Update the plugin name for the dome camera model
+  * Fixes after testing on hardware
+* Contributors: Chris Iverach-Brereton
+
+0.4.8 (2023-08-11)
+------------------
+* Fix the image_transport node to publish theora frames of the `enable_theora` argument is enabled.
+* Add `fps` as an additional argument to the launch file
+* Contributors: Chris Iverach-Brereton
+
+0.4.7 (2023-06-01)
+------------------
+* Fix a bug that caused the ptz node to crash if the camera has fixed brightness
+* Contributors: Chris Iverach-Brereton
+
+0.4.6 (2023-05-05)
+------------------
+* Wait until camera is online before connecting (`#78 <https://github.com/ros-drivers/axis_camera/issues/78>`_)
+  * Add a wait loop to prevent execution until the camera responds to a ping. This should prevent issues where the node starts while the camera is still powering-on, resulting in some excessive errors
+  * Clear the camera position after publishing the state to avoid issues where we republush the same state ad nauseum if there's an error
+* Contributors: Chris Iverach-Brereton
+
+0.4.5 (2023-03-30)
+------------------
+* Enable digest authentication by default
+* Contributors: Chris Iverach-Brereton
+
+0.4.4 (2023-03-17)
+------------------
+* Improve support for the F34 multi-camera controller by adding default values for the camera index (1-4). Change the camera arg in view_axis to camera_name, change its default IP address to better-match with the main axis.launch file
+* Merge latest changes in master into noetic-devel
+* Merge Q62 support into noetic-devel branch (`#76 <https://github.com/ros-drivers/axis_camera/issues/76>`_)
+  * Add support for the Q6215 IR mode, defogger, and wiper
+  * Ensure that wiper, defog, IR modes are all disabled on startup
+  * Add a launch argument to expose the encrypted password option
+  * Add support for basic & digest HTTP authorization
+  * Rewrite some of the underling CGI calls to use requests to make the code easier to maintain
+  * Add support for authentication to the PTZ node
+  * Enable password encryption in view_axis.launch
+  * Expand the readme with details on usage, supported devices, available topics & services
+  * Add python3-requests as a dependendency
+  * Add support for the autoiris feature available on some cameras
+* Contributors: Chris Iverach-Brereton
+
 0.4.3 (2022-08-22)
 ------------------
 * Merge pull request `#73 <https://github.com/ros-drivers/axis_camera/issues/73>`_ from jhiggins-cpr/noetic-devel
