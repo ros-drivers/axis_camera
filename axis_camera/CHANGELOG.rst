@@ -1,6 +1,11 @@
 Change history
 ==============
 
+Forthcoming
+-----------
+* Use the legacy IR URL by default, falling back to the new one if it's not available; on legacy cameras the new URL returns status 200, even though it doesn't do anything (`#81 <https://github.com/ros-drivers/axis_camera/issues/81>`_)
+* Contributors: Chris Iverach-Brereton
+
 0.5.2 (2023-12-06)
 ------------------
 * Add the config directory to the install targets
