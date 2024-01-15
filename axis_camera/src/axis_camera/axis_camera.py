@@ -185,7 +185,7 @@ class Axis:
         self.use_encrypted_password = args['use_encrypted_password']
         self.camera = args['camera']
 
-        self.use_legacy_ir_url = False
+        self.use_legacy_ir_url = True
 
         self.http_headers = {
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
@@ -464,9 +464,9 @@ class Axis:
             # By default we try the new URL first, falling back to the legacy one if that fails
             http_resp = self.enable_disable_ir_filter(not req.data)
 
-            if http_resp.status_code != requests.status_codes.codes.ok and not self.use_legacy_ir_url:
+            if http_resp.status_code != requests.status_codes.codes.ok and self.use_legacy_ir_url:
                 rospy.logwarn("Failed to set IR filter mode using new URL; falling back to legacy URL")
-                self.use_legacy_ir_url = True
+                self.use_legacy_ir_url = False
                 http_resp =  self.enable_disable_ir_filter(not req.data)
 
             if http_resp.status_code != requests.status_codes.codes.ok:
