@@ -206,23 +206,60 @@ class StreamThread(threading.Thread):
 
 class Axis(Node):
 
-    def __init__(self, node_name, args):
+    def __init__(self, node_name):
         super().__init__(node_name)
         #self.publisher_ = self.create_publisher(String, 'topic', 10)
         #timer_period = 0.5  # seconds
         #self.timer = self.create_timer(timer_period, self.timer_callback)
         #self.i = 0
         self.get_logger().warning("axis node")
-        self.hostname = args['hostname']
-        self.username = args['username']
-        self.password = args['password']
-        self.width = args['width']
-        self.height = args['height']
-        self.fps = args['fps']
-        self.frame_id = args['frame_id']
-        self.camera_info_url = args['camera_info_url']
-        self.use_encrypted_password = args['use_encrypted_password']
-        self.camera = args['camera']
+
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('hostname', rclpy.Parameter.Type.STRING),
+                ('username', rclpy.Parameter.Type.STRING),
+                ('password', rclpy.Parameter.Type.STRING),
+                ('width', rclpy.Parameter.Type.INTEGER),
+                ('height', rclpy.Parameter.Type.INTEGER),
+                ('fps', rclpy.Parameter.Type.INTEGER),
+                ('frame_id', 'axis_camera_link'),
+                ('camera_info_url', ''),
+                ('use_encrypted_password', rclpy.Parameter.Type.BOOL),
+                ('camera', rclpy.Parameter.Type.INTEGER),
+                ('ir', False),
+                ('defog', False),
+                ('wiper', False),
+                ('ptz', False) 
+            ]
+        )
+
+        self.hostname = self.get_parameter('hostname').value
+        print(self.hostname)
+        self.username = self.get_parameter('username').value
+        self.password = self.get_parameter('password').value
+        self.width = self.get_parameter('width').value
+        self.height = self.get_parameter('height').value
+        self.fps = self.get_parameter('fps').value
+        self.frame_id = self.get_parameter('frame_id').value
+        self.camera_info_url = self.get_parameter('camera_info_url').value
+        self.use_encrypted_password = self.get_parameter('use_encrypted_password').value
+        self.camera = self.get_parameter('camera').value
+        self.ir = self.get_parameter('ir').value
+        self.defog = self.get_parameter('defog').value
+        self.wiper = self.get_parameter('wiper').value
+        self.ptz = self.get_parameter('ptz').value
+
+        #self.hostname = args['hostname']
+        #self.username = args['username']
+        #self.password = args['password']
+        #self.width = args['width']
+        #self.height = args['height']
+        #self.fps = args['fps']
+        #self.frame_id = args['frame_id']
+        #self.camera_info_url = args['camera_info_url']
+        #self.use_encrypted_password = args['use_encrypted_password']
+        #self.camera = args['camera']
 
         self.use_legacy_ir_url = False
 
@@ -271,7 +308,7 @@ class Axis(Node):
 
         # The Axis Q62 series supports a night-vision mode with an active IR illuminator
         # If this option is enabled, add the necessary services and topics
-        if args['ir']:
+        if self.ir:
             self.ir_on = False
             self.ir_on_off_srv = self.create_service(SetBool, 'set_ir_on', self.handle_toggle_ir)
             self.ir_on_pub = self.create_publisher(Bool, 'ir_on', 1, True) # queue_size=1, latch=True
@@ -279,7 +316,7 @@ class Axis(Node):
 
         # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
-        if args['wiper']:
+        if self.wiper:
             self.wiper_on_pub_thread = None
             self.wiper_start_at = self.get_clock().now()
             self.wiper_on = False
@@ -289,7 +326,7 @@ class Axis(Node):
 
         # The Axis Q62 series is equipped with a defogger
         # If this option is enabled, add the necessary services and topics
-        if args['defog']:
+        if self.defog:
             self.defog_on = False
             self.defog_on_off_srv = self.create_service(SetBool, 'set_defog_on', self.handle_toggle_defog)
             self.defog_on_pub = self.create_publisher(Bool, 'defog_on', 1, True) # queue_size=1, latch=True
@@ -414,8 +451,9 @@ class Axis(Node):
 
         return resp
 
-    def handle_set_focus(self, req):
+    def handle_set_focus(self, req, tmp):
         get_url = f"http://{self.hostname}/axis-cgi/com/ptz.cgi?focus={req.data}"
+        print(get_url)
         resp = SetInt.Response()
         try:
             http_resp = requests.get(get_url,

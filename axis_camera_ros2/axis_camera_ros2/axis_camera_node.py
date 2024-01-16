@@ -27,27 +27,27 @@ def updateArgs(arg_defaults):
 def main(args=None):
     rclpy.init()
 
-    parameters = {
-        'hostname': '',       # default IP address
-        'username': '',               # default login name
-        'password': '',
-        'width': 640,
-        'height': 480,
-        'fps': 20,                         # frames per second (0 = camera default)
-        'frame_id': 'axis_camera_link',
-        'camera_info_url': '',
-        'use_encrypted_password' : False,
-        'camera' : 1,
-        'ir': False,
-        'defog': False,
-        'wiper': False,
-        'ptz': False }
+    #parameters = {
+    #    'hostname': '',       # default IP address
+    #    'username': '',               # default login name
+    #    'password': '',
+    #    'width': 640,
+    #    'height': 480,
+    #    'fps': 20,                         # frames per second (0 = camera default)
+    #    'frame_id': 'axis_camera_link',
+    #    'camera_info_url': '',
+    #    'use_encrypted_password' : False,
+    #    'camera' : 1,
+    #    'ir': False,
+    #    'defog': False,
+    #    'wiper': False,
+    #    'ptz': False }
 
     #args = updateArgs(parameters)
 
     node_name='axis_camera_node'
 
-    axis_camera_node = Axis(node_name, parameters)
+    axis_camera_node = Axis(node_name)
 
     rclpy.spin(axis_camera_node)
 
