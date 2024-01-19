@@ -44,26 +44,33 @@
 #    AXIS        Value
 # Left Horiz.      0
 # Left Vert.       1
-# Right Horiz.     2
-# Right Vert.      5
-#    L2            3
-#    R2            4
-# D-pad Horiz.     9
-# D-pad Vert.      10
-# Accel x          7
-# Accel y          6
-# Accel z          8
+# Right Horiz.     3
+# Right Vert.      4
+#    L2            2
+#    R2            5
+# D-pad Horiz.     6
+# D-pad Vert.      7
 
-# Hold X button to enable pan/tilt control
-# Hold circle button to enable zoom control
-button_enable_pan_tilt : 0
-button_enable_zoom     : 1
+# Optional: specify an enable button that must be held to allow pan/tilt/zoom controls
+button_enable_pan_tilt : -1
+button_enable_zoom     : -1
 
-# Left thumb stick for pan/tilt/zoom (depending on button above)
-axis_pan      : 0
-axis_tilt     : 1
-axis_zoom     : 1
-invert_tilt   : false
+# Right thumb stick to pan/tilt the camera
+axis_pan      : 3
+axis_tilt     : 4
+invert_tilt   : False
+
+# R2/L2 to zoom in/out
+axis_zoom_in: 5
+axis_zoom_out: 2
+
+# The analog triggers are normalled to +1 and move towards -1 as they are pressed
+# To convert them to the proper range we apply an offset and _then_ a multipicative scale
+# If we use e.g. a thumb stick instead, the offset should be 0 and the scale 1.0
+zoom_in_offset: -1
+zoom_out_offset: -1
+zoom_in_scale: -0.5
+zoom_out_scale: 0.5
 
 # Maximum pan/tilt/zoom velocities
 # max 2.61 rad/s rotation
