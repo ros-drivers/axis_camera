@@ -1,7 +1,7 @@
 # Teleop configuration for PS4 joystick using the x-pad configuration.
 #
-# This file uses the default order for PS4 controller axis enumeration:
-# L-horiz, L-vert, L-trig, R-horiz, R-vert, R-trig
+# This file uses the alternate order for PS4 controller axis enumeration:
+# L-horiz, L-vert, R-horiz, R-vert, L-trig, R-trig
 #
 #          L1                                       R1
 #          L2                                       R2
@@ -44,9 +44,9 @@
 #    AXIS        Value
 # Left Horiz.      0
 # Left Vert.       1
-# Right Horiz.     3
-# Right Vert.      4
-#    L2            2
+# Right Horiz.     2
+# Right Vert.      3
+#    L2            4
 #    R2            5
 # D-pad Horiz.     6
 # D-pad Vert.      7
@@ -56,13 +56,13 @@ button_enable_pan_tilt : -1
 button_enable_zoom     : -1
 
 # Right thumb stick to pan/tilt the camera
-axis_pan      : 3
-axis_tilt     : 4
+axis_pan      : 2
+axis_tilt     : 3
 invert_tilt   : False
 
 # R2/L2 to zoom in/out
 axis_zoom_in: 5
-axis_zoom_out: 2
+axis_zoom_out: 4
 
 # The analog triggers are normalled to +1 and move towards -1 as they are pressed
 # To convert them to the proper range we apply an offset and _then_ a multipicative scale
