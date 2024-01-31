@@ -16,6 +16,7 @@
 
   <arg name="enable_ptz_teleop" default="0" />
   <arg name="joy_topic" default="/bluetooth_teleop/joy" />
+  <arg name="joy_teleop_config" default="$(find axis_camera)/config/teleop_ps4.yaml" />
 
   <!-- desired FPS of the camera. 0=camera default -->
   <arg name="fps" default="0" />
@@ -45,7 +46,7 @@
 
     <group if="$(eval arg('enable_ptz_teleop') and arg('enable_ptz'))">
       <node pkg="axis_camera" type="axis_teleop_node" name="axis_teleop">
-        <rosparam command="load" file="$(find axis_camera)/config/teleop_ps4.yaml" />
+        <rosparam command="load" file="$(arg joy_teleop_config)" />
         <remap from="joy" to="$(arg joy_topic)" />
       </node>
     </group>

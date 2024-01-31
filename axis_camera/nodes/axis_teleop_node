@@ -6,13 +6,19 @@ import rospy
 from sensor_msgs.msg import Joy
 from axis_msgs.msg import Ptz
 
-button_enable_pan_tilt = 0
-button_enable_zoom = 1
+button_enable_pan_tilt = -1
+button_enable_zoom = -1
 
-axis_pan = 0
-axis_tilt = 1
-axis_zoom = 1
+axis_pan = 3
+axis_tilt = 4
 invert_tilt = False
+
+axis_zoom_in = 5
+axis_zoom_out = 2
+zoom_in_offset = -1
+zoom_out_offset = -1
+zoom_in_scale = -0.5
+zoom_out_scale = 0.5
 
 # max pan/tilt speed of 2.61 rad/2
 scale_pan = 2.61
@@ -23,29 +29,48 @@ class AxisPtzTeleopNode:
     def __init__(self):
         self.button_enable_pan_tilt = rospy.get_param("~button_enable_pan_tilt", button_enable_pan_tilt)
         self.button_enable_zoom = rospy.get_param("~button_enable_zoom", button_enable_zoom)
+
         self.axis_pan = rospy.get_param("~axis_pan", axis_pan)
         self.axis_tilt = rospy.get_param("~axis_tilt", axis_tilt)
-        self.axis_zoom = rospy.get_param("~axis_zoom", axis_zoom)
         self.invert_tilt = rospy.get_param("~invert_tilt", invert_tilt)
+
+        self.axis_zoom_in = rospy.get_param("~axis_zoom_in", axis_zoom_in)
+        self.axis_zoom_out = rospy.get_param("~axis_zoom_out", axis_zoom_out)
+        self.zoom_in_offset = rospy.get_param("~zoom_in_offset", zoom_in_offset)
+        self.zoom_out_offset = rospy.get_param("~zoom_out_offset", zoom_out_offset)
+        self.zoom_in_scale = rospy.get_param("~zoom_in_scale", zoom_in_scale)
+        self.zoom_out_scale = rospy.get_param("~zoom_out_scale", zoom_out_scale)
+
         self.scale_pan = rospy.get_param("~scale_pan", scale_pan)
         self.scale_tilt = rospy.get_param("~scale_tilt", scale_tilt)
         self.scale_zoom = rospy.get_param("~scale_zoom", scale_zoom)
+
+        self.last_cmd = Ptz()
 
     def start(self):
         self.cmd_pub = rospy.Publisher("cmd/velocity", Ptz, queue_size=1)
         self.joy_sub = rospy.Subscriber("joy", Joy, self.joy_callback)
 
     def joy_callback(self, msg):
-        if msg.buttons[self.button_enable_pan_tilt] or msg.buttons[self.button_enable_zoom]:
+        pan = 0
+        tilt = 0
+        zoom = 0
+        if self.button_enable_pan_tilt < 0 or msg.buttons[self.button_enable_pan_tilt]:
+            pan = msg.axes[self.axis_pan] * -self.scale_pan
+            tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
+
+        if self.button_enable_zoom < 0 or msg.buttons[self.button_enable_zoom]:
+            zoom_in_amt = (msg.axes[self.axis_zoom_in] + self.zoom_in_offset) * self.zoom_in_scale
+            zoom_out_amt = (msg.axes[self.axis_zoom_out] + self.zoom_out_offset) * self.zoom_out_scale
+            zoom = (zoom_in_amt + zoom_out_amt) * self.scale_zoom
+
+        if pan != self.last_cmd.pan or tilt != self.last_cmd.tilt or zoom != self.last_cmd.zoom:
             cmd = Ptz()
-            if msg.buttons[self.button_enable_pan_tilt]:
-                cmd.pan = -msg.axes[self.axis_pan] * self.scale_pan   # invert the pan direction
-                cmd.tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
-
-            if msg.buttons[self.button_enable_zoom]:
-                cmd.zoom = msg.axes[self.axis_zoom] * self.scale_zoom
-
+            cmd.pan = pan
+            cmd.tilt = tilt
+            cmd.zoom = zoom
             self.cmd_pub.publish(cmd)
+            self.last_cmd = cmd
 
 def main():
     rospy.init_node("axis_teleop_node")
