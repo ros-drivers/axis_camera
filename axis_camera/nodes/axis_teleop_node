@@ -25,6 +25,8 @@ scale_pan = 2.61
 scale_tilt = 2.61
 scale_zoom = 100
 
+dead_zone = 0.1
+
 class AxisPtzTeleopNode:
     def __init__(self):
         self.button_enable_pan_tilt = rospy.get_param("~button_enable_pan_tilt", button_enable_pan_tilt)
@@ -54,8 +56,10 @@ class AxisPtzTeleopNode:
         tilt = 0
         zoom = 0
         if self.button_enable_pan_tilt < 0 or msg.buttons[self.button_enable_pan_tilt]:
-            pan = msg.axes[self.axis_pan] * self.scale_pan
-            tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
+            if abs(msg.axes[self.axis_pan]) >= dead_zone:
+                pan = msg.axes[self.axis_pan] * -self.scale_pan
+            if abs(msg.axes[self.axis_tilt]) >= dead_zone:
+                tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
 
         if self.button_enable_zoom < 0 or msg.buttons[self.button_enable_zoom]:
             zoom_in_amt = (msg.axes[self.axis_zoom_in] + self.zoom_in_offset) * self.zoom_in_scale
