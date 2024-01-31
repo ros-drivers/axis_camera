@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+0.5.4 (2024-01-31)
+------------------
 * Change default PS4 controller inputs (`#84 <https://github.com/ros-drivers/axis_camera/issues/84>`_)
   * Refactor the teleop controls to make enable buttons optional, change the defaults to use the right thumb stick for pan/tilt and right/left analog triggers for zoom in/out
   * Fix comments in the PS4 controller configuration file, add an additional file with the alternative axis ordering (which is necessary for some controllers)
