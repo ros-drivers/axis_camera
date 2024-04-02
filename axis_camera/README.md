@@ -33,6 +33,7 @@ If you have used this driver with a specific model of camera not listed below, p
 list up-to-date.
 
 - [F Series](https://www.axis.com/products/axis-f-series)
+- [M55 Series](https://www.axis.com/products/axis-m55-series) (Specifically the [M5525-E](https://github.com/ros-drivers/axis_camera/issues/85))
 - [M30 Series](https://www.axis.com/products/axis-m30-series)
 - [P55 Series](https://www.axis.com/products/axis-p55-series)
 - [Q62 Series](https://www.axis.com/products/axis-q62-series)
