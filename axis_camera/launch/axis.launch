@@ -13,6 +13,7 @@
   <arg name="width" default="640" />
   <arg name="height" default="480" />
   <arg name="camera" default="1" />
+  <arg name="frame_id" default="$(arg camera_name)_camera_link"/>
 
   <arg name="enable_ptz_teleop" default="0" />
   <arg name="joy_topic" default="/bluetooth_teleop/joy" />
@@ -22,21 +23,23 @@
   <arg name="fps" default="0" />
 
   <group ns="$(arg camera_name)">
-    <param name="hostname" value="$(arg hostname)" />
-    <param name="username" value="$(arg username)" />
-    <param name="password" value="$(arg password)" />
-    <param name="use_encrypted_password" value="$(arg encrypt_password)" />
-    <param name="width" value="$(arg width)" />
-    <param name="height" value="$(arg height)" />
-    <param name="camera" value="$(arg camera)" />
-    <param name="frame_id" value="$(arg camera_name)_camera_link" />
-    <param name="wiper" value="$(arg enable_wiper)" />
-    <param name="defog" value="$(arg enable_defog)" />
-    <param name="ir" value="$(arg enable_ir)" />
-    <param name="fps" value="$(arg fps)" />
-    <param name="ptz" value="$(arg enable_ptz)" />
 
-    <node pkg="axis_camera" type="axis_camera_node" name="axis" />
+    <node pkg="axis_camera" type="axis_camera_node" name="axis">
+      <rosparam subst_value="true">
+        hostname: '$(arg hostname)'
+        username: '$(arg username)'
+        password: '$(arg password)'
+        use_encrypted_password: $(arg encrypt_password)
+        width: $(arg width)
+        height: $(arg height)
+        camera: $(arg camera)
+        frame_id: '$(arg frame_id)'
+        wiper: $(arg enable_wiper)
+        defog: $(arg enable_defog)
+        fps: $(arg fps)
+        ptz: $(arg enable_ptz)
+      </rosparam>
+    </node>
 
     <node pkg="image_transport" type="republish" name="republish"
           args="compressed theora" if="$(arg enable_theora)">
