@@ -13,11 +13,10 @@ def updateArgs(arg_defaults):
     '''
     args = {}
     for name, val in arg_defaults.items():
-        full_name = rospy.search_param(name)
-        if full_name is None:
-            args[name] = val
+        if rospy.has_param('~' + name):
+            args[name] = rospy.get_param('~' + name)
         else:
-            args[name] = rospy.get_param(full_name, val)
+            args[name] = rospy.get_param(name, val)
     # resolve frame_id with tf_prefix
     args['frame_id'] = args['frame_id'].lstrip('/')
     tf_prefix = rospy.get_param('tf_prefix', '').lstrip('/')
