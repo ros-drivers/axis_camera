@@ -20,7 +20,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'helloworld = axis_camera_ros2.helloworld:main',
             'axis_camera_node = axis_camera_ros2.axis_camera_node:main'
         ],
     },
