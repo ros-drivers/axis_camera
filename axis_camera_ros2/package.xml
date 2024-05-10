@@ -4,8 +4,14 @@
   <name>axis_camera_ros2</name>
   <version>0.0.0</version>
   <description>AXIS ROS2 package</description>
-  <maintainer email="quentin.picard@vedecom.fr">Quentin Picard</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="civerachb@clearpathrobotics.com">Chris Iverach-Brereton</maintainer>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/axis_camera</url>
+  <url type="repository">https://github.com/ros-drivers/axis_camera</url>
+  <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
+
+  <author email="quentin.picard@vedecom.fr">Quentin Picard</author>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
