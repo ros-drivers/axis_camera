@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'axis_camera_ros2'
+package_name = 'axis_camera'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'axis_camera_node = axis_camera_ros2.axis_camera_node:main'
+            'axis_camera_node = axis_camera.axis_camera_node:main'
         ],
     },
 )

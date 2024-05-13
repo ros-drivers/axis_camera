@@ -1,6 +1,6 @@
 import rclpy
 
-from axis_camera_ros2.axis_camera import Axis
+from axis_camera.axis_camera import Axis
 
 
 def updateArgs(arg_defaults):

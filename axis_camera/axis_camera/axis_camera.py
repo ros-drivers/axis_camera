@@ -18,7 +18,7 @@ from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 from std_msgs.msg import Bool, Int32
 from std_srvs.srv import SetBool
 
-from axis_camera_ros2.cam_info_utils import CameraInfoManager, genCameraName
+from axis_camera.cam_info_utils import CameraInfoManager, genCameraName
 
 
 class StreamThread(threading.Thread):

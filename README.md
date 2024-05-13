@@ -36,4 +36,4 @@ Below are the commands to build the ROS2 driver package:
 
 If you want the rqt visualization, you must launch rqt before the node. Otherwise, the subscription to the topic will generate an image transport error that is currently not resolved.
 
-`ros2 run axis_camera_ros2 axis_camera_node --ros-args -p hostname:=hostname -p username:=username -p password:=password -p use_encrypted_password:=use_encrypted_password -p width:=width -p height:=height -p fps:=fps -p camera:=camera`
+`ros2 run axis_camera axis_camera_node --ros-args -p hostname:=hostname -p username:=username -p password:=password -p use_encrypted_password:=use_encrypted_password -p width:=width -p height:=height -p fps:=fps -p camera:=camera`
