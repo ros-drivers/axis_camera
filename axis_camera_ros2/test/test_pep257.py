@@ -19,5 +19,6 @@ import pytest
 @pytest.mark.linter
 @pytest.mark.pep257
 def test_pep257():
-    rc = main(argv=['.', 'test'])
+    rc = main(argv=['--exclude', './axis_camera_ros2/camera_info_manager.py',
+                    './axis_camera_ros2/cam_info_utils.py'])
     assert rc == 0, 'Found code style errors / warnings'

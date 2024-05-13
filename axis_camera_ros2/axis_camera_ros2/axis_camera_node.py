@@ -1,11 +1,15 @@
 import rclpy
-from rclpy.node import Node
+
 from axis_camera_ros2.axis_camera import Axis
 
+
 def updateArgs(arg_defaults):
-    '''Look up parameters starting in the driver's private parameter space, but
-    also searching outer namespaces
-    '''
+    """
+    Update args with parameters in outer namespaces.
+
+    Look up parameters starting in the driver's private parameter space,
+    but also searching outer namespaces.
+    """
     args = {}
     for name, val in arg_defaults.items():
         full_name = rclpy.search_param(name)
@@ -14,20 +18,21 @@ def updateArgs(arg_defaults):
         else:
             args[name] = rclpy.get_param(full_name, val)
     # resolve frame_id with tf_prefix (unless already absolute)
-    if args['frame_id'][0] != '/':        # not absolute?
+    if args['frame_id'][0] != '/':  # not absolute?
         tf_prefix = rclpy.search_param('tf_prefix')
         prefix_val = ''
-        if tf_prefix is not None:           # prefix defined?
+        if tf_prefix is not None:  # prefix defined?
             prefix_val = rclpy.get_param(tf_prefix)
-            if prefix_val[0] != '/':          # prefix not absolute?
+            if prefix_val[0] != '/':  # prefix not absolute?
                 prefix_val = '/' + prefix_val
         args['frame_id'] = prefix_val + '/' + args['frame_id']
-    return(args)
+    return args
+
 
 def main(args=None):
     rclpy.init()
 
-    #parameters = {
+    # parameters = {
     #    'hostname': '',       # default IP address
     #    'username': '',               # default login name
     #    'password': '',
@@ -43,9 +48,9 @@ def main(args=None):
     #    'wiper': False,
     #    'ptz': False }
 
-    #args = updateArgs(parameters)
+    # args = updateArgs(parameters)
 
-    node_name='axis_camera_node'
+    node_name = 'axis_camera_node'
 
     axis_camera_node = Axis(node_name)
 
