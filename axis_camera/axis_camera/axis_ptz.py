@@ -47,6 +47,7 @@ class AxisPtz:
         """Create a PTZ action server node to control the given camera
 
         @param camera  An Axis instance that controls the underlying camera
+        @param teleop  If True, subscribe to /joy_teleop/joy
         """
         self.axis = camera
 
