@@ -14,7 +14,7 @@
   <url type="repository">https://github.com/ros-drivers/axis_camera</url>
   <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
 
-  <author email="quentin.picard@vedecom.fr">Quentin Picard</author>
+  <author email="civerachb@clearpathrobotics.com">Chris Iverach-Brereton</author>
   <author>Ryan Gariepy</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
