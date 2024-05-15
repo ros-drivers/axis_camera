@@ -37,6 +37,8 @@ from math import radians as deg2rad
 from ptz_action_server_msgs.action import Ptz
 import rclpy
 from rclpy.action import *
+import rclpy.subscription
+from sensor_msgs.msg import Joy
 
 class AxisPtz:
     """Provides action server interfaces for controlling the pan, tilt, and zoom of
@@ -72,6 +74,14 @@ class AxisPtz:
             self.move_ptz_vel_cb
         )
 
+        if teleop:
+            self.joy_sub = self.axis.create_subscription(
+                Joy,
+                "joy_teleop/joy",
+                self.joy_cb,
+                10
+            )
+
     def move_ptz_abs_cb(self, goal_handle):
         """Move the camera to an absolute PTZ position, relative to its base link
 
@@ -92,3 +102,7 @@ class AxisPtz:
         @param goal_handle
         """
         pass
+
+    def joy_cb(self, msg):
+        """Callback for joystick events
+        """

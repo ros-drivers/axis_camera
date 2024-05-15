@@ -281,6 +281,7 @@ class Axis(Node):
                 ('defog', rclpy.Parameter.Type.BOOL),
                 ('wiper', rclpy.Parameter.Type.BOOL),
                 ('ptz', rclpy.Parameter.Type.BOOL),
+                ('ptz_teleop', rclpy.Parameter.Type.BOOL),
             ],
         )
 
@@ -299,17 +300,7 @@ class Axis(Node):
         self.defog = self.get_parameter('defog').value
         self.wiper = self.get_parameter('wiper').value
         self.use_ptz = self.get_parameter('ptz').value
-
-        # self.hostname = args['hostname']
-        # self.username = args['username']
-        # self.password = args['password']
-        # self.width = args['width']
-        # self.height = args['height']
-        # self.fps = args['fps']
-        # self.frame_id = args['frame_id']
-        # self.camera_info_url = args['camera_info_url']
-        # self.use_encrypted_password = args['use_encrypted_password']
-        # self.camera = args['camera']
+        self.ptz_teleop = self.get_parameter('ptz_teleop').value
 
         self.use_legacy_ir_url = False
 
@@ -405,7 +396,7 @@ class Axis(Node):
         self.msg_thread.start()
 
         if self.use_ptz:
-            self.ptz = AxisPtz(self)
+            self.ptz = AxisPtz(self, self.ptz_teleop)
         else:
             self.ptz = None
 
