@@ -1,20 +1,4 @@
 <?xml version="1.0" ?>
-<!--
-    #    'hostname': '',                    # default IP address
-    #    'username': '',                    # default login name
-    #    'password': '',
-    #    'width': 640,
-    #    'height': 480,
-    #    'fps': 20,                         # frames per second (0 = camera default)
-    #    'frame_id': 'axis_camera_link',
-    #    'camera_info_url': '',
-    #    'use_encrypted_password' : False,
-    #    'camera' : 1,
-    #    'ir': False,
-    #    'defog': False,
-    #    'wiper': False,
-    #    'ptz': False  
--->
 <launch>
   <!--
     ROS frames & joints
