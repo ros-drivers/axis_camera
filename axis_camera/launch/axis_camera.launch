@@ -30,6 +30,7 @@
   <arg name="enable_ir" default="false" />
   <arg name="enable_wiper" default="false" />
   <arg name="enable_defog" default="false" />
+  <arg name="teleop_config" default="$(find-pkg-share axis_camera)/config/teleop_ps4.yaml" />
   
   <node name="$(var camera_name)_node" pkg="axis_camera" exec="axis_camera_node">
     <param name="hostname" value="$(var hostname)" />
@@ -37,6 +38,7 @@
     <param name="username" value="$(var username)" />
     <param name="password" value="$(var password)" />
     <param name="use_encrypted_password" value="$(var use_encrypted_password)" />
+    <param name="camera_info_url" value="" />
 
     <param name="camera" value="$(var camera_num)" />
     <param name="height" value="$(var frame_height)" />
@@ -47,8 +49,10 @@
     <param name="ptz_teleop" value="$(var enable_ptz_teleop)" />
     <param name="ir" value="$(var enable_ir)" />
     <param name="wiper" value="$(var enable_wiper)" />
-    <param name="defog" value="(var enable_defog)" />
+    <param name="defog" value="$(var enable_defog)" />
 
     <param name="frame_id" value="$(var camera_name)_camera_link" />
+
+    <param from="$(var teleop_config)" />
   </node>
 </launch>
