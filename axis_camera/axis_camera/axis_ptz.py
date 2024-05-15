@@ -32,6 +32,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from math import degrees as rad2deg
+from math import radians as deg2rad
 from ptz_action_server_msgs.action import Ptz
 import rclpy
 from rclpy.action import *
@@ -69,23 +71,23 @@ class AxisPtz:
             self.move_ptz_vel_cb
         )
 
-    def move_ptz_abs_cb(self, req):
+    def move_ptz_abs_cb(self, goal_handle):
         """Move the camera to an absolute PTZ position, relative to its base link
 
-        @param req  The PTZ request we're responding to
+        @param goal_handle
         """
         pass
 
-    def move_ptz_rel_cb(self, req):
+    def move_ptz_rel_cb(self, goal_handle):
         """Move the camera to a new PTZ position, relative to its current state
 
-        @param req  The PTZ request we're responding to
+        @param goal_handle
         """
         pass
     
-    def move_ptz_vel_cb(self, req):
+    def move_ptz_vel_cb(self, goal_handle):
         """Move the camera using velocity control
 
-        @param req  The PTZ request we're responding to
+        @param goal_handle
         """
         pass

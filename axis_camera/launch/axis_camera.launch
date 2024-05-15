@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="enable_ptz" default="false" />
+  <arg name="camera_name" default="axis" />
+  
+  <node name="$(var camera_name)_node" pkg="axis_camera" exec="axis_camera_node">
+  </node>
+</launch>
