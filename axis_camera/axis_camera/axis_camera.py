@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2024 Clearpath Robotics Inc.
 # All rights reserved.
 #
@@ -51,6 +53,7 @@ from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 from std_msgs.msg import Bool, Int32
 from std_srvs.srv import SetBool
 
+from axis_camera.axis_ptz import AxisPtz
 from axis_camera.cam_info_utils import CameraInfoManager, genCameraName
 
 
@@ -310,7 +313,7 @@ class Axis(Node):
         self.ir = self.get_parameter('ir').value
         self.defog = self.get_parameter('defog').value
         self.wiper = self.get_parameter('wiper').value
-        self.ptz = self.get_parameter('ptz').value
+        self.use_ptz = self.get_parameter('ptz').value
 
         # self.hostname = args['hostname']
         # self.username = args['username']
@@ -415,6 +418,11 @@ class Axis(Node):
 
         self.msg_thread = StreamThread(self)
         self.msg_thread.start()
+
+        if self.use_ptz:
+            self.ptz = AxisPtz(self)
+        else:
+            self.ptz = None
 
     def __str__(self):
         """Return string representation."""
