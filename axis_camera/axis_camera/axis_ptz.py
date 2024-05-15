@@ -34,19 +34,19 @@
 
 from math import degrees as rad2deg
 from math import radians as deg2rad
+
 from ptz_action_server_msgs.action import Ptz
-import rclpy
-from rclpy.action import *
-import rclpy.subscription
 from sensor_msgs.msg import Joy
 
+from rclpy.action import ActionServer
+
+
 class AxisPtz:
-    """Provides action server interfaces for controlling the pan, tilt, and zoom of
-    supported PTZ devices
-    """
-    
+    """Provides action server interfaces for controlling the pan, tilt, and zoom of supported PTZ devices."""
+
     def __init__(self, camera, teleop=False):
-        """Create a PTZ action server node to control the given camera
+        """
+        Create a PTZ action server node to control the given camera.
 
         @param camera  An Axis instance that controls the underlying camera
         @param teleop  If True, subscribe to /joy_teleop/joy
@@ -83,26 +83,33 @@ class AxisPtz:
             )
 
     def move_ptz_abs_cb(self, goal_handle):
-        """Move the camera to an absolute PTZ position, relative to its base link
+        """
+        Move the camera to an absolute PTZ position, relative to its base link.
 
         @param goal_handle
         """
         pass
 
     def move_ptz_rel_cb(self, goal_handle):
-        """Move the camera to a new PTZ position, relative to its current state
+        """
+        Move the camera to a new PTZ position, relative to its current state.
 
         @param goal_handle
         """
         pass
-    
+
     def move_ptz_vel_cb(self, goal_handle):
-        """Move the camera using velocity control
+        """
+        Move the camera using velocity control.
 
         @param goal_handle
         """
         pass
 
     def joy_cb(self, msg):
-        """Callback for joystick events
         """
+        Start velocity-controlling the camera using the joystick input.
+
+        @param msg  The sensor_msgs/Joy message to process
+        """
+        pass

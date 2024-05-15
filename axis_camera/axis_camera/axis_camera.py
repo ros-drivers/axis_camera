@@ -35,23 +35,23 @@
 
 import os
 import re
-import subprocess
+import subprocess  # noqa: S404
 import threading
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
 from urllib.parse import urlparse
+import urllib.request
 
-import rclpy
-from rclpy.node import Node
-
+from axis_msgs.srv import SetInt
 import requests
 import requests.auth
-from axis_msgs.srv import SetInt
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 from std_msgs.msg import Bool, Int32
 from std_srvs.srv import SetBool
+
+import rclpy
+from rclpy.node import Node
 
 from axis_camera.axis_ptz import AxisPtz
 from axis_camera.cam_info_utils import CameraInfoManager, genCameraName
@@ -68,7 +68,7 @@ class StreamThread(threading.Thread):
 
     def waitForHost(self):
         """
-        Waitr for host.
+        Wait for host.
 
         Wait until the host is actually online before we try to contact it.
         This reduces http related errors
@@ -80,11 +80,11 @@ class StreamThread(threading.Thread):
             cmd = f'ping -W 5 -c 1 {self.axis.hostname}'.split()
 
         self.axis.get_logger().info(f'Waiting until {self.axis.hostname} is online...')
-        host_alive = subprocess.call(cmd) == 0
+        host_alive = subprocess.call(cmd) == 0  # noqa: S603
         rate = self.axis.create_rate(1)
         while not host_alive:
             rate.sleep()
-            host_alive = subprocess.call(cmd) == 0
+            host_alive = subprocess.call(cmd) == 0  # noqa: S603
 
         self.axis.get_logger().info(f'{self.axis.hostname} is now online')
 
@@ -107,8 +107,7 @@ class StreamThread(threading.Thread):
             # rclpy.sleep(2) # if stream stays intact we shouldn't get to this
 
     def formURL(self):
-        self.url = f'http://{self.axis.hostname}:{self.axis.http_port}/mjpg/video.mjpg'
-        self.url += f'?fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
+        self.url = f'http://{self.axis.hostname}:{self.axis.http_port}/mjpg/video.mjpg?fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
 
         # support for Axis F34 multicamera switch
         if self.axis.camera != 0:
@@ -117,8 +116,7 @@ class StreamThread(threading.Thread):
         self.axis.get_logger().debug('opening ' + str(self.axis))
 
     def formURLrtsp(self):
-        self.url = f'rtsp://{self.axis.username}:{self.axis.password}@{self.axis.hostname}/axis-media/media.amp'
-        self.url += f'?videocodec=h264&fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
+        self.url = f'rtsp://{self.axis.username}:{self.axis.password}@{self.axis.hostname}/axis-media/media.amp?videocodec=h264&fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
 
         # support for Axis F34 multicamera switch
         if self.axis.camera != 0:
@@ -134,7 +132,7 @@ class StreamThread(threading.Thread):
 
         TODO: I have not used this method (yet).
         """
-        if self.axis.password != '' and self.axis.username != '':
+        if self.axis.password and self.axis.username:
             # create a password manager
             password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
 
@@ -155,7 +153,7 @@ class StreamThread(threading.Thread):
     def openURL(self):
         """Open connection to Axis camera using http."""
         try:
-            self.fp = urllib.request.urlopen(self.url, timeout=self.timeoutSeconds)
+            self.fp = urllib.request.urlopen(self.url, timeout=self.timeoutSeconds)  # noqa: S310
             # print(self.fp)
             return True
         except urllib.error.URLError:
@@ -180,8 +178,8 @@ class StreamThread(threading.Thread):
                 # self.publishMsgImg()
                 self.publishCameraInfoMsg()
 
-            except ():
-                self.axis.get_logger().warning('Timed out while trying to get message.')
+            except Exception as e:
+                self.axis.get_logger().warning(f'Timed out while trying to get message: {e}')
                 break
 
     def findBoundary(self):
@@ -213,9 +211,9 @@ class StreamThread(threading.Thread):
             parts = line.split(b': ', 1)
             try:
                 self.header[parts[0]] = parts[1]
-            except ():
+            except Exception as e:
                 self.axis.get_logger().warning(
-                    'Problem encountered with image header.  Setting ' 'content_length to zero'
+                    f'Problem encountered with image header: {e}. Setting content_length to zero'
                 )
                 self.header[b'Content-Length'] = 0  # set content_length to zero if
                 # there is a problem reading header
@@ -260,7 +258,18 @@ class StreamThread(threading.Thread):
 
 
 class Axis(Node):
-    def __init__(self, node_name):
+    """
+    The ROS 2 Node to control the Axis camera.
+
+    This node handles the video stream and starts the PTZ control actions if necessary
+    """
+
+    def __init__(self, node_name):  # noqa: PLR0915
+        """
+        Create the Axis node.
+
+        @param node_name  The name to give the node
+        """
         super().__init__(node_name)
 
         self.declare_parameters(
@@ -429,15 +438,15 @@ class Axis(Node):
             self.last_camera_position = self.queryCameraPosition()
 
             if self.last_camera_position is not None:
-                if 'iris' in self.last_camera_position.keys():
+                if 'iris' in self.last_camera_position:
                     self.iris = self.last_camera_position['iris']
-                if 'focus' in self.last_camera_position.keys():
+                if 'focus' in self.last_camera_position:
                     self.focus = self.last_camera_position['focus']
-                if 'brightness' in self.last_camera_position.keys():
+                if 'brightness' in self.last_camera_position:
                     self.brightness = self.last_camera_position['brightness']
-                if 'autofocus' in self.last_camera_position.keys():
+                if 'autofocus' in self.last_camera_position:
                     self.autofocus = self.last_camera_position['autofocus']
-                if 'autoiris' in self.last_camera_position.keys():
+                if 'autoiris' in self.last_camera_position:
                     self.autoiris = self.last_camera_position['autoiris']
 
                 self.iris_pub.publish(self.iris)
@@ -466,7 +475,7 @@ class Axis(Node):
         """
         queryParams = {'query': 'position'}
         new_camera_position = None
-        url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'  # noqa: E501
+        url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'
         try:
             resp = requests.get(
                 url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers
@@ -519,7 +528,7 @@ class Axis(Node):
 
         except Exception as e:
             self.get_logger().warning(
-                f'Exception: {e} when querying {url}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'
+                f'Exception: {e} when querying {url}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'  # noqa: E501
             )
             new_camera_position = None
 
@@ -542,7 +551,6 @@ class Axis(Node):
 
     def handle_set_focus(self, req, tmp):
         get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?focus={req.data}'
-        print(get_url)
         resp = SetInt.Response()
         try:
             http_resp = requests.get(
@@ -573,7 +581,7 @@ class Axis(Node):
 
     def handle_set_autofocus(self, req):
         get_url = (
-            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"
+            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"  # noqa: E501
         )
         resp = SetBool.Response()
         try:
@@ -590,7 +598,7 @@ class Axis(Node):
 
     def handle_set_autoiris(self, req):
         get_url = (
-            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"
+            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"  # noqa: E501
         )
         resp = SetBool.Response()
         try:
@@ -686,19 +694,18 @@ class Axis(Node):
         """
         if self.use_legacy_ir_url:
             if enable:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}'
             else:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}'  # noqa: E501
-        else:
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}'
+        else:  # noqa: PLR5501
             if enable:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=yes&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=yes&timestamp={int(time.time())}'
             else:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=no&timestamp={int(time.time())}'  # noqa: E501
-        http_resp = requests.get(
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=no&timestamp={int(time.time())}'
+
+        return requests.get(
             get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
         )
-
-        return http_resp
 
     def handle_toggle_wiper(self, req):
         """Turn the wiper on/off (if supported)."""
@@ -778,9 +785,9 @@ class Axis(Node):
         resp.success = True
         try:
             if req.data:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=on&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=on&timestamp={int(time.time())}'
             else:
-                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=off&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=off&timestamp={int(time.time())}'
 
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
