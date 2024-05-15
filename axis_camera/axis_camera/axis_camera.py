@@ -64,7 +64,7 @@ class StreamThread(threading.Thread):
         self.axis.get_logger().warning('stream thread')
         self.daemon = True
         self.timeoutSeconds = 2.5
-        self.i = 0
+        self.frame_counter = 0
 
     def waitForHost(self):
         """
@@ -107,30 +107,22 @@ class StreamThread(threading.Thread):
             # rclpy.sleep(2) # if stream stays intact we shouldn't get to this
 
     def formURL(self):
-        self.url = 'http://%s/mjpg/video.mjpg' % self.axis.hostname
-        self.url += '?fps=%d&resolution=%dx%d' % (self.axis.fps, self.axis.width, self.axis.height)
+        self.url = f'http://{self.axis.hostname}:{self.axis.http_port}/mjpg/video.mjpg'
+        self.url += f'?fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
 
         # support for Axis F34 multicamera switch
         if self.axis.camera != 0:
-            self.url += '&camera=%s' % str(self.axis.camera)
+            self.url += f'&camera={self.axis.camera}'
 
         self.axis.get_logger().debug('opening ' + str(self.axis))
 
     def formURLrtsp(self):
-        self.url = 'rtsp://%s:%s@%s/axis-media/media.amp' % (
-            self.axis.username,
-            self.axis.password,
-            self.axis.hostname,
-        )
-        self.url += '?videocodec=h264&fps=%d&resolution=%dx%d' % (
-            self.axis.fps,
-            self.axis.width,
-            self.axis.height,
-        )
+        self.url = f'rtsp://{self.axis.username}:{self.axis.password}@{self.axis.hostname}/axis-media/media.amp'
+        self.url += f'?videocodec=h264&fps={self.axis.fps}&resolution={self.axis.width}x{self.axis.height}'
 
         # support for Axis F34 multicamera switch
         if self.axis.camera != 0:
-            self.url += '&camera=%s' % str(self.axis.camera)
+            self.url += f'&camera={self.axis.camera}'
 
         self.axis.get_logger().debug('opening ' + str(self.axis))
 
@@ -168,8 +160,7 @@ class StreamThread(threading.Thread):
             return True
         except urllib.error.URLError:
             self.axis.get_logger().warning(
-                'Error opening URL %s' % (self.url)
-                + 'Possible timeout.  Looping until camera appears'
+                f'Error opening URL {self.url}; possible timeout. Looping until camera appears'
             )
             return False
 
@@ -235,7 +226,6 @@ class StreamThread(threading.Thread):
         if self.content_length > 0:
             self.img = self.fp.read(self.content_length)
             self.fp.readline()  # Read terminating \r\n and do nothing with it
-            # print(self.img) # ok data is in self.img
 
     def publishMsg(self):
         """Publish jpeg image as a ROS message."""
@@ -245,8 +235,7 @@ class StreamThread(threading.Thread):
         self.msg.format = 'jpeg'
         self.msg.data = self.img
         self.axis.pub.publish(self.msg)
-        # self.axis.get_logger().info('%d Images Published' % self.i)
-        self.i += 1
+        self.frame_counter += 1
 
     def publishMsgImg(self):
         """Publish image as a ROS message."""
@@ -273,34 +262,30 @@ class StreamThread(threading.Thread):
 class Axis(Node):
     def __init__(self, node_name):
         super().__init__(node_name)
-        # self.publisher_ = self.create_publisher(String, 'topic', 10)
-        # timer_period = 0.5  # seconds
-        # self.timer = self.create_timer(timer_period, self.timer_callback)
-        # self.i = 0
-        self.get_logger().warning('axis node')
 
         self.declare_parameters(
             namespace='',
             parameters=[
                 ('hostname', rclpy.Parameter.Type.STRING),
+                ('http_port', rclpy.Parameter.Type.INTEGER),
                 ('username', rclpy.Parameter.Type.STRING),
                 ('password', rclpy.Parameter.Type.STRING),
                 ('width', rclpy.Parameter.Type.INTEGER),
                 ('height', rclpy.Parameter.Type.INTEGER),
                 ('fps', rclpy.Parameter.Type.INTEGER),
-                ('frame_id', 'axis_camera_link'),
-                ('camera_info_url', ''),
+                ('frame_id', rclpy.Parameter.Type.STRING),
+                ('camera_info_url', rclpy.Parameter.Type.STRING),
                 ('use_encrypted_password', rclpy.Parameter.Type.BOOL),
                 ('camera', rclpy.Parameter.Type.INTEGER),
-                ('ir', False),
-                ('defog', False),
-                ('wiper', False),
-                ('ptz', False),
+                ('ir', rclpy.Parameter.Type.BOOL),
+                ('defog', rclpy.Parameter.Type.BOOL),
+                ('wiper', rclpy.Parameter.Type.BOOL),
+                ('ptz', rclpy.Parameter.Type.BOOL),
             ],
         )
 
         self.hostname = self.get_parameter('hostname').value
-        print(self.hostname)
+        self.http_port = self.get_parameter('http_port').value
         self.username = self.get_parameter('username').value
         self.password = self.get_parameter('password').value
         self.width = self.get_parameter('width').value
@@ -490,8 +475,8 @@ class Axis(Node):
         """
         queryParams = {'query': 'position'}
         new_camera_position = None
+        url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'  # noqa: E501
         try:
-            url = f'http://{self.hostname}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'  # noqa: E501
             resp = requests.get(
                 url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers
             )
@@ -542,20 +527,15 @@ class Axis(Node):
                 raise Exception(f'HTTP Error querying the camera position: {resp.status_code}')
 
         except Exception as e:
-            exception_error_str = (
-                "Exception: '"
-                + str(e)
-                + "' when querying the url: http://"
-                + self.hostname
-                + '/axis-cgi/com/ptz.cgi?%s' % urllib.parse.urlencode(queryParams)
+            self.get_logger().warning(
+                f'Exception: {e} when querying {url}/axis-cgi/com/ptz.cgi?{urllib.parse.urlencode(queryParams)}'
             )
-            self.get_logger().warning(exception_error_str)
             new_camera_position = None
 
         return new_camera_position
 
     def handle_set_iris(self, req):
-        get_url = f'http://{self.hostname}/axis-cgi/com/ptz.cgi?iris={req.data}'
+        get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?iris={req.data}'
         resp = SetInt.Response()
         try:
             http_resp = requests.get(
@@ -570,7 +550,7 @@ class Axis(Node):
         return resp
 
     def handle_set_focus(self, req, tmp):
-        get_url = f'http://{self.hostname}/axis-cgi/com/ptz.cgi?focus={req.data}'
+        get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?focus={req.data}'
         print(get_url)
         resp = SetInt.Response()
         try:
@@ -586,7 +566,7 @@ class Axis(Node):
         return resp
 
     def handle_set_brightness(self, req):
-        get_url = f'http://{self.hostname}/axis-cgi/com/ptz.cgi?brightness={req.data}'
+        get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?brightness={req.data}'
         resp = SetInt.Response()
         try:
             http_resp = requests.get(
@@ -602,7 +582,7 @@ class Axis(Node):
 
     def handle_set_autofocus(self, req):
         get_url = (
-            f"http://{self.hostname}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"
+            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"
         )
         resp = SetBool.Response()
         try:
@@ -619,7 +599,7 @@ class Axis(Node):
 
     def handle_set_autoiris(self, req):
         get_url = (
-            f"http://{self.hostname}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"
+            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"
         )
         resp = SetBool.Response()
         try:
@@ -662,7 +642,7 @@ class Axis(Node):
                     '"params": {"lightID": "led0"}}'
                 )
             http_resp = requests.post(
-                f'http://{self.hostname}/axis-cgi/lightcontrol.cgi',
+                f'http://{self.hostname}:{self.http_port}/axis-cgi/lightcontrol.cgi',
                 post_data,
                 auth=self.http_auth,
                 headers=self.http_headers,
@@ -715,14 +695,14 @@ class Axis(Node):
         """
         if self.use_legacy_ir_url:
             if enable:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=on&timestamp={int(time.time())}'  # noqa: E501
             else:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&PTZ.Various.V1.IrCutFilter=off&timestamp={int(time.time())}'  # noqa: E501
         else:
             if enable:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=yes&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=yes&timestamp={int(time.time())}'  # noqa: E501
             else:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=no&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.DayNight.IrCutFilter=no&timestamp={int(time.time())}'  # noqa: E501
         http_resp = requests.get(
             get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
         )
@@ -762,7 +742,7 @@ class Axis(Node):
                 return resp
 
             http_resp = requests.post(
-                f'http://{self.hostname}/axis-cgi/clearviewcontrol.cgi',
+                f'http://{self.hostname}:{self.http_port}/axis-cgi/clearviewcontrol.cgi',
                 post_data,
                 auth=self.http_auth,
                 headers=self.http_headers,
@@ -807,9 +787,9 @@ class Axis(Node):
         resp.success = True
         try:
             if req.data:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=on&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=on&timestamp={int(time.time())}'  # noqa: E501
             else:
-                get_url = f'http://{self.hostname}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=off&timestamp={int(time.time())}'  # noqa: E501
+                get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/param.cgi?action=update&ImageSource.I0.Sensor.Defog=off&timestamp={int(time.time())}'  # noqa: E501
 
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout

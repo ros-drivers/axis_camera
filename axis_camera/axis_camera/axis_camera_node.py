@@ -68,13 +68,14 @@ def main(args=None):
     rclpy.init()
 
     # parameters = {
-    #    'hostname': '',       # default IP address
-    #    'username': '',               # default login name
+    #    'hostname': '192.168.0.90',        # default IP address
+    #    'http_port': 80,                   # default HTTP port
+    #    'username': 'root',                # default login name
     #    'password': '',
-    #    'width': 640,
-    #    'height': 480,
+    #    'width': 640,                      # frame width (pixels)
+    #    'height': 480,                     # frame height (pixels)
     #    'fps': 20,                         # frames per second (0 = camera default)
-    #    'frame_id': 'axis_camera_link',
+    #    'frame_id': 'axis_camera_link',    # sensor frame ID
     #    'camera_info_url': '',
     #    'use_encrypted_password' : False,
     #    'camera' : 1,

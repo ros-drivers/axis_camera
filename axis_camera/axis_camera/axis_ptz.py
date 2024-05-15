@@ -43,7 +43,7 @@ class AxisPtz:
     supported PTZ devices
     """
     
-    def __init__(self, camera):
+    def __init__(self, camera, teleop=False):
         """Create a PTZ action server node to control the given camera
 
         @param camera  An Axis instance that controls the underlying camera

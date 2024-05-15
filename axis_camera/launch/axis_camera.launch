@@ -9,6 +9,7 @@
     Network address & authentication
   -->
   <arg name="hostname" default="192.168.10.0" />
+  <arg name="http_port" default="80" />
   <arg name="username" default="root" />
   <arg name="password" default="" />
   <arg name="use_encrypted_password" default="true" />
@@ -32,6 +33,7 @@
   
   <node name="$(var camera_name)_node" pkg="axis_camera" exec="axis_camera_node">
     <param name="hostname" value="$(var hostname)" />
+    <param name="http_port" value="$(var http_port)" />
     <param name="username" value="$(var username)" />
     <param name="password" value="$(var password)" />
     <param name="use_encrypted_password" value="$(var use_encrypted_password)" />
