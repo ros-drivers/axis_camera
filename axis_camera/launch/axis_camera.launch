@@ -1,8 +1,68 @@
 <?xml version="1.0" ?>
+<!--
+    #    'hostname': '',                    # default IP address
+    #    'username': '',                    # default login name
+    #    'password': '',
+    #    'width': 640,
+    #    'height': 480,
+    #    'fps': 20,                         # frames per second (0 = camera default)
+    #    'frame_id': 'axis_camera_link',
+    #    'camera_info_url': '',
+    #    'use_encrypted_password' : False,
+    #    'camera' : 1,
+    #    'ir': False,
+    #    'defog': False,
+    #    'wiper': False,
+    #    'ptz': False  
+-->
 <launch>
-  <arg name="enable_ptz" default="false" />
+  <!--
+    ROS frames & joints
+  -->
   <arg name="camera_name" default="axis" />
+
+  <!--
+    Network address & authentication
+  -->
+  <arg name="hostname" default="192.168.10.0" />
+  <arg name="username" default="root" />
+  <arg name="password" default="" />
+  <arg name="use_encrypted_password" default="true" />
+
+  <!--
+    Stream properties
+  -->
+  <arg name="camera_num"   default="1" />
+  <arg name="frame_width"  default="640" />
+  <arg name="frame_height" default="480" />
+  <arg name="fps"          default="20" />
+
+  <!--
+    Camera peripherals & teleop
+  -->
+  <arg name="enable_ptz" default="false" />
+  <arg name="enable_ptz_teleop" default="false" />
+  <arg name="enable_ir" default="false" />
+  <arg name="enable_wiper" default="false" />
+  <arg name="enable_defog" default="false" />
   
   <node name="$(var camera_name)_node" pkg="axis_camera" exec="axis_camera_node">
+    <param name="hostname" value="$(var hostname)" />
+    <param name="username" value="$(var username)" />
+    <param name="password" value="$(var password)" />
+    <param name="use_encrypted_password" value="$(var use_encrypted_password)" />
+
+    <param name="camera" value="$(var camera_num)" />
+    <param name="height" value="$(var frame_height)" />
+    <param name="width" value="$(var frame_width)" />
+    <param name="fps" value="$(var fps)" />
+    
+    <param name="ptz" value="$(var enable_ptz)" />
+    <param name="ptz_teleop" value="$(var enable_ptz_teleop)" />
+    <param name="ir" value="$(var enable_ir)" />
+    <param name="wiper" value="$(var enable_wiper)" />
+    <param name="defog" value="(var enable_defog)" />
+
+    <param name="frame_id" value="$(var camera_name)_camera_link" />
   </node>
 </launch>
