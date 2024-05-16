@@ -40,7 +40,7 @@ from ptz_action_server_msgs.action import Ptz
 import requests
 from sensor_msgs.msg import Joy
 
-from rclpy.action import ActionServer
+from rclpy.action import ActionClient, ActionServer
 
 
 def clamp(x, low=0, high=1):
@@ -115,6 +115,9 @@ class AxisPtz:
         self.scale_tilt = self.axis.get_parameter('scale_tilt').value
         self.scale_zoom = self.axis.get_parameter('scale_zoom').value
 
+        # The last-sent PTZ velocity control from the game controller
+        self.last_teleop_velocity = Ptz.Request()
+
         self.set_ptz_absolute_srv = ActionServer(
             self.axis,
             Ptz,
@@ -143,6 +146,9 @@ class AxisPtz:
                 self.joy_cb,
                 10
             )
+
+            # use our own teleop action server for velocity-controlling the camera
+            self.teleop_client = ActionClient(self.axis, Ptz, 'move_ptz/velocity')
 
     def current_ptz(self):
         """
@@ -346,5 +352,27 @@ class AxisPtz:
 
         @param msg  The sensor_msgs/Joy message to process
         """
-        # TODO
-        pass
+        pan = 0
+        tilt = 0
+        zoom = 0
+        if self.button_enable_pan_tilt < 0 or msg.buttons[self.button_enable_pan_tilt]:
+            pan = msg.axes[self.axis_pan] * -self.scale_pan
+            tilt = msg.axes[self.axis_tilt] * self.scale_tilt * (-1 if self.invert_tilt else 1)
+
+        if self.button_enable_zoom < 0 or msg.buttons[self.button_enable_zoom]:
+            zoom_in_amt = (msg.axes[self.axis_zoom_in] + self.zoom_in_offset) * self.zoom_in_scale
+            zoom_out_amt = (msg.axes[self.axis_zoom_out] + self.zoom_out_offset) * self.zoom_out_scale  # noqa: E501
+            zoom = (zoom_in_amt + zoom_out_amt) * self.scale_zoom
+
+        if (
+            pan != self.last_teleop_velocity.pan or
+            tilt != self.last_teleop_velocity.tilt or
+            zoom != self.last_teleop_velocity.zoom
+        ):
+            cmd = Ptz.Request()
+            cmd.pan = pan
+            cmd.tilt = tilt
+            cmd.zoom = zoom
+            self.last_teleop_velocity = cmd
+
+            self.teleop_client.send_goal_async(cmd)
