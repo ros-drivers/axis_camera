@@ -436,19 +436,12 @@ class Axis(Node):
             self.ptz = None
 
     def __str__(self):
-        """Return string representation."""
-        return (
-            self.hostname
-            + ','
-            + self.username
-            + ','
-            + self.password
-            + '('
-            + str(self.width)
-            + 'x'
-            + str(self.height)
-            + ')'
-        )
+        """
+        Return string representation.
+
+        @return A string of the form "root@192.168.0.90:80(320x240)"
+        """
+        return f'{self.username}@{self.hostname}:{self.http_port}({self.width}x{self.height})'
 
     def statePubThread(self):
         """
