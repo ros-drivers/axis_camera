@@ -70,8 +70,8 @@
         # The analog triggers are normalled to +1 and move towards -1 as they are pressed
         # To convert them to the proper range we apply an offset and _then_ a multipicative scale
         # If we use e.g. a thumb stick instead, the offset should be 0 and the scale 1.0
-        zoom_in_offset: -1
-        zoom_out_offset: -1
+        zoom_in_offset: -1.0
+        zoom_out_offset: -1.0
         zoom_in_scale: -0.5
         zoom_out_scale: 0.5
 
@@ -80,4 +80,4 @@
         # zoom speed -100 to + 100
         scale_pan     : 2.61
         scale_tilt    : 2.61
-        scale_zoom    : 100
+        scale_zoom    : 100.0

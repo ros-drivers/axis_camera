@@ -5,7 +5,7 @@
         max_pan: 3.141592653589793
 
         # tilt range in radians
-        min_tilt: 0
+        min_tilt: 0.0
         max_tilt: 1.5707963267948966
 
         # zoom range in "x" (e.g. 1x - 24x optical zoom)

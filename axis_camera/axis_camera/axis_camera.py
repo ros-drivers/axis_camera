@@ -456,9 +456,9 @@ class Axis(Node):
 
         Uses the VAPIX protocol and publishes the camera's state at 1Hz.
         """
-        rate = self.create_rate(
-            1
-        )  # https://answers.ros.org/question/358343/rate-and-sleep-function-in-rclpy-library-for-ros2/  # noqa: E501
+        i = Int32()
+        b = Bool()
+        rate = self.create_rate(1)
         while rclpy.ok():
             rate.sleep()
             self.last_camera_position = self.queryCameraPosition()
@@ -475,11 +475,20 @@ class Axis(Node):
                 if 'autoiris' in self.last_camera_position:
                     self.autoiris = self.last_camera_position['autoiris']
 
-                self.iris_pub.publish(self.iris)
-                self.focus_pub.publish(self.focus)
-                self.brightness_pub.publish(self.brightness)
-                self.autofocus_pub.publish(self.autofocus)
-                self.autoiris_pub.publish(self.autoiris)
+                i.data = self.iris
+                self.iris_pub.publish(i)
+
+                i.data = self.focus
+                self.focus_pub.publish(i)
+
+                i.data = self.brightness
+                self.brightness_pub.publish(i)
+
+                b.data = self.autofocus
+                self.autofocus_pub.publish(b)
+
+                b.data = self.autoiris
+                self.autoiris_pub.publish(b)
 
     def queryCameraPosition(self):
         """

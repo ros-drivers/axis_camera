@@ -101,7 +101,7 @@ class AxisPtz:
 
         # PS4 controller parameters
         self.button_enable_pan_tilt = self.axis.get_parameter('button_enable_pan_tilt').value
-        self.button_enable_zoom = self.axis.get_parameter('').value
+        self.button_enable_zoom = self.axis.get_parameter('button_enable_zoom').value
         self.axis_pan = self.axis.get_parameter('axis_pan').value
         self.axis_tilt = self.axis.get_parameter('axis_tilt').value
         self.invert_tilt = self.axis.get_parameter('invert_tilt').value
