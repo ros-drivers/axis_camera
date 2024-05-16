@@ -23,6 +23,11 @@
   <arg name="fps"          default="20" />
 
   <!--
+    PTZ config
+  -->
+  <arg name="ptz_config"  default="$(find-pkg-share axis_camera)/config/axis_dome_ptz.yaml" />
+
+  <!--
     Camera peripherals & teleop
   -->
   <arg name="enable_ptz" default="false" />
@@ -53,6 +58,7 @@
 
     <param name="frame_id" value="$(var camera_name)_camera_link" />
 
+    <param from="$(var ptz_config)" />
     <param from="$(var teleop_config)" />
   </node>
 </launch>

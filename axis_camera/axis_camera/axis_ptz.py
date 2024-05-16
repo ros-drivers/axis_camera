@@ -33,7 +33,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from math import degrees as rad2deg
-from math import isnan
 from math import nan as NaN
 from math import radians as deg2rad
 
@@ -90,6 +89,7 @@ class AxisPtz:
         """
         self.axis = camera
 
+        # PTZ parameters
         self.min_pan = self.axis.get_parameter('min_pan').value
         self.max_pan = self.axis.get_parameter('max_pan').value
         self.min_tilt = self.axis.get_parameter('min_tilt').value
@@ -98,6 +98,22 @@ class AxisPtz:
         self.max_zoom = self.axis.get_parameter('max_zoom').value
         self.max_pan_speed = self.axis.get_parameter('max_pan_speed').value
         self.max_tilt_speed = self.axis.get_parameter('max_tilt_speed').value
+
+        # PS4 controller parameters
+        self.button_enable_pan_tilt = self.axis.get_parameter('button_enable_pan_tilt').value
+        self.button_enable_zoom = self.axis.get_parameter('').value
+        self.axis_pan = self.axis.get_parameter('axis_pan').value
+        self.axis_tilt = self.axis.get_parameter('axis_tilt').value
+        self.invert_tilt = self.axis.get_parameter('invert_tilt').value
+        self.axis_zoom_in = self.axis.get_parameter('axis_zoom_in').value
+        self.axis_zoom_out = self.axis.get_parameter('axis_zoom_out').value
+        self.zoom_in_offset = self.axis.get_parameter('zoom_in_offset').value
+        self.zoom_out_offset = self.axis.get_parameter('zoom_out_offset').value
+        self.zoom_in_scale = self.axis.get_parameter('zoom_in_scale').value
+        self.zoom_out_scale = self.axis.get_parameter('zoom_out_scale').value
+        self.scale_pan = self.axis.get_parameter('scale_pan').value
+        self.scale_tilt = self.axis.get_parameter('scale_tilt').value
+        self.scale_zoom = self.axis.get_parameter('scale_zoom').value
 
         self.set_ptz_absolute_srv = ActionServer(
             self.axis,

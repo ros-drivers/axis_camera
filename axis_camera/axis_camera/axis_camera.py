@@ -33,7 +33,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-from math import pi
 import os
 import re
 import subprocess  # noqa: S404
@@ -293,15 +292,31 @@ class Axis(Node):
                 ('ptz', rclpy.Parameter.Type.BOOL),
                 ('ptz_teleop', rclpy.Parameter.Type.BOOL),
 
-                # PTZ parameters; may be missing so define defaults
-                ('min_pan', -pi),
-                ('max_pan', pi),
-                ('min_tilt', -pi / 2),
-                ('max_tilt', pi / 2),
-                ('min_zoom', 1),
-                ('max_zoom', 24),
-                ('max_pan_speed', 6.21),
-                ('max_tilt_speed', 2.61),
+                # PTZ parameters
+                ('min_pan', rclpy.Parameter.Type.DOUBLE),
+                ('max_pan', rclpy.Parameter.Type.DOUBLE),
+                ('min_tilt', rclpy.Parameter.Type.DOUBLE),
+                ('max_tilt', rclpy.Parameter.Type.DOUBLE),
+                ('min_zoom', rclpy.Parameter.Type.INTEGER),
+                ('max_zoom', rclpy.Parameter.Type.INTEGER),
+                ('max_pan_speed', rclpy.Parameter.Type.DOUBLE),
+                ('max_tilt_speed', rclpy.Parameter.Type.DOUBLE),
+
+                # Teleop parameters
+                ('button_enable_pan_tilt', rclpy.Parameter.Type.INTEGER),
+                ('button_enable_zoom', rclpy.Parameter.Type.INTEGER),
+                ('axis_pan', rclpy.Parameter.Type.INTEGER),
+                ('axis_tilt', rclpy.Parameter.Type.INTEGER),
+                ('axis_zoom_in', rclpy.Parameter.Type.INTEGER),
+                ('axis_zoom_out', rclpy.Parameter.Type.INTEGER),
+                ('invert_tilt', rclpy.Parameter.Type.BOOL),
+                ('zoom_in_offset', rclpy.Parameter.Type.DOUBLE),
+                ('zoom_out_offset', rclpy.Parameter.Type.DOUBLE),
+                ('zoom_in_scale', rclpy.Parameter.Type.DOUBLE),
+                ('zoom_out_scale', rclpy.Parameter.Type.DOUBLE),
+                ('scale_pan', rclpy.Parameter.Type.DOUBLE),
+                ('scale_tilt', rclpy.Parameter.Type.DOUBLE),
+                ('scale_zoom', rclpy.Parameter.Type.DOUBLE),
             ],
         )
 
