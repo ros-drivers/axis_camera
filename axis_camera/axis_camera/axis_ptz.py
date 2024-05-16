@@ -116,7 +116,7 @@ class AxisPtz:
         self.scale_zoom = self.axis.get_parameter('scale_zoom').value
 
         # The last-sent PTZ velocity control from the game controller
-        self.last_teleop_velocity = Ptz.Request()
+        self.last_teleop_velocity = Ptz.Goal()
 
         self.set_ptz_absolute_srv = ActionServer(
             self.axis,
@@ -369,10 +369,11 @@ class AxisPtz:
             tilt != self.last_teleop_velocity.tilt or
             zoom != self.last_teleop_velocity.zoom
         ):
-            cmd = Ptz.Request()
+            cmd = Ptz.Goal()
             cmd.pan = pan
             cmd.tilt = tilt
             cmd.zoom = zoom
             self.last_teleop_velocity = cmd
 
+            # we don't care about the feedback or result; just send the goal
             self.teleop_client.send_goal_async(cmd)
