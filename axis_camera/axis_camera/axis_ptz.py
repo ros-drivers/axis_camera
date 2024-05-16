@@ -143,20 +143,16 @@ class AxisPtz:
 
         return (pan, tilt, zoom)
 
-    def move_ptz_abs_cb(self, goal_handle):  # noqa: PLR0914
+    def wait_for_position(self, goal_handle, cmd_pan, cmd_tilt, cmd_zoom):
         """
-        Move the camera to an absolute PTZ position, relative to its base link.
+        Wait for the camera to reach its goal.
 
-        @param goal_handle
+        @param goal_handle  The Ptz.action goal we're processing
+        @param cmd_pan  The commanded pan (degrees)
+        @param cmd_tilt  The commanded tilt (degrees)
+        @param cmd_zoom  The commanded zoom (1-9999)
         """
         rate = self.axis.create_rate(1)  # feedback at 1Hz
-
-        cmd_pan = round(rad2deg(clamp(goal_handle.request.pan, self.min_pan, self.max_pan)))
-        cmd_tilt = round(rad2deg(clamp(goal_handle.request.tilt, self.min_tilt, self.max_tilt)))
-        cmd_zoom = round(
-            # Axis uses 1-9999 for internal zoom levels
-            rescale(goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
-        )
 
         cmd_string = f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}&tilt={int(cmd_tilt)}&zoom={int(cmd_zoom)}'  # noqa: E501
         url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
@@ -173,6 +169,7 @@ class AxisPtz:
                 f'Failed to command absolute PTZ position: {resp}'
             )
             goal_handle.abort()
+            return
 
         fb = Ptz.Feedback()
         reached_goal = False
@@ -202,6 +199,21 @@ class AxisPtz:
 
             goal_handle.publish_feedback(fb)
 
+    def move_ptz_abs_cb(self, goal_handle):
+        """
+        Move the camera to an absolute PTZ position, relative to its base link.
+
+        @param goal_handle
+        """
+        cmd_pan = round(rad2deg(clamp(goal_handle.request.pan, self.min_pan, self.max_pan)))
+        cmd_tilt = round(rad2deg(clamp(goal_handle.request.tilt, self.min_tilt, self.max_tilt)))
+        cmd_zoom = round(
+            # Axis uses 1-9999 for internal zoom levels
+            rescale(goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
+        )
+
+        self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
+
         result = Ptz.Result()
         result.success = True
         goal_handle.succeed()
@@ -213,7 +225,28 @@ class AxisPtz:
 
         @param goal_handle
         """
-        pass
+        (current_pan, current_tilt, current_zoom) = self.current_ptz()
+
+        current_pan = deg2rad(current_pan)
+        current_tilt = deg2rad(current_tilt)
+        current_zoom = rescale(current_zoom, 1, 9999, self.min_zoom, self.max_zoom)
+
+        cmd_pan = round(
+            rad2deg(clamp(current_pan + goal_handle.request.pan, self.min_pan, self.max_pan))
+        )
+        cmd_tilt = round(
+            rad2deg(clamp(current_tilt + goal_handle.request.tilt, self.min_tilt, self.max_tilt))
+        )
+        cmd_zoom = round(
+            rescale(current_zoom + goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
+        )
+
+        self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
+
+        result = Ptz.Result()
+        result.success = True
+        goal_handle.succeed()
+        return result
 
     def move_ptz_vel_cb(self, goal_handle):
         """
