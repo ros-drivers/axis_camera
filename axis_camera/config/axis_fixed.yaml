@@ -10,4 +10,8 @@
 
         # zoom range in "x" (e.g. 1x - 24x optical zoom)
         min_zoom: 1
-        max_zoom: 24
+        max_zoom: 1
+
+        # maximum angular velocity, rad/s
+        max_pan_speed: 0
+        max_tilt_speed: 0

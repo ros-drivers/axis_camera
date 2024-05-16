@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
+from math import pi
 import os
 import re
 import subprocess  # noqa: S404
@@ -291,6 +292,16 @@ class Axis(Node):
                 ('wiper', rclpy.Parameter.Type.BOOL),
                 ('ptz', rclpy.Parameter.Type.BOOL),
                 ('ptz_teleop', rclpy.Parameter.Type.BOOL),
+
+                # PTZ parameters; may be missing so define defaults
+                ('min_pan', -pi),
+                ('max_pan', pi),
+                ('min_tilt', -pi / 2),
+                ('max_tilt', pi / 2),
+                ('min_zoom', 1),
+                ('max_zoom', 24),
+                ('max_pan_speed', 6.21),
+                ('max_tilt_speed', 2.61),
             ],
         )
 
