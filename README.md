@@ -34,6 +34,7 @@ Below are the commands to build the package:
 cd colcon_ws/src
 git clone git@github.com:ros-drivers/axis_camera.git -b humble-devel
 git clone git@github.com:clearpathrobotics/ptz_action_server.git -b ros2
+git clone git@github.com:clearpathrobotics/camera_info_manager_py.git -b ros2
 cd ..
 colcon build
 ```
