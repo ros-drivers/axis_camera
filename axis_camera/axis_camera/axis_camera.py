@@ -44,6 +44,7 @@ from urllib.parse import urlparse
 import urllib.request
 
 from axis_msgs.srv import SetInt
+from camera_info_manager import CameraInfoManager, genCameraName
 import requests
 import requests.auth
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
@@ -54,7 +55,6 @@ import rclpy
 from rclpy.node import Node
 
 from axis_camera.axis_ptz import AxisPtz
-from axis_camera.cam_info_utils import CameraInfoManager, genCameraName
 
 
 class StreamThread(threading.Thread):

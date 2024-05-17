@@ -21,6 +21,7 @@
   <test_depend>python3-pytest</test_depend>
 
   <exec_depend>axis_msgs</exec_depend>
+  <exec_depend>camera_info_manager_py</exec_depend>
   <exec_depend>ptz_action_server_msgs</exec_depend>
   <exec_depend>python3-requests</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
