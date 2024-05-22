@@ -38,7 +38,7 @@ from math import radians as deg2rad
 import time
 
 from ptz_action_server_msgs.action import Ptz
-from rclpy.action import ActionClient, ActionServer
+from rclpy.action import ActionClient, ActionServer, CancelResponse
 import requests
 from sensor_msgs.msg import Joy
 
@@ -122,21 +122,24 @@ class AxisPtz:
             self.axis,
             Ptz,
             'move_ptz/position_abs',
-            self.move_ptz_abs_cb
+            self.move_ptz_abs_cb,
+            cancel_callback=self.cancel_ptz_abs_cb
         )
 
         self.set_ptz_relative_srv = ActionServer(
             self.axis,
             Ptz,
             'move_ptz/position_rel',
-            self.move_ptz_rel_cb
+            self.move_ptz_rel_cb,
+            cancel_callback=self.cancel_ptz_rel_cb
         )
 
         self.set_ptz_velocity_srv = ActionServer(
             self.axis,
             Ptz,
             'move_ptz/velocity',
-            self.move_ptz_vel_cb
+            self.move_ptz_vel_cb,
+            cancel_callback=self.cancel_ptz_vel_cb
         )
 
         if teleop:
@@ -149,6 +152,9 @@ class AxisPtz:
 
             # use our own teleop action server for velocity-controlling the camera
             self.teleop_client = ActionClient(self.axis, Ptz, 'move_ptz/velocity')
+
+        # center the camera on startup
+        self.send_position(0, 0, 1)
 
     def current_ptz(self):
         """
@@ -166,6 +172,30 @@ class AxisPtz:
 
         return (pan, tilt, zoom)
 
+    def send_position(self, cmd_pan, cmd_tilt, cmd_zoom):
+        """
+        Send a goal position to the camera
+
+        @param cmd_pan  The commanded pan (degrees)
+        @param cmd_tilt  The commanded tilt (degrees)
+        @param cmd_zoom  The commanded zoom (1-9999)
+
+        @return True if the command was successfully sent
+        """
+        cmd_string = f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}&tilt={int(cmd_tilt)}&zoom={int(cmd_zoom)}'  # noqa: E501
+        url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
+        resp = requests.get(
+            url,
+            auth=self.axis.http_auth,
+            timeout=self.axis.http_timeout,
+            headers=self.axis.http_headers
+        )
+        if not self.axis.is_success(resp):
+            self.axis.get_logger().warning(
+                f'Failed to command absolute PTZ position: {resp}'
+            )
+        return self.axis.is_success(resp)
+
     def wait_for_position(self, goal_handle, cmd_pan, cmd_tilt, cmd_zoom):
         """
         Wait for the camera to reach its goal.
@@ -177,20 +207,8 @@ class AxisPtz:
 
         @return True if we reached the goal, otherwise False
         """
-        cmd_string = f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}&tilt={int(cmd_tilt)}&zoom={int(cmd_zoom)}'  # noqa: E501
-        url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
-        resp = requests.get(
-            url,
-            auth=self.axis.http_auth,
-            timeout=self.axis.http_timeout,
-            headers=self.axis.http_headers
-        )
-
-        if not self.axis.is_success(resp):
+        if not self.send_position(cmd_pan, cmd_tilt, cmd_zoom):
             # Error commanding the camera; abort the action
-            self.axis.get_logger().warning(
-                f'Failed to command absolute PTZ position: {resp}'
-            )
             goal_handle.abort()
             return False
 
@@ -205,7 +223,7 @@ class AxisPtz:
         cmd_tilt = deg2rad(cmd_tilt)
         cmd_zoom = rescale(cmd_zoom, 1, 9999, self.min_zoom, self.max_zoom)
 
-        while not reached_goal and not goal_handle.is_cancel_requested:
+        while goal_handle and not reached_goal and not goal_handle.is_cancel_requested and goal_handle.is_active:
             time.sleep(1)
 
             (pan, tilt, zoom) = self.current_ptz()
@@ -228,6 +246,8 @@ class AxisPtz:
 
             goal_handle.publish_feedback(fb)
 
+        if not goal_handle.is_active:
+            return False
         if goal_handle.is_cancel_requested:
             goal_handle.cancel()
             return False
@@ -326,26 +346,25 @@ class AxisPtz:
         result = Ptz.Result()
         result.success = True
 
-        fb = Ptz.Feedback()
-        fb.pan_remaining = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
-        fb.tilt_remaining = clamp(goal_handle.request.tilt, -self.max_tilt_speed, self.max_tilt_speed)
-        fb.zoom_remaining = clamp(goal_handle.request.zoom, -1.0, 1.0)
-
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
             goal_handle.abort()
             result.success = False
         else:
-            # Continuous control; the only way to stop is to cancel
-            rate = self.axis.create_rate(1)
-            while not goal_handle.is_cancel_requested:
-                rate.sleep()
-                goal_handle.publish_feedback(fb)
+            goal_handle.succeed()
 
-        # Command the camera to stop moving
-        self.send_velocity_command(0, 0, 0)
-
-        goal_handle.cancel()
+        # No feedback; the camera will continue moving until it gets a new command
         return result
+
+    def cancel_ptz_abs_cb(self, cancel_request):
+        return CancelResponse.Accept
+
+    def cancel_ptz_rel_cb(self, cancel_request):
+        return CancelResponse.Accept
+
+    def cancel_ptz_vel_cb(self, cancel_request):
+        self.axis.get_logger().warning(dir(cancel_request))
+        self.send_velocity_command(0, 0, 0)  # stop moving
+        return CancelResponse.Accept
 
     def joy_cb(self, msg):
         """
