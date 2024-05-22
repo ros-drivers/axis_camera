@@ -289,10 +289,6 @@ class AxisPtz:
         """
         (current_pan, current_tilt, current_zoom) = self.current_ptz()
 
-        current_pan = deg2rad(current_pan)
-        current_tilt = deg2rad(current_tilt)
-        current_zoom = rescale(current_zoom, 1, 9999, self.min_zoom, self.max_zoom)
-
         cmd_pan = round(
             rad2deg(clamp(current_pan + goal_handle.request.pan, self.min_pan, self.max_pan))
         )
