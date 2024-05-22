@@ -59,7 +59,7 @@ def clamp(x, low=0, high=1):
     return x
 
 
-def rescale(x, old_min, old_max, new_min, new_max, clamp=True):  # noqa: PLR0913 PLR0917
+def rescale(x, old_min, old_max, new_min, new_max, clamp=True):
     """
     Do a linear rescale of a value so it lies within a new range.
 
@@ -68,7 +68,8 @@ def rescale(x, old_min, old_max, new_min, new_max, clamp=True):  # noqa: PLR0913
     @param old_max  The maximum value of the original range of x
     @param new_min  The new range's minimum
     @param new_max  The new range's maximum
-    @param clamp  If True and x is outside the original range, restrict it to lie inside the new range
+    @param clamp  If True and x is outside the original range,
+                  restrict it to lie inside the new range
     """
     if clamp and x < old_min:
         return new_min
@@ -178,7 +179,7 @@ class AxisPtz:
 
     def send_position(self, cmd_pan, cmd_tilt, cmd_zoom):
         """
-        Send a goal position to the camera
+        Send a goal position to the camera.
 
         @param cmd_pan  The commanded pan (degrees)
         @param cmd_tilt  The commanded tilt (degrees)
@@ -186,7 +187,11 @@ class AxisPtz:
 
         @return True if the command was successfully sent
         """
-        cmd_string = f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}&tilt={int(cmd_tilt)}&zoom={int(cmd_zoom)}'  # noqa: E501
+        cmd_string = (
+            f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}'
+            f'&tilt={int(cmd_tilt)}'
+            f'&zoom={int(cmd_zoom)}'
+        )
         url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
         resp = requests.get(
             url,
@@ -227,7 +232,8 @@ class AxisPtz:
         cmd_tilt = deg2rad(cmd_tilt)
         cmd_zoom = rescale(cmd_zoom, 1, 9999, self.min_zoom, self.max_zoom)
 
-        while goal_handle and not reached_goal and not goal_handle.is_cancel_requested and goal_handle.is_active:
+        while goal_handle and not reached_goal and not goal_handle.is_cancel_requested \
+                and goal_handle.is_active:
             time.sleep(1)
 
             (pan, tilt, zoom) = self.current_ptz()
@@ -267,7 +273,10 @@ class AxisPtz:
 
         @return True if the command was sent successfully
         """
-        cmd_string = f'/axis-cgi/com/ptz.cgi?continuouspantiltmove={int(cmd_pan)},{int(cmd_tilt)}&continuouszoommove={int(cmd_zoom)}'  # noqa: E501
+        cmd_string = (
+            f'/axis-cgi/com/ptz.cgi?continuouspantiltmove={int(cmd_pan)},'
+            f'{int(cmd_tilt)}&continuouszoommove={int(cmd_zoom)}'
+        )
         url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
         resp = requests.get(
             url,
@@ -352,7 +361,8 @@ class AxisPtz:
 
         fb = Ptz.Feedback()
         fb.pan_remaining = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
-        fb.tilt_remaining = clamp(goal_handle.request.tilt, -self.max_tilt_speed, self.max_tilt_speed)
+        fb.tilt_remaining = clamp(goal_handle.request.tilt,
+                                  -self.max_tilt_speed, self.max_tilt_speed)
         fb.zoom_remaining = clamp(goal_handle.request.zoom, -1.0, 1.0)
 
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
@@ -394,7 +404,9 @@ class AxisPtz:
 
         if self.button_enable_zoom < 0 or msg.buttons[self.button_enable_zoom]:
             zoom_in_amt = (msg.axes[self.axis_zoom_in] + self.zoom_in_offset) * self.zoom_in_scale
-            zoom_out_amt = (msg.axes[self.axis_zoom_out] + self.zoom_out_offset) * self.zoom_out_scale  # noqa: E501
+            zoom_out_amt = (
+                msg.axes[self.axis_zoom_out] + self.zoom_out_offset
+            ) * self.zoom_out_scale
             zoom = (zoom_in_amt + zoom_out_amt) * self.scale_zoom
 
         if (
