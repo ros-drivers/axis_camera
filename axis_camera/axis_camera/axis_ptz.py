@@ -35,12 +35,12 @@
 from math import degrees as rad2deg
 from math import nan as NaN
 from math import radians as deg2rad
+import time
 
 from ptz_action_server_msgs.action import Ptz
+from rclpy.action import ActionClient, ActionServer
 import requests
 from sensor_msgs.msg import Joy
-
-from rclpy.action import ActionClient, ActionServer
 
 
 def clamp(x, low=0, high=1):
@@ -154,14 +154,15 @@ class AxisPtz:
         """
         Get the current PTZ position of the camera.
 
-        @return A tuple of the form (pan, tilt, zoom) where pan & tilt are in radians. Values are
-                NaN if there is an error reading the values from the camera
+        @return A tuple of the form (pan, tilt, zoom) where pan & tilt are in radians
+                and zoom is in "x". Values are NaN if there is an error reading the
+                values from the camera
         """
         d = self.axis.queryCameraPosition()
 
         pan = deg2rad(d['pan']) if 'pan' in d else NaN
         tilt = deg2rad(d['tilt']) if 'tilt' in d else NaN
-        zoom = d['zoom'] if 'zoom' in d else NaN  # noqa: SIM401
+        zoom = rescale(d['zoom'], 1, 9999, self.min_zoom, self.max_zoom) if 'zoom' in d else NaN
 
         return (pan, tilt, zoom)
 
@@ -176,8 +177,6 @@ class AxisPtz:
 
         @return True if we reached the goal, otherwise False
         """
-        rate = self.axis.create_rate(1)  # feedback at 1Hz
-
         cmd_string = f'/axis-cgi/com/ptz.cgi?pan={int(cmd_pan)}&tilt={int(cmd_tilt)}&zoom={int(cmd_zoom)}'  # noqa: E501
         url = f'http://{self.axis.hostname}:{self.axis.http_port}/{cmd_string}'
         resp = requests.get(
@@ -187,7 +186,7 @@ class AxisPtz:
             headers=self.axis.http_headers
         )
 
-        if resp.status_code != requests.status_codes.codes.ok:
+        if not self.axis.is_success(resp):
             # Error commanding the camera; abort the action
             self.axis.get_logger().warning(
                 f'Failed to command absolute PTZ position: {resp}'
@@ -200,8 +199,14 @@ class AxisPtz:
         prev_pan = NaN
         prev_tilt = NaN
         prev_zoom = NaN
+
+        # Convert back to standard units now that we've sent the http request
+        cmd_pan = deg2rad(cmd_pan)
+        cmd_tilt = deg2rad(cmd_tilt)
+        cmd_zoom = rescale(cmd_zoom, 1, 9999, self.min_zoom, self.max_zoom)
+
         while not reached_goal and not goal_handle.is_cancel_requested:
-            rate.sleep()
+            time.sleep(1)
 
             (pan, tilt, zoom) = self.current_ptz()
 
@@ -217,9 +222,9 @@ class AxisPtz:
             prev_tilt = tilt
             prev_zoom = zoom
 
-            fb.pan_remaining = deg2rad(abs(cmd_pan - pan))
-            fb.tilt_remaining = deg2rad(abs(cmd_tilt - tilt))
-            fb.zoom_remaining = rescale(abs(cmd_zoom - zoom), 1, 9999, self.min_zoom, self.max_zoom)
+            fb.pan_remaining = float(abs(cmd_pan - pan))
+            fb.tilt_remaining = float(abs(cmd_tilt - tilt))
+            fb.zoom_remaining = float(abs(cmd_zoom - zoom))
 
             goal_handle.publish_feedback(fb)
 
@@ -247,7 +252,7 @@ class AxisPtz:
             headers=self.axis.http_headers
         )
 
-        if resp.status_code != requests.status_codes.codes.ok:
+        if not self.axis.is_success(resp):
             # Error commanding the camera; abort the action
             self.axis.get_logger().warning(
                 f'Failed to command ptz velocity: {resp}'

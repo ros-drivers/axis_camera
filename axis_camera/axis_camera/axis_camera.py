@@ -394,38 +394,47 @@ class Axis(Node):
         # The Axis Q62 series supports a night-vision mode with an active IR illuminator
         # If this option is enabled, add the necessary services and topics
         if self.ir:
-            self.ir_on = False
+            self.ir_on = Bool()
+            self.ir_on.data = False
             self.ir_on_off_srv = self.create_service(SetBool, 'set_ir_on', self.handle_toggle_ir)
             self.ir_on_pub = self.create_publisher(
-                Bool, 'ir_on', 1, True
-            )  # queue_size=1, latch=True
-            self.handle_toggle_ir(SetBool.Request(False))
+                Bool, 'ir_on', 1)
+            r = SetBool.Request()
+            r.data = False
+            a = SetBool.Response()
+            self.handle_toggle_ir(r, a)
 
         # The Axis Q62 series is equipped with a wiper on the camera lens
         # If this option is enabled, add the necessary services and topics
         if self.wiper:
             self.wiper_on_pub_thread = None
             self.wiper_start_at = self.get_clock().now()
-            self.wiper_on = False
+            self.wiper_on = Bool()
+            self.wiper_on.data = False
             self.wiper_on_off_srv = self.create_service(
                 SetBool, 'set_wiper_on', self.handle_toggle_wiper
             )
             self.wiper_on_pub = self.create_publisher(
-                Bool, 'wiper_on', 1, True
-            )  # queue_size=1, latch=True
-            self.handle_toggle_wiper(SetBool.Request(False))
+                Bool, 'wiper_on', 1)
+            r = SetBool.Request()
+            a = SetBool.Response()
+            r.data = False
+            self.handle_toggle_wiper(r, a)
 
         # The Axis Q62 series is equipped with a defogger
         # If this option is enabled, add the necessary services and topics
         if self.defog:
-            self.defog_on = False
+            self.defog_on = Bool()
+            self.defog_on.data = False
             self.defog_on_off_srv = self.create_service(
                 SetBool, 'set_defog_on', self.handle_toggle_defog
             )
             self.defog_on_pub = self.create_publisher(
-                Bool, 'defog_on', 1, True
-            )  # queue_size=1, latch=True
-            self.handle_toggle_defog(SetBool.Request(False))
+                Bool, 'defog_on', 1)
+            r = SetBool.Request()
+            a = SetBool.Response()
+            r.data = False
+            self.handle_toggle_defog(r, a)
 
         self.msg_thread = StreamThread(self)
         self.msg_thread.start()
@@ -509,7 +518,7 @@ class Axis(Node):
                 url, auth=self.http_auth, timeout=self.http_timeout, headers=self.http_headers
             )
 
-            if resp.status_code == requests.status_codes.codes.ok:
+            if self.is_success(resp):
                 # returns a string of the form
                 #   pan=-0.01
                 #   tilt=-45.03
@@ -562,79 +571,74 @@ class Axis(Node):
 
         return new_camera_position
 
-    def handle_set_iris(self, req):
+    def handle_set_iris(self, req, resp):
         get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?iris={req.data}'
-        resp = SetInt.Response()
         try:
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+            resp.success = self.is_success(http_resp)
         except Exception:
             self.get_logger().warning('Error setting iris: {err}')
             resp.success = False
 
         return resp
 
-    def handle_set_focus(self, req, tmp):
+    def handle_set_focus(self, req, resp):
         get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?focus={req.data}'
-        resp = SetInt.Response()
         try:
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+            resp.success = self.is_success(http_resp)
         except Exception:
             self.get_logger().warning('Error setting focus: {err}')
             resp.success = False
 
         return resp
 
-    def handle_set_brightness(self, req):
+    def handle_set_brightness(self, req, resp):
         get_url = f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?brightness={req.data}'
-        resp = SetInt.Response()
         try:
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+            resp.success = self.is_success(http_resp)
         except Exception:
             self.get_logger().warning('Error setting brightness: {err}')
             resp.success = False
 
         return resp
 
-    def handle_set_autofocus(self, req):
+    def handle_set_autofocus(self, req, resp):
         get_url = (
             f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"  # noqa: E501
         )
-        resp = SetBool.Response()
         try:
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+            resp.success = self.is_success(http_resp)
         except Exception:
             self.get_logger().warning('Error setting autofocus: {err}')
             resp.success = False
 
         return resp
 
-    def handle_set_autoiris(self, req):
+    def handle_set_autoiris(self, req, resp):
         get_url = (
             f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"  # noqa: E501
         )
-        resp = SetBool.Response()
         try:
             http_resp = requests.get(
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            resp.success = http_resp.status_code == requests.status_codes.codes.ok
+            resp.success = self.is_success(http_resp)
         except Exception:
             self.get_logger().warning('Error setting autoiris: {err}')
             resp.success = False
@@ -652,9 +656,8 @@ class Axis(Node):
             self.st = StreamThread(self)
             self.st.start()
 
-    def handle_toggle_ir(self, req):
+    def handle_toggle_ir(self, req, resp):
         """Turn the IR mode on/off (if supported)."""
-        resp = SetBool.Response()
         resp.success = True
         on_off = {True: 'on', False: 'off'}
         try:
@@ -676,7 +679,7 @@ class Axis(Node):
                 timeout=self.http_timeout,
             )
 
-            if http_resp.status_code != requests.status_codes.codes.ok:
+            if not self.is_success(http_resp):
                 raise Exception(f'HTTP Error setting IR illuminator: {http_resp.status_code}')
 
             # Enable/disable the IR filter
@@ -684,7 +687,7 @@ class Axis(Node):
             http_resp = self.enable_disable_ir_filter(not req.data)
 
             if (
-                http_resp.status_code != requests.status_codes.codes.ok
+                not self.is_success(http_resp)
                 and not self.use_legacy_ir_url
             ):
                 self.get_logger().warning(
@@ -693,11 +696,11 @@ class Axis(Node):
                 self.use_legacy_ir_url = True
                 http_resp = self.enable_disable_ir_filter(not req.data)
 
-            if http_resp.status_code != requests.status_codes.codes.ok:
+            if not self.is_success(http_resp):
                 raise Exception(f'HTTP Error setting IR filter: {http_resp.status_code}')
 
             resp.message = f'IR mode is {on_off[req.data]}'
-            self.ir_on = req.data
+            self.ir_on.data = req.data
 
             self.ir_on_pub.publish(self.ir_on)
         except Exception as err:
@@ -735,14 +738,13 @@ class Axis(Node):
             get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
         )
 
-    def handle_toggle_wiper(self, req):
+    def handle_toggle_wiper(self, req, resp):
         """Turn the wiper on/off (if supported)."""
         on_off = {True: 'on', False: 'off'}
 
-        resp = SetBool.Response()
         resp.success = True
         try:
-            if req.data and not self.wiper_on:  # only turn the wiper on if it's not already on
+            if req.data and not self.wiper_on.data:  # only turn the wiper on if it's not already on
                 post_data = (
                     '{"apiVersion": "1.0", "context": "lvc_context", "method": "start", '
                     '"params": {"id": 0, "duration": 10}}'
@@ -775,11 +777,11 @@ class Axis(Node):
                 timeout=self.http_timeout,
             )
 
-            if http_resp.status_code != requests.status_codes.codes.ok:
+            if not self.is_success(http_resp):
                 raise Exception(f'HTTP Error setting wiper: {http_resp.status_code}')
 
-            resp.message = f'Wiper is {on_off[self.wiper_on]}'
-            self.wiper_on = req.data
+            resp.message = f'Wiper is {on_off[self.wiper_on.data]}'
+            self.wiper_on.data = req.data
 
             self.wiper_on_pub.publish(self.wiper_on)
         except Exception as err:
@@ -801,15 +803,14 @@ class Axis(Node):
         rate = self.create_rate(1)
         while self.get_clock().now() - self.wiper_start_at > WIPER_DURATION:
             rate.sleep()
-        self.wiper_on = False
+        self.wiper_on.data = False
         self.wiper_on_pub.publish(self.wiper_on)
         self.wiper_on_pub_thread = None
 
-    def handle_toggle_defog(self, req):
+    def handle_toggle_defog(self, req, resp):
         """Turn the defogger on/off (if supported)."""
         on_off = {True: 'on', False: 'off'}
 
-        resp = SetBool.Response()
         resp.success = True
         try:
             if req.data:
@@ -821,11 +822,11 @@ class Axis(Node):
                 get_url, auth=self.http_auth, headers=self.http_headers, timeout=self.http_timeout
             )
 
-            if http_resp.status_code != requests.status_codes.codes.ok:
+            if not self.is_success(http_resp):
                 raise Exception(f'HTTP Error setting defogger: {http_resp.status_code}')
 
-            resp.message = f'Defogger is {on_off[self.defog_on]}'
-            self.defog_on = req.data
+            resp.message = f'Defogger is {on_off[self.defog_on.data]}'
+            self.defog_on.data = req.data
 
             self.defog_on_pub.publish(self.defog_on)
         except Exception as err:
@@ -833,3 +834,13 @@ class Axis(Node):
             resp.success = False
             resp.message = str(err)
         return resp
+
+    def is_success(self, http_resp):
+        """Check if an HTTP response is successful
+
+        We define success as anything in the 200 range; some web requests return 200, others return 204
+
+        @param http_resp  The http response to check
+        @return True if http_resp.status_code is a 200-series message
+        """
+        return http_resp.status_code // 100 == 2
