@@ -1,0 +1,17 @@
+/**:
+    ros__parameters:
+        # pan range in radians
+        min_pan: -3.141592653589793
+        max_pan: 3.141592653589793
+
+        # tilt range in radians
+        min_tilt: -1.5707963267948966
+        max_tilt: 0.0
+
+        # zoom range in "x" (e.g. 1x - 24x optical zoom)
+        min_zoom: 1
+        max_zoom: 24
+
+        # maximum angular velocity, rad/s
+        max_pan_speed: 2.61
+        max_tilt_speed: 2.61

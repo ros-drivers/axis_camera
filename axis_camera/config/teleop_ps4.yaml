@@ -1,0 +1,83 @@
+# Teleop configuration for PS4 joystick using the x-pad configuration.
+#
+# This file uses the default order for PS4 controller axis enumeration:
+# L-horiz, L-vert, L-trig, R-horiz, R-vert, R-trig
+#
+#          L1                                       R1
+#          L2                                       R2
+#       _=====_                                  _=====_
+#      / _____ \                                / _____ \
+#    +.-'_____'-.------------------------------.-'_____'-.+
+#   /   |     |  '.        S O N Y           .'  |  _  |   \
+#  / ___| /|\ |___ \                        / ___| /_\ |___ \      (Y)
+# / |      |      | ;                      ; | _         _ ||
+# | | <---   ---> | |                      | ||_|       (_)||  (X)     (B)
+# | |___   |   ___| ;                      ; |___       ___||
+# |\    | \|/ |    /  _      ____      _   \    | (X) |    /|      (A)
+# | \   |_____|  .','" "',  (_PS_)  ,'" "', '.  |_____|  .' |
+# |  '-.______.-' /       \        /       \  '-._____.-'   |
+# |               |  LJ   |--------|  RJ   |                |
+# |              /\       /        \       /\               |
+# |             /  '.___.'          '.___.'  \              |
+# |            /                              \             |
+#  \          /                                \           /
+#   \________/                                  \_________/
+#
+#          ^ x
+#          |
+#          |
+#  y <-----+      Accelerometer axes
+#           \
+#            \
+#             > z (out)
+#
+# BUTTON         Value
+#   L1             4
+#   L2             6
+#   R1             5
+#   R2             7
+#   A              0       Big X
+#   B              1       Circle
+#   X              3       Square
+#   Y              2       Triangle
+#
+#    AXIS        Value
+# Left Horiz.      0
+# Left Vert.       1
+# Right Horiz.     3
+# Right Vert.      4
+#    L2            2
+#    R2            5
+# D-pad Horiz.     6
+# D-pad Vert.      7
+
+/**:
+    ros__parameters:
+
+        # Optional: specify an enable button that must be held to allow pan/tilt/zoom controls
+        button_enable_pan_tilt : -1
+        button_enable_zoom     : -1
+
+        # Right thumb stick to pan/tilt the camera
+        axis_pan      : 3
+        axis_tilt     : 4
+        invert_tilt   : False
+
+        # R2/L2 to zoom in/out
+        axis_zoom_in: 5
+        axis_zoom_out: 2
+
+        # The analog triggers are normalled to +1 and move towards -1 as they are pressed
+        # To convert them to the proper range we apply an offset and _then_ a multipicative scale
+        # If we use e.g. a thumb stick instead, the offset should be 0 and the scale 1.0
+        zoom_in_offset: -1.0
+        zoom_out_offset: -1.0
+        zoom_in_scale: -0.5
+        zoom_out_scale: 0.5
+
+        # Maximum pan/tilt/zoom velocities
+        # max 2.61 rad/s rotation
+        # zoom speed -100 to + 100
+        scale_pan     : 2.61
+        scale_tilt    : 2.61
+        scale_zoom    : 100.0

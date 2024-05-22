@@ -12,7 +12,6 @@ find_package(geometry_msgs REQUIRED)
 
 set(msg_files
   "msg/Axis.msg"
-  "msg/Ptz.msg"
 )
 
 set(srv_files

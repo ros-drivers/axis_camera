@@ -3,7 +3,7 @@
 <package format="3">
 
   <name>axis_msgs</name>
-  <version>0.5.2</version>
+  <version>2.0.0</version>
   <description>
     ROS messages used by the axis_camera package to control Axis PTZ and fixed cameras
   </description>
@@ -14,11 +14,12 @@
   <url type="repository">https://github.com/ros-drivers/axis_camera</url>
   <url type="bugtracker">https://github.com/ros-drivers/axis_camera/issues</url>
 
-  <author email="quentin.picard@vedecom.fr">Quentin Picard</author>
+  <author email="civerachb@clearpathrobotics.com">Chris Iverach-Brereton</author>
   <author>Ryan Gariepy</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  
+  <build_depend>rosidl_default_generators</build_depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 

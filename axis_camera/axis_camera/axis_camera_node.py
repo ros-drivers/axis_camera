@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2024 Clearpath Robotics Inc.
 # All rights reserved.
 #
@@ -32,6 +34,7 @@
 
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 
 from axis_camera.axis_camera import Axis
 
@@ -66,13 +69,14 @@ def main(args=None):
     rclpy.init()
 
     # parameters = {
-    #    'hostname': '',       # default IP address
-    #    'username': '',               # default login name
+    #    'hostname': '192.168.0.90',        # default IP address
+    #    'http_port': 80,                   # default HTTP port
+    #    'username': 'root',                # default login name
     #    'password': '',
-    #    'width': 640,
-    #    'height': 480,
+    #    'width': 640,                      # frame width (pixels)
+    #    'height': 480,                     # frame height (pixels)
     #    'fps': 20,                         # frames per second (0 = camera default)
-    #    'frame_id': 'axis_camera_link',
+    #    'frame_id': 'axis_camera_link',    # sensor frame ID
     #    'camera_info_url': '',
     #    'use_encrypted_password' : False,
     #    'camera' : 1,
@@ -84,10 +88,9 @@ def main(args=None):
     # args = updateArgs(parameters)
 
     node_name = 'axis_camera_node'
-
+    executor = MultiThreadedExecutor()
     axis_camera_node = Axis(node_name)
-
-    rclpy.spin(axis_camera_node)
+    rclpy.spin(axis_camera_node, executor=executor)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
