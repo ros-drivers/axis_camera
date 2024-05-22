@@ -39,6 +39,7 @@ import time
 
 from ptz_action_server_msgs.action import Ptz
 from rclpy.action import ActionClient, ActionServer, CancelResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
 import requests
 from sensor_msgs.msg import Joy
 
@@ -123,7 +124,8 @@ class AxisPtz:
             Ptz,
             'move_ptz/position_abs',
             self.move_ptz_abs_cb,
-            cancel_callback=self.cancel_ptz_abs_cb
+            cancel_callback=self.cancel_ptz_abs_cb,
+            callback_group=ReentrantCallbackGroup()
         )
 
         self.set_ptz_relative_srv = ActionServer(
@@ -131,7 +133,8 @@ class AxisPtz:
             Ptz,
             'move_ptz/position_rel',
             self.move_ptz_rel_cb,
-            cancel_callback=self.cancel_ptz_rel_cb
+            cancel_callback=self.cancel_ptz_rel_cb,
+            callback_group=ReentrantCallbackGroup()
         )
 
         self.set_ptz_velocity_srv = ActionServer(
@@ -139,7 +142,8 @@ class AxisPtz:
             Ptz,
             'move_ptz/velocity',
             self.move_ptz_vel_cb,
-            cancel_callback=self.cancel_ptz_vel_cb
+            cancel_callback=self.cancel_ptz_vel_cb,
+            callback_group=ReentrantCallbackGroup()
         )
 
         if teleop:
@@ -346,25 +350,35 @@ class AxisPtz:
         result = Ptz.Result()
         result.success = True
 
+        fb = Ptz.Feedback()
+        fb.pan_remaining = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
+        fb.tilt_remaining = clamp(goal_handle.request.tilt, -self.max_tilt_speed, self.max_tilt_speed)
+        fb.zoom_remaining = clamp(goal_handle.request.zoom, -1.0, 1.0)
+
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
             goal_handle.abort()
             result.success = False
         else:
-            goal_handle.succeed()
+            # Continuous control; the only way to stop is to cancel
+            while not goal_handle.is_cancel_requested and goal_handle.is_active:
+                time.sleep(1)
+                goal_handle.publish_feedback(fb)
+                self.axis.get_logger().warning("Still Moving")
 
-        # No feedback; the camera will continue moving until it gets a new command
+        # Command the camera to stop moving
+        self.axis.get_logger().warning("Cancelling velocity action")
+        self.send_velocity_command(0, 0, 0)
+        goal_handle.abort()
         return result
-
+    
     def cancel_ptz_abs_cb(self, cancel_request):
-        return CancelResponse.Accept
-
+        return CancelResponse.ACCEPT
+    
     def cancel_ptz_rel_cb(self, cancel_request):
-        return CancelResponse.Accept
+        return CancelResponse.ACCEPT
 
     def cancel_ptz_vel_cb(self, cancel_request):
-        self.axis.get_logger().warning(dir(cancel_request))
-        self.send_velocity_command(0, 0, 0)  # stop moving
-        return CancelResponse.Accept
+        return CancelResponse.ACCEPT
 
     def joy_cb(self, msg):
         """
