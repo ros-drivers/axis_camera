@@ -149,7 +149,7 @@ class AxisPtz:
         if teleop:
             self.joy_sub = self.axis.create_subscription(
                 Joy,
-                "joy_teleop/joy",
+                "joy",
                 self.joy_cb,
                 10
             )
@@ -363,17 +363,16 @@ class AxisPtz:
             while not goal_handle.is_cancel_requested and goal_handle.is_active:
                 time.sleep(1)
                 goal_handle.publish_feedback(fb)
-                self.axis.get_logger().warning("Still Moving")
 
         # Command the camera to stop moving
         self.axis.get_logger().warning("Cancelling velocity action")
         self.send_velocity_command(0, 0, 0)
         goal_handle.abort()
         return result
-    
+
     def cancel_ptz_abs_cb(self, cancel_request):
         return CancelResponse.ACCEPT
-    
+
     def cancel_ptz_rel_cb(self, cancel_request):
         return CancelResponse.ACCEPT
 
@@ -403,11 +402,12 @@ class AxisPtz:
             tilt != self.last_teleop_velocity.tilt or
             zoom != self.last_teleop_velocity.zoom
         ):
-            cmd = Ptz.Goal()
-            cmd.pan = pan
-            cmd.tilt = tilt
-            cmd.zoom = zoom
-            self.last_teleop_velocity = cmd
+            self.last_teleop_velocity.pan = pan
+            self.last_teleop_velocity.tilt = tilt
+            self.last_teleop_velocity.zoom = zoom
 
-            # we don't care about the feedback or result; just send the goal
-            self.teleop_client.send_goal_async(cmd)
+            # rescale pan & tilt to be -100 to 100; zoom is already in that range
+            pan = rescale(pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
+            tilt = rescale(tilt, -self.max_tilt_speed, self.max_tilt_speed, -100, 100)
+
+            self.send_velocity_command(pan, tilt, zoom)
