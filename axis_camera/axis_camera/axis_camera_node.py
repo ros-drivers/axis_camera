@@ -34,6 +34,7 @@
 
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 
 from axis_camera.axis_camera import Axis
 
@@ -87,10 +88,9 @@ def main(args=None):
     # args = updateArgs(parameters)
 
     node_name = 'axis_camera_node'
-
+    executor = MultiThreadedExecutor()
     axis_camera_node = Axis(node_name)
-
-    rclpy.spin(axis_camera_node)
+    rclpy.spin(axis_camera_node, executor=executor)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
