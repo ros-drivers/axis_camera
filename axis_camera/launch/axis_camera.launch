@@ -56,7 +56,7 @@
     <param name="wiper" value="$(var enable_wiper)" />
     <param name="defog" value="$(var enable_defog)" />
 
-    <param name="frame_id" value="$(var camera_name)_camera_link" />
+    <param name="tf_prefix" value="$(var camera_name)" />
 
     <param from="$(var ptz_config)" />
     <param from="$(var teleop_config)" />

@@ -35,13 +35,15 @@
 from math import degrees as rad2deg
 from math import nan as NaN
 from math import radians as deg2rad
+import threading
 import time
 
 from ptz_action_server_msgs.action import Ptz
+import rclpy
 from rclpy.action import ActionClient, ActionServer, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 import requests
-from sensor_msgs.msg import Joy
+from sensor_msgs.msg import JointState, Joy
 
 
 def clamp(x, low=0, high=1):
@@ -158,8 +160,33 @@ class AxisPtz:
             # use our own teleop action server for velocity-controlling the camera
             self.teleop_client = ActionClient(self.axis, Ptz, 'move_ptz/velocity')
 
+        self.joint_state_pub = self.axis.create_publisher(JointState, 'joint_states', 1)
+        self.joint_state_thread = threading.Thread(target=self.publish_joint_states)
+        self.joint_state_thread.start()
+
         # center the camera on startup
         self.send_position(0, 0, 1)
+
+    def publish_joint_states(self):
+        rate = self.axis.create_rate(1)
+
+        msg = JointState()
+
+        msg.name = [
+            f"{self.axis.tf_prefix}_pan_joint",
+            f"{self.axis.tf_prefix}_tilt_joint"
+        ]
+        msg.velocity = [0.0, 0.0]
+        msg.effort = [0.0, 0.0]
+
+        while rclpy.ok():
+            rate.sleep()
+
+            (pan, tilt, _) = self.current_ptz()
+            msg.header.stamp = self.axis.get_clock().now().to_msg()
+            msg.position = [pan, tilt]
+
+            self.joint_state_pub.publish(msg)
 
     def current_ptz(self):
         """
