@@ -39,6 +39,7 @@ import threading
 import time
 
 from ptz_action_server_msgs.action import Ptz
+from ptz_action_server_msgs.msg import PtzState
 import rclpy
 from rclpy.action import ActionClient, ActionServer, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -161,6 +162,8 @@ class AxisPtz:
             self.teleop_client = ActionClient(self.axis, Ptz, 'move_ptz/velocity')
 
         self.joint_state_pub = self.axis.create_publisher(JointState, 'joint_states', 1)
+        self.ptz_state_pub = self.axis.create_publisher(PtzState, 'ptz_state', 1)
+        self.ptz_state = PtzState()
         self.joint_state_thread = threading.Thread(target=self.publish_joint_states)
         self.joint_state_thread.start()
 
@@ -170,23 +173,27 @@ class AxisPtz:
     def publish_joint_states(self):
         rate = self.axis.create_rate(1)
 
-        msg = JointState()
-
-        msg.name = [
+        joints = JointState()
+        joints.name = [
             f"{self.axis.tf_prefix}_pan_joint",
             f"{self.axis.tf_prefix}_tilt_joint"
         ]
-        msg.velocity = [0.0, 0.0]
-        msg.effort = [0.0, 0.0]
+        joints.velocity = [0.0, 0.0]
+        joints.effort = [0.0, 0.0]
 
         while rclpy.ok():
             rate.sleep()
 
-            (pan, tilt, _) = self.current_ptz()
-            msg.header.stamp = self.axis.get_clock().now().to_msg()
-            msg.position = [pan, tilt]
+            (pan, tilt, zoom) = self.current_ptz()
+            joints.header.stamp = self.axis.get_clock().now().to_msg()
+            joints.position = [pan, tilt]
 
-            self.joint_state_pub.publish(msg)
+            self.ptz_state.pan = pan
+            self.ptz_state.tilt = tilt
+            self.ptz_state.zoom = zoom
+
+            self.joint_state_pub.publish(joints)
+            self.ptz_state_pub.publish(self.ptz_state)
 
     def current_ptz(self):
         """
@@ -333,12 +340,15 @@ class AxisPtz:
             rescale(goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
         )
 
+        self.ptz_state.mode = PtzState.MODE_POSITION
         reached_goal = self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
+        self.ptz_state.mode = PtzState.MODE_IDLE
 
         result = Ptz.Result()
         result.success = reached_goal
         if reached_goal:
             goal_handle.succeed()
+
         return result
 
     def move_ptz_rel_cb(self, goal_handle):
@@ -359,7 +369,9 @@ class AxisPtz:
             rescale(current_zoom + goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
         )
 
+        self.ptz_state.mode = PtzState.MODE_POSITION
         reached_goal = self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
+        self.ptz_state.mode = PtzState.MODE_IDLE
 
         result = Ptz.Result()
         result.success = reached_goal
@@ -392,6 +404,7 @@ class AxisPtz:
                                   -self.max_tilt_speed, self.max_tilt_speed)
         fb.zoom_remaining = clamp(goal_handle.request.zoom, -1.0, 1.0)
 
+        self.ptz_state.mode = PtzState.MODE_VELOCITY
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
             goal_handle.abort()
             result.success = False
@@ -402,6 +415,7 @@ class AxisPtz:
                 goal_handle.publish_feedback(fb)
 
         # Command the camera to stop moving
+        self.ptz_state.mode = PtzState.MODE_IDLE
         self.axis.get_logger().warning("Cancelling velocity action")
         self.send_velocity_command(0, 0, 0)
         goal_handle.abort()
@@ -449,4 +463,8 @@ class AxisPtz:
             pan = rescale(pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
             tilt = rescale(tilt, -self.max_tilt_speed, self.max_tilt_speed, -100, 100)
 
+            if pan != 0 or tilt != 0 or zoom != 0:
+                self.ptz_state.mode = PtzState.MODE_VELOCITY
+            else:
+                self.ptz_state.mode = PtzState.MODE_IDLE
             self.send_velocity_command(pan, tilt, zoom)
