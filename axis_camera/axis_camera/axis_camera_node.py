@@ -76,7 +76,7 @@ def main(args=None):
     #    'width': 640,                      # frame width (pixels)
     #    'height': 480,                     # frame height (pixels)
     #    'fps': 20,                         # frames per second (0 = camera default)
-    #    'frame_id': 'axis_camera_link',    # sensor frame ID
+    #    'tf_prefix': 'axis',               # sensor & joint frame prefix
     #    'camera_info_url': '',
     #    'use_encrypted_password' : False,
     #    'camera' : 1,
