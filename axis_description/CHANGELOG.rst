@@ -52,16 +52,6 @@ Forthcoming
 0.4.0 (2021-11-29)
 ------------------
 
-Forthcoming
------------
-* Add axis_description for humble (`#88 <https://github.com/ros-drivers/axis_camera/issues/88>`_)
-  * Re-add the axis description package with the Noetic URDFs and STLs
-  * Add Stephen Sharp as an author since he made the Q62 STLs
-  * frame_id -> tf_prefix in parameters, add joint_states publisher to publish {tf_prefix}_pan_joint and {tf_prefix}_tilt_joint positions at 1Hz
-  * Add the PtzState publication
-  * Changes
-* Contributors: Chris Iverach-Brereton
-
 0.3.0 (2018-05-25)
 ------------------
 
