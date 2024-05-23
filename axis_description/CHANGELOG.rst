@@ -2,6 +2,11 @@
 Changelog for package axis_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Initial release for ROS 2
+* Contributors: Chris Iverach-Brereton, Mike Hosmar
+
 0.5.4 (2024-01-31)
 ------------------
 
