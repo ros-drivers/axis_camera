@@ -1,8 +1,8 @@
 Change history
 ==============
 
-Forthcoming
------------
+2.0.1 (2024-05-24)
+------------------
 * Remove the unused Axis.msg (all relevant information is now published in independent topics). Fix action imports in axis_ptz
 * Contributors: Chris Iverach-Brereton
 
