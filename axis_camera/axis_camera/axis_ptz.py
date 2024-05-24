@@ -38,10 +38,10 @@ from math import radians as deg2rad
 import threading
 import time
 
-from ptz_action_server_msgs.action import Ptz
+from ptz_action_server_msgs.action import PtzMove
 from ptz_action_server_msgs.msg import PtzState
 import rclpy
-from rclpy.action import ActionClient, ActionServer, CancelResponse
+from rclpy.action import ActionServer, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 import requests
 from sensor_msgs.msg import JointState, Joy
@@ -121,11 +121,11 @@ class AxisPtz:
         self.scale_zoom = self.axis.get_parameter('scale_zoom').value
 
         # The last-sent PTZ velocity control from the game controller
-        self.last_teleop_velocity = Ptz.Goal()
+        self.last_teleop_velocity = PtzMove.Goal()
 
         self.set_ptz_absolute_srv = ActionServer(
             self.axis,
-            Ptz,
+            PtzMove,
             'move_ptz/position_abs',
             self.move_ptz_abs_cb,
             cancel_callback=self.cancel_ptz_abs_cb,
@@ -134,7 +134,7 @@ class AxisPtz:
 
         self.set_ptz_relative_srv = ActionServer(
             self.axis,
-            Ptz,
+            PtzMove,
             'move_ptz/position_rel',
             self.move_ptz_rel_cb,
             cancel_callback=self.cancel_ptz_rel_cb,
@@ -143,7 +143,7 @@ class AxisPtz:
 
         self.set_ptz_velocity_srv = ActionServer(
             self.axis,
-            Ptz,
+            PtzMove,
             'move_ptz/velocity',
             self.move_ptz_vel_cb,
             cancel_callback=self.cancel_ptz_vel_cb,
@@ -157,9 +157,6 @@ class AxisPtz:
                 self.joy_cb,
                 10
             )
-
-            # use our own teleop action server for velocity-controlling the camera
-            self.teleop_client = ActionClient(self.axis, Ptz, 'move_ptz/velocity')
 
         self.joint_state_pub = self.axis.create_publisher(JointState, 'joint_states', 1)
         self.ptz_state_pub = self.axis.create_publisher(PtzState, 'ptz_state', 1)
@@ -255,7 +252,7 @@ class AxisPtz:
             goal_handle.abort()
             return False
 
-        fb = Ptz.Feedback()
+        fb = PtzMove.Feedback()
         reached_goal = False
         prev_pan = NaN
         prev_tilt = NaN
@@ -344,7 +341,7 @@ class AxisPtz:
         reached_goal = self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
         self.ptz_state.mode = PtzState.MODE_IDLE
 
-        result = Ptz.Result()
+        result = PtzMove.Result()
         result.success = reached_goal
         if reached_goal:
             goal_handle.succeed()
@@ -373,7 +370,7 @@ class AxisPtz:
         reached_goal = self.wait_for_position(goal_handle, cmd_pan, cmd_tilt, cmd_zoom)
         self.ptz_state.mode = PtzState.MODE_IDLE
 
-        result = Ptz.Result()
+        result = PtzMove.Result()
         result.success = reached_goal
         if reached_goal:
             goal_handle.succeed()
@@ -395,10 +392,10 @@ class AxisPtz:
             rescale(goal_handle.request.zoom, -1, 1, -100, 100)
         )
 
-        result = Ptz.Result()
+        result = PtzMove.Result()
         result.success = True
 
-        fb = Ptz.Feedback()
+        fb = PtzMove.Feedback()
         fb.pan_remaining = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
         fb.tilt_remaining = clamp(goal_handle.request.tilt,
                                   -self.max_tilt_speed, self.max_tilt_speed)
