@@ -2,6 +2,9 @@
 Changelog for package axis_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 2.0.0 (2024-05-23)
 ------------------
 * Initial release for ROS 2

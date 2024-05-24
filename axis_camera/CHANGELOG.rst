@@ -2,6 +2,11 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Remove the unused Axis.msg (all relevant information is now published in independent topics). Fix action imports in axis_ptz
+* Contributors: Chris Iverach-Brereton
+
 2.0.0 (2024-05-23)
 ------------------
 * Initial release for ROS 2
