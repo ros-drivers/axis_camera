@@ -439,9 +439,9 @@ class AxisPtz:
         tilt = msg.tilt
         zoom = msg.zoom
         if (
-            pan != self.last_cmd_velocity.pan or
-            tilt != self.last_cmd_velocity.tilt or
-            zoom != self.last_cmd_velocity.zoom
+            pan != self.last_cmd_velocity.ptz.pan or
+            tilt != self.last_cmd_velocity.ptz.tilt or
+            zoom != self.last_cmd_velocity.ptz.zoom
         ):
             self.last_cmd_velocity.ptz.pan = pan
             self.last_cmd_velocity.ptz.tilt = tilt
@@ -456,7 +456,6 @@ class AxisPtz:
             else:
                 self.ptz_state.mode = PtzState.MODE_IDLE
             self.send_velocity_command(pan, tilt, zoom)
-
 
     def joy_cb(self, msg):
         """
