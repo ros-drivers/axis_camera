@@ -39,7 +39,7 @@ import threading
 import time
 
 from ptz_action_server_msgs.action import PtzMove
-from ptz_action_server_msgs.msg import PtzState
+from ptz_action_server_msgs.msg import PtzState, Ptz
 import rclpy
 from rclpy.action import ActionServer, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -122,6 +122,7 @@ class AxisPtz:
 
         # The last-sent PTZ velocity control from the game controller
         self.last_teleop_velocity = PtzMove.Goal()
+        self.last_cmd_velocity = PtzMove.Goal()
 
         self.set_ptz_absolute_srv = ActionServer(
             self.axis,
@@ -158,6 +159,7 @@ class AxisPtz:
                 10
             )
 
+        self.cmd_vel_sub = self.axis.create_subscription(Ptz, 'cmd/velocity', self.joy_cb, 1)
         self.joint_state_pub = self.axis.create_publisher(JointState, 'joint_states', 1)
         self.ptz_state_pub = self.axis.create_publisher(PtzState, 'ptz_state', 1)
         self.ptz_state = PtzState()
@@ -281,9 +283,9 @@ class AxisPtz:
             prev_tilt = tilt
             prev_zoom = zoom
 
-            fb.pan_remaining = float(abs(cmd_pan - pan))
-            fb.tilt_remaining = float(abs(cmd_tilt - tilt))
-            fb.zoom_remaining = float(abs(cmd_zoom - zoom))
+            fb.ptz_remaining.pan = float(abs(cmd_pan - pan))
+            fb.ptz_remaining.tilt = float(abs(cmd_tilt - tilt))
+            fb.ptz_remaining.zoom = float(abs(cmd_zoom - zoom))
 
             goal_handle.publish_feedback(fb)
 
@@ -330,11 +332,11 @@ class AxisPtz:
 
         @param goal_handle
         """
-        cmd_pan = round(rad2deg(clamp(goal_handle.request.pan, self.min_pan, self.max_pan)))
-        cmd_tilt = round(rad2deg(clamp(goal_handle.request.tilt, self.min_tilt, self.max_tilt)))
+        cmd_pan = round(rad2deg(clamp(goal_handle.request.ptz.pan, self.min_pan, self.max_pan)))
+        cmd_tilt = round(rad2deg(clamp(goal_handle.request.ptz.tilt, self.min_tilt, self.max_tilt)))
         cmd_zoom = round(
             # Axis uses 1-9999 for internal zoom levels
-            rescale(goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
+            rescale(goal_handle.request.ptz.zoom, self.min_zoom, self.max_zoom, 1, 9999)
         )
 
         self.ptz_state.mode = PtzState.MODE_POSITION
@@ -357,13 +359,13 @@ class AxisPtz:
         (current_pan, current_tilt, current_zoom) = self.current_ptz()
 
         cmd_pan = round(
-            rad2deg(clamp(current_pan + goal_handle.request.pan, self.min_pan, self.max_pan))
+            rad2deg(clamp(current_pan + goal_handle.request.ptz.pan, self.min_pan, self.max_pan))
         )
         cmd_tilt = round(
-            rad2deg(clamp(current_tilt + goal_handle.request.tilt, self.min_tilt, self.max_tilt))
+            rad2deg(clamp(current_tilt + goal_handle.request.ptz.tilt, self.min_tilt, self.max_tilt))
         )
         cmd_zoom = round(
-            rescale(current_zoom + goal_handle.request.zoom, self.min_zoom, self.max_zoom, 1, 9999)
+            rescale(current_zoom + goal_handle.request.ptz.zoom, self.min_zoom, self.max_zoom, 1, 9999)
         )
 
         self.ptz_state.mode = PtzState.MODE_POSITION
@@ -383,23 +385,23 @@ class AxisPtz:
         @param goal_handle
         """
         cmd_pan = round(
-            rescale(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
+            rescale(goal_handle.request.ptz.pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
         )
         cmd_tilt = round(
-            rescale(goal_handle.request.tilt, -self.max_tilt_speed, self.max_tilt_speed, -100, 100)
+            rescale(goal_handle.request.ptz.tilt, -self.max_tilt_speed, self.max_tilt_speed, -100, 100)
         )
         cmd_zoom = round(
-            rescale(goal_handle.request.zoom, -1, 1, -100, 100)
+            rescale(goal_handle.request.ptz.zoom, -1, 1, -100, 100)
         )
 
         result = PtzMove.Result()
         result.success = True
 
         fb = PtzMove.Feedback()
-        fb.pan_remaining = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
-        fb.tilt_remaining = clamp(goal_handle.request.tilt,
+        fb.ptz_remaining.pan = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)
+        fb.ptz_remaining.tilt = clamp(goal_handle.request.tilt,
                                   -self.max_tilt_speed, self.max_tilt_speed)
-        fb.zoom_remaining = clamp(goal_handle.request.zoom, -1.0, 1.0)
+        fb.ptz_remaining.zoom = clamp(goal_handle.request.zoom, -1.0, 1.0)
 
         self.ptz_state.mode = PtzState.MODE_VELOCITY
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
@@ -427,6 +429,35 @@ class AxisPtz:
     def cancel_ptz_vel_cb(self, cancel_request):
         return CancelResponse.ACCEPT
 
+    def cmd_velocity_cb(self, msg):
+        """
+        Start velocity-controlling the camera using the joystick input.
+
+        @param msg  The ptz_action_server_msgs/Ptz message to process
+        """
+        pan = msg.pan
+        tilt = msg.tilt
+        zoom = msg.zoom
+        if (
+            pan != self.last_cmd_velocity.pan or
+            tilt != self.last_cmd_velocity.tilt or
+            zoom != self.last_cmd_velocity.zoom
+        ):
+            self.last_cmd_velocity.ptz.pan = pan
+            self.last_cmd_velocity.ptz.tilt = tilt
+            self.last_cmd_velocity.ptz.zoom = zoom
+
+            # rescale pan & tilt to be -100 to 100; zoom is already in that range
+            pan = rescale(pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
+            tilt = rescale(tilt, -self.max_tilt_speed, self.max_tilt_speed, -100, 100)
+
+            if pan != 0 or tilt != 0 or zoom != 0:
+                self.ptz_state.mode = PtzState.MODE_VELOCITY
+            else:
+                self.ptz_state.mode = PtzState.MODE_IDLE
+            self.send_velocity_command(pan, tilt, zoom)
+
+
     def joy_cb(self, msg):
         """
         Start velocity-controlling the camera using the joystick input.
@@ -448,13 +479,13 @@ class AxisPtz:
             zoom = (zoom_in_amt + zoom_out_amt) * self.scale_zoom
 
         if (
-            pan != self.last_teleop_velocity.pan or
-            tilt != self.last_teleop_velocity.tilt or
-            zoom != self.last_teleop_velocity.zoom
+            pan != self.last_teleop_velocity.ptz.pan or
+            tilt != self.last_teleop_velocity.ptz.tilt or
+            zoom != self.last_teleop_velocity.ptz.zoom
         ):
-            self.last_teleop_velocity.pan = pan
-            self.last_teleop_velocity.tilt = tilt
-            self.last_teleop_velocity.zoom = zoom
+            self.last_teleop_velocity.ptz.pan = pan
+            self.last_teleop_velocity.ptz.tilt = tilt
+            self.last_teleop_velocity.ptz.zoom = zoom
 
             # rescale pan & tilt to be -100 to 100; zoom is already in that range
             pan = rescale(pan, -self.max_pan_speed, self.max_pan_speed, -100, 100)
