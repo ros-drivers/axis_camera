@@ -159,7 +159,7 @@ class AxisPtz:
                 10
             )
 
-        self.cmd_vel_sub = self.axis.create_subscription(Ptz, 'cmd/velocity', self.joy_cb, 1)
+        self.cmd_vel_sub = self.axis.create_subscription(Ptz, 'cmd/velocity', self.cmd_velocity_cb, 1)
         self.joint_state_pub = self.axis.create_publisher(JointState, 'joint_states', 1)
         self.ptz_state_pub = self.axis.create_publisher(PtzState, 'ptz_state', 1)
         self.ptz_state = PtzState()
