@@ -2,6 +2,12 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add/cmd vel topic (`#90 <https://github.com/ros-drivers/axis_camera/issues/90>`_)
+  * added cmd/velocity topic for continuous velocity control
+* Contributors: jmastrangelo-cpr
+
 2.0.2 (2024-06-04)
 ------------------
 
