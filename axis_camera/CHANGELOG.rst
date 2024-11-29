@@ -2,8 +2,8 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.0.1 (2024-11-29)
+------------------
 * Linting fixes
 * Contributors: Chris Iverach-Brereton
 
