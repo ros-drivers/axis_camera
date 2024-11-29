@@ -154,7 +154,7 @@ class StreamThread(threading.Thread):
             else:
                 handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
 
-            # create "opener" (OpenerDirector instance)
+            # create 'opener' (OpenerDirector instance)
             opener = urllib.request.build_opener(handler)
 
             # ...and install it globally so it can be used with urlopen.
@@ -196,7 +196,7 @@ class StreamThread(threading.Thread):
         """
         Find boundry in datastream.
 
-        The string "--myboundary" is used to denote the start of an image in
+        The string '--myboundary' is used to denote the start of an image in
         Axis cameras
         """
         while True:
@@ -347,7 +347,7 @@ class Axis(Node):
         self.use_ptz = self.get_parameter('ptz').value
         self.ptz_teleop = self.get_parameter('ptz_teleop').value
 
-        self.frame_id = f"{self.tf_prefix}_camera_frame"
+        self.frame_id = f'{self.tf_prefix}_camera_frame'
 
         self.use_legacy_ir_url = False
 
@@ -460,7 +460,7 @@ class Axis(Node):
         """
         Return string representation.
 
-        @return A string of the form "root@192.168.0.90:80(320x240)"
+        @return A string of the form 'root@192.168.0.90:80(320x240)'
         """
         return f'{self.username}@{self.hostname}:{self.http_port}({self.width}x{self.height})'
 
@@ -633,7 +633,7 @@ class Axis(Node):
 
     def handle_set_autofocus(self, req, resp):
         get_url = (
-            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={'on' if req.data else 'off'}"  # noqa: E501
+            f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autofocus={"on" if req.data else "off"}'  # noqa: E501
         )
         try:
             http_resp = requests.get(
@@ -649,7 +649,7 @@ class Axis(Node):
 
     def handle_set_autoiris(self, req, resp):
         get_url = (
-            f"http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={'on' if req.data else 'off'}"  # noqa: E501
+            f'http://{self.hostname}:{self.http_port}/axis-cgi/com/ptz.cgi?autoiris={"on" if req.data else "off"}'  # noqa: E501
         )
         try:
             http_resp = requests.get(
