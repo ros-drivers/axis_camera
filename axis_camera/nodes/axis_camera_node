@@ -13,20 +13,15 @@ def updateArgs(arg_defaults):
     '''
     args = {}
     for name, val in arg_defaults.items():
-        full_name = rospy.search_param(name)
-        if full_name is None:
-            args[name] = val
+        if rospy.has_param('~' + name):
+            args[name] = rospy.get_param('~' + name)
         else:
-            args[name] = rospy.get_param(full_name, val)
-    # resolve frame_id with tf_prefix (unless already absolute)
-    if args['frame_id'][0] != '/':        # not absolute?
-        tf_prefix = rospy.search_param('tf_prefix')
-        prefix_val = ''
-        if tf_prefix is not None:           # prefix defined?
-            prefix_val = rospy.get_param(tf_prefix)
-            if prefix_val[0] != '/':          # prefix not absolute?
-                prefix_val = '/' + prefix_val
-        args['frame_id'] = prefix_val + '/' + args['frame_id']
+            args[name] = rospy.get_param(name, val)
+    # resolve frame_id with tf_prefix
+    args['frame_id'] = args['frame_id'].lstrip('/')
+    tf_prefix = rospy.get_param('tf_prefix', '').lstrip('/')
+    if tf_prefix:
+        args['frame_id'] = tf_prefix + '/' + args['frame_id']
     return(args)
 
 
