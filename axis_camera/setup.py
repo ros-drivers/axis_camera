@@ -23,7 +23,9 @@ setup(
     maintainer_email='civerachb@clearpathrobotics.com',
     description='ROS 2 driver for fixed and PTZ Axis cameras',
     license='BSD',
-    tests_require=['pytest'],
+    extras_require={
+        'test': ['pytest'],
+    },
     entry_points={
         'console_scripts': [
             'axis_camera_node = axis_camera.axis_camera_node:main'
