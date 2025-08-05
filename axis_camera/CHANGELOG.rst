@@ -2,6 +2,13 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix code formatting so tests pass
+* `tests_require` -> `extras_require` (`#93 <https://github.com/ros-drivers/axis_camera/issues/93>`_)
+  As proposed by https://github.com/ros-drivers/axis_camera/issues/92
+* Contributors: Chris Iverach-Brereton
+
 2.0.3 (2024-11-01)
 ------------------
 * Add/cmd vel topic (`#90 <https://github.com/ros-drivers/axis_camera/issues/90>`_)
