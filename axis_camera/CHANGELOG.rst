@@ -2,8 +2,8 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.4 (2025-08-05)
+------------------
 * Fix code formatting so tests pass
 * `tests_require` -> `extras_require` (`#93 <https://github.com/ros-drivers/axis_camera/issues/93>`_)
   As proposed by https://github.com/ros-drivers/axis_camera/issues/92
