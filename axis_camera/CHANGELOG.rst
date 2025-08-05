@@ -2,8 +2,8 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.0.2 (2025-08-05)
+------------------
 * tests_require -> extras_require
   Applying fix from Humble to Jazzy branch
 * Contributors: Chris Iverach-Brereton
