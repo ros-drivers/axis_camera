@@ -2,6 +2,12 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* tests_require -> extras_require
+  Applying fix from Humble to Jazzy branch
+* Contributors: Chris Iverach-Brereton
+
 3.0.1 (2024-11-29)
 ------------------
 * Linting fixes
