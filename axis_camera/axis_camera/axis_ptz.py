@@ -398,9 +398,9 @@ class AxisPtz:
         result.success = True
 
         fb = PtzMove.Feedback()
-        fb.ptz_remaining.pan = clamp(goal_handle.request.pan, -self.max_pan_speed, self.max_pan_speed)  # noqa: E501
-        fb.ptz_remaining.tilt = clamp(goal_handle.request.tilt, -self.max_tilt_speed, self.max_tilt_speed)  # noqa: E501
-        fb.ptz_remaining.zoom = clamp(goal_handle.request.zoom, -1.0, 1.0)
+        fb.ptz_remaining.pan = clamp(goal_handle.request.ptz.pan, -self.max_pan_speed, self.max_pan_speed)  # noqa: E501
+        fb.ptz_remaining.tilt = clamp(goal_handle.request.ptz.tilt, -self.max_tilt_speed, self.max_tilt_speed)  # noqa: E501
+        fb.ptz_remaining.zoom = clamp(goal_handle.request.ptz.zoom, -1.0, 1.0)
 
         self.ptz_state.mode = PtzState.MODE_VELOCITY
         if not self.send_velocity_command(cmd_pan, cmd_tilt, cmd_zoom):
