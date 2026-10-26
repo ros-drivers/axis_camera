@@ -2,6 +2,11 @@
 Changelog for package axis_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix restaring driver properly after power cycle
+* Contributors: José Mastrangelo
+
 3.0.2 (2025-08-05)
 ------------------
 * tests_require -> extras_require
