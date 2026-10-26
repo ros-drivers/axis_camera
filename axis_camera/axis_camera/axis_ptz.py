@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from math import degrees as rad2deg
+from math import isnan
 from math import nan as NaN
 from math import radians as deg2rad
 import threading
@@ -184,6 +185,9 @@ class AxisPtz:
             rate.sleep()
 
             (pan, tilt, zoom) = self.current_ptz()
+            if isnan(pan) and isnan(tilt) and isnan(zoom):
+                # Position unavailable; don't publish NaN joint states into the TF tree
+                continue
             joints.header.stamp = self.axis.get_clock().now().to_msg()
             joints.position = [pan, tilt]
 
@@ -203,6 +207,9 @@ class AxisPtz:
                 values from the camera
         """
         d = self.axis.queryCameraPosition()
+        if d is None:
+            # The camera is unreachable (e.g. while it is power-cycling)
+            d = {}
 
         pan = deg2rad(d['pan']) if 'pan' in d else NaN
         tilt = deg2rad(d['tilt']) if 'tilt' in d else NaN
